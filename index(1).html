@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>PCDealHub — PC Hardware Deals in India</title>
+<meta name="description" content="PCDealHub finds, filters and scores PC hardware deals in India.">
+<style>
+:root{--bg:#0b1020;--panel:#121a2e;--text:#eef2ff;--muted:#9aa6c2;--accent:#7c5cff;--accent2:#23d3a4;--border:#26324f}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;background:radial-gradient(circle at 10% 0%,rgba(124,92,255,.2),transparent 30%),radial-gradient(circle at 90% 10%,rgba(35,211,164,.12),transparent 28%),var(--bg);color:var(--text)}a{text-decoration:none;color:inherit}.wrap{width:min(1120px,92%);margin:auto}
+header{padding:22px 0;border-bottom:1px solid rgba(255,255,255,.06)}nav{display:flex;align-items:center;justify-content:space-between}.brand{display:flex;gap:10px;align-items:center;font-weight:800;font-size:1.25rem}.logo{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,var(--accent),#5de6c2);color:#08101a;font-weight:900}.navlinks{display:flex;gap:10px}.navlinks a{padding:9px 13px;color:var(--muted);border-radius:10px}.navlinks a:hover{background:rgba(255,255,255,.05);color:var(--text)}
+.hero{padding:78px 0 40px;text-align:center}.pill{display:inline-flex;padding:7px 12px;border:1px solid var(--border);border-radius:999px;color:#cdd5ec;background:rgba(255,255,255,.03);font-size:.9rem}h1{font-size:clamp(2.5rem,7vw,5.2rem);line-height:.98;margin:22px auto 18px;max-width:850px;letter-spacing:-.055em}.grad{background:linear-gradient(90deg,#fff,var(--accent2),#a89aff);-webkit-background-clip:text;background-clip:text;color:transparent}.hero p{max-width:680px;margin:auto;color:var(--muted);font-size:1.08rem;line-height:1.7}.cta-row{display:flex;justify-content:center;gap:12px;margin-top:28px;flex-wrap:wrap}.btn{display:inline-flex;align-items:center;justify-content:center;padding:12px 18px;border-radius:12px;font-weight:750;border:0;cursor:pointer}.primary{background:linear-gradient(135deg,var(--accent),#5c7cff);box-shadow:0 10px 25px rgba(124,92,255,.25)}.ghost{border:1px solid var(--border);background:rgba(255,255,255,.03)}
+section{padding:40px 0}.section-head{display:flex;align-items:end;justify-content:space-between;gap:15px;margin-bottom:18px}.section-head h2{margin:0;font-size:1.55rem}.section-head p{margin:4px 0 0;color:var(--muted)}
+.categories{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}.cat{padding:16px;border:1px solid var(--border);background:rgba(255,255,255,.025);border-radius:16px;text-align:center;cursor:pointer}.cat.active{border-color:var(--accent);background:rgba(124,92,255,.12)}.cat strong{display:block;margin-top:8px}.icon{font-size:1.5rem}
+.deals{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.card{background:linear-gradient(180deg,rgba(18,26,46,.95),rgba(10,15,30,.95));border:1px solid var(--border);border-radius:20px;padding:18px;box-shadow:0 18px 50px rgba(0,0,0,.25)}.thumb{height:140px;border-radius:14px;display:grid;place-items:center;font-size:3.2rem;background:linear-gradient(135deg,#20294a,#10182b);border:1px solid rgba(255,255,255,.06)}.tagrow{display:flex;justify-content:space-between;align-items:center;margin:14px 0 7px}.tag{font-size:.75rem;color:#dbe2f7;background:rgba(124,92,255,.15);border:1px solid rgba(124,92,255,.35);padding:5px 8px;border-radius:999px}.score{font-weight:850;color:var(--accent2)}.card h3{margin:7px 0;font-size:1.15rem}.price{font-size:1.55rem;font-weight:850}.market{color:var(--muted);font-size:.9rem;margin:3px 0 10px}.verified{color:#78edc6;font-size:.88rem}.card .btn{width:100%;margin-top:14px}
+.notice{padding:16px 18px;border:1px solid var(--border);border-radius:16px;background:rgba(255,255,255,.025);color:var(--muted);line-height:1.6}.empty{display:none;padding:35px;text-align:center;color:var(--muted);border:1px dashed var(--border);border-radius:18px}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}.step{padding:20px;border-radius:18px;border:1px solid var(--border);background:rgba(255,255,255,.02)}.num{display:inline-grid;place-items:center;width:32px;height:32px;border-radius:10px;background:rgba(124,92,255,.17);color:#c7c0ff;font-weight:850}.step h3{margin:14px 0 7px}.step p{margin:0;color:var(--muted);line-height:1.6}
+.submit{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:26px;border-radius:22px;border:1px solid var(--border);background:linear-gradient(135deg,rgba(124,92,255,.13),rgba(35,211,164,.08))}footer{padding:35px 0 50px;color:var(--muted);font-size:.9rem}
+@media(max-width:850px){.categories{grid-template-columns:repeat(3,1fr)}.deals{grid-template-columns:1fr 1fr}.steps{grid-template-columns:1fr}}@media(max-width:580px){.navlinks{display:none}.categories{grid-template-columns:repeat(2,1fr)}.deals{grid-template-columns:1fr}.hero{padding-top:55px}h1{font-size:3rem}.submit{flex-direction:column;align-items:flex-start}}
+</style>
+</head>
+<body>
+<header><div class="wrap"><nav><a class="brand" href="#"><span class="logo">P</span><span>PCDealHub</span></a><div class="navlinks"><a href="#deals">Deals</a><a href="#how">How it works</a><a href="#submit">Submit</a></div></nav></div></header>
+
+<main>
+<section class="hero"><div class="wrap">
+<span class="pill">⚡ PC hardware deals, filtered for you</span>
+<h1>Find the <span class="grad">good deals</span>. Skip the overpriced ones.</h1>
+<p>PCDealHub is building a simple place to discover CPU, GPU, RAM, SSD and PC deals in India — with price checks, seller information and a clear deal score.</p>
+<div class="cta-row"><a class="btn primary" href="#deals">🔥 Browse deals</a><a class="btn ghost" href="#submit">📩 Submit a deal</a></div>
+</div></section>
+
+<section><div class="wrap"><div class="section-head"><div><h2>Shop by category</h2><p>Filter the deal feed instantly.</p></div></div>
+<div class="categories">
+<button class="cat active" data-filter="all"><div class="icon">🔥</div><strong>All</strong></button>
+<button class="cat" data-filter="GPU"><div class="icon">🎮</div><strong>GPUs</strong></button>
+<button class="cat" data-filter="CPU"><div class="icon">🧠</div><strong>CPUs</strong></button>
+<button class="cat" data-filter="RAM"><div class="icon">💾</div><strong>RAM</strong></button>
+<button class="cat" data-filter="SSD"><div class="icon">⚡</div><strong>SSDs</strong></button>
+</div></div></section>
+
+<section id="deals"><div class="wrap">
+<div class="section-head"><div><h2>🔥 Deal feed</h2><p id="feedStatus">Real deals will appear here after verification.</p></div></div>
+<div class="notice">🛡️ <strong>PCDealHub rule:</strong> we don't label a product a deal just because the price looks low. Before publishing, we'll check the seller, price, availability and warranty/return information.</div>
+<br>
+<div class="deals" id="dealGrid"></div>
+<div class="empty" id="empty">No verified deals in this category yet.</div>
+</div></section>
+
+<section id="how"><div class="wrap"><div class="section-head"><div><h2>How PCDealHub works</h2><p>Simple for users, scalable for the business.</p></div></div>
+<div class="steps">
+<div class="step"><span class="num">1</span><h3>We hunt</h3><p>Find PC hardware listings from legitimate retailers and sellers.</p></div>
+<div class="step"><span class="num">2</span><h3>We verify</h3><p>Compare prices and check condition, seller, availability and buyer protections.</p></div>
+<div class="step"><span class="num">3</span><h3>You decide</h3><p>Users click through to the seller. PCDealHub can earn from approved affiliate links and later seller partnerships.</p></div>
+</div></div></section>
+
+<section id="submit"><div class="wrap"><div class="submit"><div><h2 style="margin:0 0 8px">Found a crazy deal?</h2><p style="margin:0;color:var(--muted)">Send us the product link and we'll check it before publishing.</p></div><a class="btn primary" href="mailto:tarotgamerz@gmail.com?subject=PCDealHub%20deal%20submission">📩 Submit a deal</a></div></div></section>
+</main>
+
+<footer><div class="wrap">
+<div>© 2026 PCDealHub</div>
+<div style="margin-top:8px">Affiliate disclosure: PCDealHub may earn a commission from some qualifying purchases through partner links. This does not increase the price you pay.</div>
+</div></footer>
+
+<script>
+const deals = []; // Verified deals will be added here. Do not publish unverified/demo prices.
+const grid=document.getElementById('dealGrid'), empty=document.getElementById('empty'), status=document.getElementById('feedStatus');
+
+function render(filter='all'){
+  grid.innerHTML='';
+  const items=deals.filter(d=>filter==='all'||d.category===filter);
+  empty.style.display=items.length?'none':'block';
+  status.textContent=items.length?`${items.length} verified deal${items.length>1?'s':''} available.`:'Real deals will appear here after verification.';
+  items.forEach(d=>{
+    const card=document.createElement('article');
+    card.className='card';
+    card.innerHTML=`<div class="thumb">${d.icon}</div>
+      <div class="tagrow"><span class="tag">${d.category}</span><span class="score">${d.score}/10</span></div>
+      <h3>${d.name}</h3><div class="price">₹${d.price.toLocaleString('en-IN')}</div>
+      <div class="market">${d.reference}</div><div class="verified">🟢 Verified ${d.verified}</div>
+      <a class="btn primary" href="${d.url}" target="_blank" rel="noopener sponsored">View deal →</a>`;
+    grid.appendChild(card);
+  });
+}
+document.querySelectorAll('.cat').forEach(btn=>btn.addEventListener('click',()=>{
+  document.querySelectorAll('.cat').forEach(b=>b.classList.remove('active'));btn.classList.add('active');render(btn.dataset.filter);
+}));
+render();
+</script>
+</body>
+</html>
