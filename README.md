@@ -9,6 +9,11 @@ PCDealHub is a free-to-use PC hardware deal discovery site focused on India.
 - `deals.schema.json` — expected data structure for verified deals.
 - `.github/ISSUE_TEMPLATE/deal-submission.yml` — structured public deal submissions.
 - `.github/workflows/validate.yml` — free GitHub Actions validation on changes.
+- `.github/workflows/check-links.yml` — scheduled affiliate/public-link health checks.
+- `.github/workflows/sync-deals.yml` — scheduled candidate collection when Cuelinks credentials are configured.
+- `scripts/check_deal_links.py` — validates affiliate URLs and the Amazon Associates tag.
+- `scripts/sync_cuelinks.py` — keeps unverified Cuelinks candidates out of the public feed.
+- `data/affiliate-programs.json` — tracks the monetization/affiliate pipeline.
 - `affiliate-disclosure.html`, `privacy.html`, `terms.html`, `contact.html` — trust and compliance pages.
 
 ## Publishing rule
@@ -31,4 +36,4 @@ Each entry in `deals.json` must satisfy `deals.schema.json`. The GitHub Action a
 
 ## Next automation layer
 
-The next stage is to add trusted retailer/affiliate feeds where permitted, normalize them into this same schema, and keep human verification as the final publication gate.
+The next stage is to connect approved retailer/affiliate feeds where permitted, normalize them into this same schema, and keep human verification as the final publication gate. The repository now has separate infrastructure for candidate discovery and published-link monitoring.
