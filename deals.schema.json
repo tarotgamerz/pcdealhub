@@ -15,21 +15,20 @@
       "score":{"type":"number","minimum":0,"maximum":10},
       "seller":{"type":"string","minLength":2},
       "url":{"type":"string","format":"uri"},
+      "original_url":{"type":"string","format":"uri"},
+      "affiliate_url":{"type":"string","format":"uri"},
+      "affiliate_network":{"type":"string"},
       "checked_at":{"type":"string","format":"date-time"},
+      "offer_expires_at":{"type":"string","format":"date-time"},
       "condition":{"type":"string","minLength":2},
       "stock":{"type":"string"},
       "warranty":{"type":"string"},
       "icon":{"type":"string"},
       "verification":{
-        "type":"object",
-        "additionalProperties":false,
+        "type":"object","additionalProperties":false,
         "required":["price","seller","availability","terms"],
         "properties":{
-          "price":{"type":"boolean"},
-          "seller":{"type":"boolean"},
-          "availability":{"type":"boolean"},
-          "terms":{"type":"boolean"},
-          "reference_price":{"type":"boolean"}
+          "price":{"type":"boolean"},"seller":{"type":"boolean"},"availability":{"type":"boolean"},"terms":{"type":"boolean"},"reference_price":{"type":"boolean"}
         }
       }
     }
