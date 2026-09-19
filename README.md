@@ -1,0 +1,34 @@
+# PCDealHub
+
+PCDealHub is a free-to-use PC hardware deal discovery site focused on India.
+
+## Current architecture
+
+- `index.html` — public website and deal search UI.
+- `deals.json` — the only public deal feed.
+- `deals.schema.json` — expected data structure for verified deals.
+- `.github/ISSUE_TEMPLATE/deal-submission.yml` — structured public deal submissions.
+- `.github/workflows/validate.yml` — free GitHub Actions validation on changes.
+- `affiliate-disclosure.html`, `privacy.html`, `terms.html`, `contact.html` — trust and compliance pages.
+
+## Publishing rule
+
+Do **not** add a listing just because it looks cheap. Before publication, verify the seller, current price, availability, condition, warranty/returns and a reasonable reference price.
+
+The site intentionally renders an empty state while `deals.json` is empty. This prevents fake or stale deal claims.
+
+## Deal object
+
+Each entry in `deals.json` must satisfy `deals.schema.json`. The GitHub Action also checks the essential fields on every push/PR.
+
+## Zero-cost workflow
+
+1. A deal can be submitted through the site's GitHub issue form or by email.
+2. The deal is manually verified.
+3. A verified entry is added to `deals.json`.
+4. GitHub Actions validates the data.
+5. GitHub Pages serves the updated site automatically.
+
+## Next automation layer
+
+The next stage is to add trusted retailer/affiliate feeds where permitted, normalize them into this same schema, and keep human verification as the final publication gate.
