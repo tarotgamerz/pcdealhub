@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="index,follow">
+<meta name="description" content="Use the free PCDealHub build planner to split a gaming PC budget across GPU, CPU, RAM, SSD, PSU and the rest of the build.">
+<link rel="canonical" href="https://tarotgamerz.github.io/pcdealhub/build-planner.html">
+<title>Free PC Build Planner — PCDealHub</title>
+<style>
+:root{--bg:#070b16;--panel:#10182a;--text:#eef2ff;--muted:#9aa8c3;--line:#24324f;--accent:#8c7cff;--green:#38d9aa;--blue:#5d7cff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(900px 500px at 10% 0%,rgba(128,103,255,.16),transparent 60%),var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;line-height:1.65}
+main{width:min(980px,92%);margin:48px auto 80px}.back{display:inline-block;margin-bottom:22px;color:#b7adff;text-decoration:none}
+.box{background:rgba(16,24,42,.94);border:1px solid var(--line);border-radius:22px;padding:30px;box-shadow:0 24px 70px rgba(0,0,0,.28)}
+h1{font-size:clamp(2.2rem,5vw,4rem);letter-spacing:-.05em;line-height:1;margin:0 0 14px}h2{margin-top:30px}.muted{color:var(--muted)}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:24px 0}.field{padding:18px;border:1px solid var(--line);border-radius:17px;background:rgba(255,255,255,.025)}
+label{display:block;font-weight:800;margin-bottom:9px}select,input{width:100%;padding:12px;border:1px solid var(--line);border-radius:11px;background:#0d1424;color:var(--text)}
+input[type=range]{padding:0}.budget{font-size:2rem;font-weight:950;margin-top:8px}
+.results{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:20px}.card{padding:18px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,rgba(17,26,46,.95),rgba(10,15,28,.95))}
+.card strong{display:block;font-size:1.05rem}.amount{font-size:1.55rem;font-weight:900;margin:6px 0}.bar{height:9px;background:#202d49;border-radius:99px;overflow:hidden;margin-top:9px}.fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--green))}
+.tip{margin-top:20px;padding:16px;border:1px solid rgba(56,217,170,.2);border-radius:14px;background:rgba(56,217,170,.05)}
+a.btn{display:inline-block;margin-top:18px;padding:12px 16px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--blue));color:#fff;text-decoration:none;font-weight:800}
+@media(max-width:700px){.controls,.results{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main>
+<a class="back" href="index.html">← Back to PCDealHub</a>
+<div class="box">
+<h1>PC Build Planner</h1>
+<p class="muted">Choose your budget and priority to get a practical starting allocation. This is a planning tool, not a live price quote.</p>
+<div class="controls">
+<div class="field">
+<label for="budget">Total hardware budget</label>
+<input id="budget" type="range" min="25000" max="200000" step="5000" value="60000">
+<div class="budget" id="budgetValue">₹60,000</div>
+</div>
+<div class="field">
+<label for="goal">Main goal</label>
+<select id="goal">
+<option value="gaming">Gaming</option>
+<option value="balanced">Gaming + productivity</option>
+<option value="creator">Creator / editing</option>
+</select>
+</div>
+</div>
+<div id="results" class="results"></div>
+<div class="tip"><strong>How to use this:</strong> Start with the largest performance constraint, then check actual listings in our deal finder. Leave room for the parts the budget must cover (case, PSU, cooling and storage) instead of spending the entire budget on one component.</div>
+<a class="btn" href="guides/budget-pc-build.html">Read the budget-build guide →</a>
+</div>
+</main>
+<script>
+const budget=document.getElementById("budget"), goal=document.getElementById("goal"), value=document.getElementById("budgetValue"), results=document.getElementById("results");
+const money=n=>"₹"+Math.round(n).toLocaleString("en-IN");
+function render(){
+ const b=Number(budget.value), g=goal.value;
+ const base=g==="creator"
+   ? {gpu:.30,cpu:.22,ram:.11,ssd:.08,psu:.07,mobo:.10,case:.06,cool:.06}
+   : g==="balanced"
+   ? {gpu:.40,cpu:.18,ram:.10,ssd:.08,psu:.07,mobo:.09,case:.05,cool:.03}
+   : {gpu:.45,cpu:.17,ram:.09,ssd:.08,psu:.07,mobo:.08,case:.04,cool:.02};
+ const names={gpu:"GPU",cpu:"CPU",ram:"RAM",ssd:"SSD",psu:"PSU",mobo:"Motherboard",case:"Case",cool:"Cooling"};
+ value.textContent=money(b);
+ results.innerHTML=Object.entries(base).map(([k,p])=>'<div class="card"><strong>'+names[k]+'</strong><div class="amount">'+money(b*p)+'</div><div class="muted">'+Math.round(p*100)+'% planning share</div><div class="bar"><div class="fill" style="width:'+(p*100)+'%"></div></div></div>').join("");
+}
+budget.addEventListener("input",render);goal.addEventListener("change",render);render();
+</script>
+</body>
+</html>
