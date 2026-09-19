@@ -1,0 +1,56 @@
+[
+  {
+    "name":"Amazon Associates India",
+    "status":"account_created",
+    "priority":"active",
+    "market":"India",
+    "category":"retailer_affiliate",
+    "notes":"Associate ID: pcdealhub21-21",
+    "source":"https://affiliate-program.amazon.in/"
+  },
+  {
+    "name":"Cuelinks",
+    "status":"pending",
+    "priority":"active",
+    "market":"India",
+    "category":"affiliate_network",
+    "notes":"Keep pending; API supports campaign/offer discovery and tracked URL conversion once credentials and access are available.",
+    "source":"https://developers.cuelinks.com/docs"
+  },
+  {
+    "name":"Mitgo / Admitad",
+    "status":"ad_space_created",
+    "priority":"high",
+    "market":"India",
+    "category":"affiliate_network",
+    "notes":"Use PCDealHub ad space for relevant PC/electronics advertisers and deeplinks.",
+    "source":"https://support.mitgo.com/"
+  },
+  {
+    "name":"Flipkart Affiliate",
+    "status":"to_apply",
+    "priority":"high",
+    "market":"India",
+    "category":"retailer_affiliate",
+    "notes":"Official affiliate APIs/feeds expose product URLs, price and availability/stock fields after access is granted.",
+    "source":"https://affiliate.flipkart.com/api-docs/affiliate_index.html"
+  },
+  {
+    "name":"Optimise Media",
+    "status":"to_apply",
+    "priority":"medium",
+    "market":"India",
+    "category":"affiliate_network",
+    "notes":"Publisher tools include deeplinks and product/offer feeds.",
+    "source":"https://optimisemedia.com/partner-tools/"
+  },
+  {
+    "name":"vCommission",
+    "status":"application_in_progress",
+    "priority":"medium",
+    "market":"India",
+    "category":"affiliate_network",
+    "notes":"PCDealHub application uses Website promotion and the live site URL.",
+    "source":"https://www.vcommission.com/"
+  }
+]
