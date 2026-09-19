@@ -1,0 +1,47 @@
+name: Check deal links
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 3 * * *"
+  push:
+    branches: ["main"]
+    paths:
+      - "deals.json"
+      - "scripts/check_deal_links.py"
+      - ".github/workflows/check-links.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  links:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate affiliate links
+        run: python3 scripts/check_deal_links.py
+
+      - name: Check reachable public deal URLs
+        run: |
+          python3 - <<'PY'
+import json,sys,urllib.request
+from pathlib import Path
+data=json.loads(Path('deals.json').read_text(encoding='utf-8'))
+failures=[]; checked=0
+for deal in data:
+    url=deal.get('affiliate_url') or deal.get('url')
+    if not url: continue
+    checked += 1
+    req=urllib.request.Request(url, method='GET', headers={'User-Agent':'Mozilla/5.0 (compatible; PCDealHub-LinkCheck/1.0)','Range':'bytes=0-1023'})
+    try:
+        with urllib.request.urlopen(req, timeout=20) as r:
+            if r.status >= 400: failures.append(f"{deal.get('id')}: HTTP {r.status} {url}")
+    except Exception as exc:
+        msg=str(exc)
+        if 'HTTP Error 403' in msg or 'HTTP Error 429' in msg: print(f"WARN {deal.get('id')}: retailer blocks automated checks ({msg})")
+        else: failures.append(f"{deal.get('id')}: {msg}")
+print(f'Checked {checked} published link(s).')
+if failures: print('\n'.join(failures)); sys.exit(1)
+PY
