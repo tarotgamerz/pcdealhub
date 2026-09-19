@@ -1,0 +1,53 @@
+name: Deal submission
+description: Submit a PC hardware deal for PCDealHub review
+title: "[DEAL] "
+labels: ["deal-submission"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping us find deals. A submission is **not automatically published**. PCDealHub will verify the listing first.
+  - type: input
+    id: product
+    attributes:
+      label: Product
+      description: Exact product name/model
+      placeholder: AMD Ryzen 5 5600
+    validations:
+      required: true
+  - type: input
+    id: retailer
+    attributes:
+      label: Retailer / seller
+      placeholder: Retailer name
+    validations:
+      required: true
+  - type: input
+    id: price
+    attributes:
+      label: Current price (INR)
+      placeholder: "₹9,999"
+    validations:
+      required: true
+  - type: input
+    id: url
+    attributes:
+      label: Listing URL
+      description: Direct product page URL
+      placeholder: https://...
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Why is it a deal?
+      description: Mention discount, coupon, bank offer, bundle, stock or anything else important.
+    validations:
+      required: true
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Submission check
+      options:
+        - label: I understand PCDealHub will verify the listing before publication.
+          required: true
