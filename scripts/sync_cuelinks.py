@@ -60,8 +60,6 @@ def normalize(raw: dict) -> dict:
         "merchant": str(merchant).strip(),
         "description": str(description).strip(),
         "url": str(url).strip(),
-        "offer": raw,
-        "collected_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "status": "needs_verification"
     }
 
@@ -95,8 +93,19 @@ def main() -> int:
                 break
 
     candidates.sort(key=lambda x: (x["merchant"].lower(), x["title"].lower()))
-    OUT.write_text(json.dumps(candidates[:250], ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    print(f"Wrote {len(candidates[:250])} PC-relevant candidate offers to {OUT}")
+    new_data = candidates[:250]
+    existing_data = []
+    if OUT.exists():
+        try:
+            previous = json.loads(OUT.read_text(encoding="utf-8"))
+            existing_data = previous if isinstance(previous, list) else []
+        except json.JSONDecodeError:
+            existing_data = []
+    if new_data != existing_data:
+        OUT.write_text(json.dumps(new_data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(f"Candidate queue changed: {len(new_data)} PC-relevant offers")
+    else:
+        print("Candidate queue unchanged; no commit required.")
     return 0
 
 if __name__ == "__main__":
