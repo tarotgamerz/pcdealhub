@@ -1,0 +1,75 @@
+name: Validate PCDealHub
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "deals.json"
+      - "deals.schema.json"
+      - "index.html"
+      - ".github/workflows/validate.yml"
+  pull_request:
+    paths:
+      - "deals.json"
+      - "deals.schema.json"
+      - "index.html"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate deals JSON
+        run: python - <<'PY'
+import json, sys
+from urllib.parse import urlparse
+from datetime import datetime
+from pathlib import Path
+
+data=json.loads(Path("deals.json").read_text(encoding="utf-8"))
+schema=json.loads(Path("deals.schema.json").read_text(encoding="utf-8"))
+
+if not isinstance(data,list):
+    raise SystemExit("deals.json must contain an array")
+
+required=["id","name","category","price","reference","score","seller","url","checked_at","condition","verification"]
+cats={"GPU","CPU","RAM","SSD","PC"}
+
+for i,d in enumerate(data,1):
+    missing=[k for k in required if k not in d]
+    if missing:
+        raise SystemExit(f"Deal {i}: missing {missing}")
+    if d["category"] not in cats:
+        raise SystemExit(f"Deal {i}: invalid category")
+    if not isinstance(d["price"],(int,float)) or d["price"]<=0:
+        raise SystemExit(f"Deal {i}: invalid price")
+    if not isinstance(d["reference"],(int,float)) or d["reference"]<=0:
+        raise SystemExit(f"Deal {i}: invalid reference price")
+    if not 0 <= float(d["score"]) <= 10:
+        raise SystemExit(f"Deal {i}: score must be between 0 and 10")
+    p=urlparse(d["url"])
+    if p.scheme not in {"http","https"} or not p.netloc:
+        raise SystemExit(f"Deal {i}: invalid URL")
+    try:
+        datetime.fromisoformat(d["checked_at"].replace("Z","+00:00"))
+    except Exception as exc:
+        raise SystemExit(f"Deal {i}: invalid checked_at") from exc
+    v=d["verification"]
+    for k in ["price","seller","availability","terms"]:
+        if v.get(k) is not True:
+            raise SystemExit(f"Deal {i}: verification.{k} must be true")
+print(f"Validated {len(data)} verified deal(s).")
+PY
+      - name: Basic HTML checks
+        run: |
+          python - <<'PY'
+from pathlib import Path
+html=Path("index.html").read_text(encoding="utf-8")
+for needle in ["deals.json", "affiliate-disclosure.html", "privacy.html", "terms.html", "contact.html"]:
+    if needle not in html:
+        raise SystemExit(f"Missing expected link/reference: {needle}")
+print("Basic HTML checks passed.")
+PY
