@@ -53,13 +53,28 @@ def normalize(raw: dict) -> dict:
                 or campaign.get("name") or "")
     url = raw.get("url") or raw.get("landing_url") or raw.get("product_url") or ""
     description = raw.get("description") or raw.get("details") or ""
+    categories = raw.get("categories") if isinstance(raw.get("categories"), list) else []
+    campaign_id = raw.get("campaign_id") or campaign.get("id")
     return {
         "source": "cuelinks",
         "source_id": str(raw.get("id", "")),
+        "campaign_id": campaign_id,
+        "campaign": str(campaign.get("name", "")).strip(),
         "title": str(title).strip(),
         "merchant": str(merchant).strip(),
+        "categories": categories,
         "description": str(description).strip(),
         "url": str(url).strip(),
+        "tracking_url": str(raw.get("tracking_url") or raw.get("affiliate_url") or "").strip(),
+        "original_price": raw.get("original_price"),
+        "discount_price": raw.get("discount_price"),
+        "percent_off": raw.get("percent_off"),
+        "shipping_charge": raw.get("shipping_charge"),
+        "coupon_code": raw.get("coupon_code"),
+        "offer_type": raw.get("offer_type"),
+        "start_date": raw.get("start_date"),
+        "end_date": raw.get("end_date"),
+        "terms": str(raw.get("terms") or "").strip(),
         "status": "needs_verification"
     }
 
@@ -93,6 +108,7 @@ def main() -> int:
                 break
 
     candidates.sort(key=lambda x: (x["merchant"].lower(), x["title"].lower()))
+    # Keep a bounded review queue while preserving live offer metadata needed for verification.
     new_data = candidates[:250]
     existing_data = []
     if OUT.exists():
