@@ -14,3 +14,5 @@ Publishing rule: deal listings are intended to be verified for current price, se
 
 - https://tarotgamerz.github.io/pcdealhub/guides/rx-580-upgrade-guide-india.html
 - https://tarotgamerz.github.io/pcdealhub/guides/gaming-pc-under-30000-india.html
+- https://tarotgamerz.github.io/pcdealhub/guides/wd-black-sn7100-1tb-india-guide.html
+- https://tarotgamerz.github.io/pcdealhub/guides/ryzen-5-5600-india-guide.html
