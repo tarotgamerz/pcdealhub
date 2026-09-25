@@ -156,6 +156,7 @@ const dealCount=document.getElementById("dealCount"), categoryCount=document.get
 let deals=[], category="All";
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]||c));
 const money=n=>"₹"+Number(n).toLocaleString("en-IN");
+const freshness=t=>{const age=(Date.now()-new Date(t).getTime())/36e5;return age<24?"🟢 Checked within 24h":age<72?"🟡 Checked within 3 days":"🟠 Older check — confirm carefully"};
 const validUrl=u=>{try{const x=new URL(u);return x.protocol==="https:"||x.protocol==="http:"?x.href:"#"}catch{return "#"}};
 
 function render(){
@@ -179,7 +180,7 @@ function render(){
      '<h3>'+esc(d.name)+'</h3><div class="price">'+money(d.price)+'</div>'+
      '<div class="muted">Reference: '+money(d.reference)+'</div><div class="saving">💰 Potential saving: '+money(save)+'</div>'+
      '<div class="meta">Seller: '+esc(d.seller)+' · '+esc(d.condition||"See listing")+'</div>'+
-     '<div class="meta">Checked: '+(checked&&!isNaN(checked)?checked.toLocaleDateString("en-IN"):"—")+'</div>'+
+     '<div class="meta">Checked: '+(checked&&!isNaN(checked)?checked.toLocaleDateString("en-IN"):"—") + (checked&&!isNaN(checked) ? " · "+freshness(d.checked_at) : "")+'</div>'+
      '<a class="btn primary" href="'+esc(url)+'" target="_blank" rel="noopener sponsored nofollow">View verified deal →</a></article>';
  }).join("");
 }
