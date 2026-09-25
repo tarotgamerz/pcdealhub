@@ -144,7 +144,7 @@ footer{padding:38px 0 55px;color:var(--muted);font-size:.84rem;border-top:1px so
 
 <footer><div class="wrap">
 <div class="footerrow"><div>© 2026 PCDealHub · Built for smarter PC shopping in India.</div><div>Affiliate links may earn PCDealHub a commission at no extra cost to you.</div></div>
-<div class="footerlinks"><a href="deals.html">Deals</a> · <a href="feed.xml">RSS</a> · <a href="about.html">About</a> · <a href="faq.html">FAQ</a> · <a href="guides/index.html">Guides</a> · <a href="affiliate-disclosure.html">Affiliate Disclosure</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="verification.html">Verification</a> · <a href="contact.html">Contact</a> · <a href="https://github.com/tarotgamerz/pcdealhub" target="_blank" rel="noopener">GitHub</a></div>
+<div class="footerlinks"><a href="deals.html">Deals</a> · <a href="build-planner.html">Build Planner</a> · <a href="feed.xml">RSS</a> · <a href="about.html">About</a> · <a href="faq.html">FAQ</a> · <a href="guides/index.html">Guides</a> · <a href="affiliate-disclosure.html">Affiliate Disclosure</a> · <a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · <a href="verification.html">Verification</a> · <a href="contact.html">Contact</a> · <a href="https://github.com/tarotgamerz/pcdealhub" target="_blank" rel="noopener">GitHub</a></div>
 </div></footer>
 
 <script>
@@ -164,7 +164,7 @@ function render(){
  dealCount.textContent=deals.length;
  categoryCount.textContent=new Set(deals.map(d=>d.category)).size;
  if(!list.length){
-   grid.innerHTML='<div class="empty"><div class="big">🔎</div><h3>No verified deals published yet</h3><p>The public feed is empty until a listing passes verification. That is intentional — PCDealHub will not invent prices or pretend a listing is live.</p><div><a class="btn primary" href="https://github.com/tarotgamerz/pcdealhub/issues/new?template=deal-submission.yml" target="_blank" rel="noopener">Submit a deal for review →</a></div></div>';
+   grid.innerHTML='<div class="empty"><div class="big">🔎</div><h3>No matching verified deals</h3><p>Try another search or category. PCDealHub only publishes listings that pass its verification checks.</p><div><a class="btn primary" href="https://github.com/tarotgamerz/pcdealhub/issues/new?template=deal-submission.yml" target="_blank" rel="noopener">Submit a deal for review →</a></div></div>';
    return;
  }
  grid.innerHTML=list.map(d=>{
