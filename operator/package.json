@@ -19,7 +19,9 @@
     "react-dom": "19.2.6",
     "@tailwindcss/postcss": "4.3.0",
     "tailwindcss": "4.3.0",
-    "zod": "4.4.3"
+    "zod": "4.4.3",
+    "@github-tools/sdk": "latest",
+    "@vercel/connect": "latest"
   },
   "engines": {
     "node": "24.x"
