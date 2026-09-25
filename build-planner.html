@@ -19,7 +19,7 @@ input[type=range]{padding:0}.budget{font-size:2rem;font-weight:950;margin-top:8p
 .results{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:20px}.card{padding:18px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,rgba(17,26,46,.95),rgba(10,15,28,.95))}
 .card strong{display:block;font-size:1.05rem}.amount{font-size:1.55rem;font-weight:900;margin:6px 0}.bar{height:9px;background:#202d49;border-radius:99px;overflow:hidden;margin-top:9px}.fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--green))}
 .tip{margin-top:20px;padding:16px;border:1px solid rgba(56,217,170,.2);border-radius:14px;background:rgba(56,217,170,.05)}
-a.btn{display:inline-block;margin-top:18px;padding:12px 16px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--blue));color:#fff;text-decoration:none;font-weight:800}
+a.btn,button.btn{display:inline-block;margin-top:18px;padding:12px 16px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--blue));color:#fff;text-decoration:none;font-weight:800}
 @media(max-width:700px){.controls,.results{grid-template-columns:1fr}}
 </style>
 </head>
@@ -45,25 +45,56 @@ a.btn{display:inline-block;margin-top:18px;padding:12px 16px;border-radius:12px;
 </div>
 </div>
 <div id="results" class="results"></div>
+<div class="field" style="margin-top:18px">
+<label>Share this plan</label>
+<p class="muted" id="shareText">Create a shareable link for this budget and goal.</p>
+<button id="shareBtn" class="btn" style="border:0;cursor:pointer">🔗 Share build plan</button>
+</div>
+<h2>Current deals that fit the plan</h2>
+<div id="liveDeals" class="results"></div>
 <div class="tip"><strong>How to use this:</strong> Start with the largest performance constraint, then check actual listings in our deal finder. Leave room for the parts the budget must cover (case, PSU, cooling and storage) instead of spending the entire budget on one component.</div>
 <a class="btn" href="guides/budget-pc-build.html">Read the budget-build guide →</a>
 </div>
 </main>
 <script>
-const budget=document.getElementById("budget"), goal=document.getElementById("goal"), value=document.getElementById("budgetValue"), results=document.getElementById("results");
+const budget=document.getElementById("budget"), goal=document.getElementById("goal"), value=document.getElementById("budgetValue"), results=document.getElementById("results"), liveDeals=document.getElementById("liveDeals"), shareBtn=document.getElementById("shareBtn"), shareText=document.getElementById("shareText");
 const money=n=>"₹"+Math.round(n).toLocaleString("en-IN");
+const params=new URLSearchParams(location.search);
+if(params.has("budget")) budget.value=Math.min(200000,Math.max(25000,Number(params.get("budget"))||60000));
+if(["gaming","balanced","creator"].includes(params.get("goal"))) goal.value=params.get("goal");
+let deals=[];
 function render(){
  const b=Number(budget.value), g=goal.value;
  const base=g==="creator"
    ? {gpu:.30,cpu:.22,ram:.11,ssd:.08,psu:.07,mobo:.10,case:.06,cool:.06}
    : g==="balanced"
-   ? {gpu:.40,cpu:.18,ram:.10,ssd:.08,psu:.07,mobo:.09,case:.05,cool:.03}
+   ? {gpu:.40,cpu:.18,ram:.10,ssd:.08,psu:.07,mobo:.05,case:.05,cool:.03}
    : {gpu:.45,cpu:.17,ram:.09,ssd:.08,psu:.07,mobo:.08,case:.04,cool:.02};
  const names={gpu:"GPU",cpu:"CPU",ram:"RAM",ssd:"SSD",psu:"PSU",mobo:"Motherboard",case:"Case",cool:"Cooling"};
  value.textContent=money(b);
  results.innerHTML=Object.entries(base).map(([k,p])=>'<div class="card"><strong>'+names[k]+'</strong><div class="amount">'+money(b*p)+'</div><div class="muted">'+Math.round(p*100)+'% planning share</div><div class="bar"><div class="fill" style="width:'+(p*100)+'%"></div></div></div>').join("");
+ const url=location.origin+location.pathname+"?budget="+b+"&goal="+encodeURIComponent(g);
+ shareText.textContent="Share link: "+url;
 }
-budget.addEventListener("input",render);goal.addEventListener("change",render);render();
+function renderDeals(){
+ const b=Number(budget.value);
+ const caps={GPU:b*.45,CPU:b*.22,RAM:b*.12,SSD:b*.10,MONITOR:b*.25,PC:b};
+ const matches=deals.filter(d=>Number(d.price)<=Number(caps[d.category]||b));
+ if(!matches.length){liveDeals.innerHTML='<div class="card"><strong>No current feed match</strong><div class="muted">Check the main deals page for every verified listing.</div><a class="btn" href="deals.html">View all deals →</a></div>';return}
+ liveDeals.innerHTML=matches.slice(0,4).map(d=>'<div class="card"><strong>'+String(d.name).replace(/[&<>]/g,"")+'</strong><div class="amount">'+money(d.price)+'</div><div class="muted">'+d.category+' · '+String(d.seller).replace(/[&<>]/g,"")+'</div><a class="btn" href="deals.html#'+encodeURIComponent(d.id)+'">See deal →</a></div>').join("");
+}
+shareBtn.addEventListener("click",async()=>{
+ const url=location.origin+location.pathname+"?budget="+Number(budget.value)+"&goal="+encodeURIComponent(goal.value);
+ try{
+   if(navigator.share) await navigator.share({title:"My PCDealHub build plan",text:"Check my PC build budget plan on PCDealHub",url});
+   else await navigator.clipboard.writeText(url);
+   shareText.textContent="Share link copied: "+url;
+ }catch(e){}
+});
+budget.addEventListener("input",()=>{render();renderDeals()});
+goal.addEventListener("change",()=>{render();renderDeals()});
+fetch("deals.json?v="+Date.now(),{cache:"no-store"}).then(r=>r.json()).then(d=>{deals=Array.isArray(d)?d:[];render();renderDeals()}).catch(()=>{render();renderDeals()});
+render();
 </script>
 </body>
 </html>
