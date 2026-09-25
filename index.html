@@ -157,6 +157,7 @@ footer{padding:38px 0 55px;color:var(--muted);font-size:.84rem;border-top:1px so
 const grid=document.getElementById("dealGrid"), search=document.getElementById("search"), sort=document.getElementById("sort");
 const dealCount=document.getElementById("dealCount"), categoryCount=document.getElementById("categoryCount"), feedStatus=document.getElementById("feedStatus"), updated=document.getElementById("updated");
 let deals=[], category="All";
+const initialQuery=new URLSearchParams(location.search).get("q"); if(initialQuery) search.value=initialQuery;
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]||c));
 const money=n=>"₹"+Number(n).toLocaleString("en-IN");
 const freshness=t=>{const age=(Date.now()-new Date(t).getTime())/36e5;return age<24?"🟢 Checked within 24h":age<72?"🟡 Checked within 3 days":"🟠 Older check — confirm carefully"};
@@ -203,7 +204,7 @@ async function loadDeals(){
  render();
 }
 document.querySelectorAll(".filter").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".filter").forEach(x=>x.classList.remove("active"));b.classList.add("active");category=b.dataset.cat;render()}));
-search.addEventListener("input",render);sort.addEventListener("change",render);loadDeals();
+search.addEventListener("input",()=>{render();const u=new URL(location.href);if(search.value.trim())u.searchParams.set("q",search.value.trim());else u.searchParams.delete("q");history.replaceState({}, "", u)});sort.addEventListener("change",render);loadDeals();
 </script>
 </body>
 </html>
