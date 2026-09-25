@@ -64,5 +64,49 @@
       "reference_price": true
     },
     "icon": "🎮"
+  },
+  {
+    "id": "msi-mag-245f-x24-20260925",
+    "name": "MSI MAG 245F X24 24-inch FHD 240Hz Gaming Monitor",
+    "category": "MONITOR",
+    "price": 9150,
+    "reference": 9350,
+    "score": 9.2,
+    "seller": "Vedant Computers",
+    "url": "https://www.vedantcomputers.com/msi-24inch-mag-245f-x24",
+    "checked_at": "2026-09-25T10:48:00Z",
+    "condition": "New",
+    "stock": "In Stock",
+    "warranty": "Manufacturer warranty",
+    "verification": {
+      "price": true,
+      "seller": true,
+      "availability": true,
+      "terms": true,
+      "reference_price": true
+    },
+    "icon": "🖥️"
+  },
+  {
+    "id": "samsung-odyssey-g3-ls24dg302ewxxl-20260925",
+    "name": "Samsung Odyssey G3 LS24DG302EWXXL 24-inch Gaming Monitor",
+    "category": "MONITOR",
+    "price": 10209,
+    "reference": 10380,
+    "score": 8.9,
+    "seller": "MD Computers",
+    "url": "https://mdcomputers.in/product/samsung-odyssey-g3-24-inch-gaming-monitor-ls24dg302ewxxl",
+    "checked_at": "2026-09-25T10:49:00Z",
+    "condition": "New",
+    "stock": "In Stock",
+    "warranty": "Manufacturer warranty",
+    "verification": {
+      "price": true,
+      "seller": true,
+      "availability": true,
+      "terms": true,
+      "reference_price": true
+    },
+    "icon": "🖥️"
   }
 ]
