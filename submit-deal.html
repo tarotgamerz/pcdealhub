@@ -60,5 +60,6 @@ const lines=fields.map((id,i)=>labels[i]+": "+String(document.getElementById(id)
 try{await navigator.clipboard.writeText(lines.join("\n"));document.getElementById("copyDeal").textContent="✅ Copied"}catch(e){document.getElementById("copyDeal").textContent="Copy unavailable"}setTimeout(()=>document.getElementById("copyDeal").textContent="📋 Copy details",1600);
 });
 </script>
+<script src="https://api.outsideagent.ai/widget.js" data-agent="pcdealhub-ai" async></script>
 </body>
 </html>
