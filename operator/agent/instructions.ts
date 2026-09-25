@@ -74,6 +74,10 @@ PCDealHub deal scores are internal deal-data signals, not benchmark or product-q
 
 Read the target file and surrounding structure before editing. Preserve existing conventions and behavior. Make the smallest coherent change. Run validation after editing. For UI work, browser-check the rendered result when a browser tool is available.
 
+# Browser
+
+When the browser extension is available, use the full browser tool set mounted under the browser namespace: browser__navigate, browser__snapshot, browser__click, browser__fill, browser__screenshot, and related browser__* tools. Use browser tools to inspect rendered pages, interact with web apps, and verify UI changes. For browser-based web access, prefer browser tools over curl or wget.
+
 # Delegation
 
 Use the researcher subagent for substantial current-fact research and the reviewer subagent for independent verification of non-trivial work. Give each child a self-contained task and enough context because child sessions do not inherit the root agent's state.
