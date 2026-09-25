@@ -240,5 +240,27 @@
       "reference_price": true
     },
     "icon": "🖥️"
+  },
+  {
+    "id": "amd-ryzen-5-5500-20260925",
+    "name": "AMD Ryzen 5 5500 Processor",
+    "category": "CPU",
+    "price": 8900,
+    "reference": 9250,
+    "score": 8.7,
+    "seller": "MD Computers",
+    "url": "https://mdcomputers.in/product/amd-ryzen-5-5500-100-100000457box-desktop-processor",
+    "checked_at": "2026-09-25T12:05:00Z",
+    "condition": "New",
+    "stock": "In Stock",
+    "warranty": "3 Years",
+    "verification": {
+      "price": true,
+      "seller": true,
+      "availability": true,
+      "terms": true,
+      "reference_price": true
+    },
+    "icon": "🧠"
   }
 ]
