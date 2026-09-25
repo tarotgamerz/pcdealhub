@@ -174,5 +174,49 @@
       "reference_price": true
     },
     "icon": "🧠"
+  },
+  {
+    "id": "zotac-rtx-3050-6gb-20260925",
+    "name": "ZOTAC Gaming GeForce RTX 3050 Twin Edge OC 6GB GDDR6",
+    "category": "GPU",
+    "price": 18799,
+    "reference": 20500,
+    "score": 9,
+    "seller": "MD Computers",
+    "url": "https://www.mdcomputers.in/product/zotac-rtx3050-twin-edge-oc-graphics-card-zt-a30510h-10l",
+    "checked_at": "2026-09-25T11:10:00Z",
+    "condition": "New",
+    "stock": "In Stock",
+    "warranty": "3 Years",
+    "verification": {
+      "price": true,
+      "seller": true,
+      "availability": true,
+      "terms": true,
+      "reference_price": true
+    },
+    "icon": "🎮"
+  },
+  {
+    "id": "viewsonic-vx2428j-krg-20260925",
+    "name": "ViewSonic VX2428J 24-inch FHD 180Hz Gaming Monitor",
+    "category": "MONITOR",
+    "price": 13499,
+    "reference": 14850,
+    "score": 9,
+    "seller": "KRGkart",
+    "url": "https://krgkart.com/product/viewsonic-vx2428j-24-inch-180hz-fast-ips-full-hd-gaming-monitor-with-ergonomically-designed-stand/",
+    "checked_at": "2026-09-25T11:10:00Z",
+    "condition": "New",
+    "stock": "In Stock",
+    "warranty": "3 Years Warranty",
+    "verification": {
+      "price": true,
+      "seller": true,
+      "availability": true,
+      "terms": true,
+      "reference_price": true
+    },
+    "icon": "🖥️"
   }
 ]
