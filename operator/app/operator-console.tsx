@@ -37,7 +37,7 @@ export function OperatorConsole() {
     window.location.assign("/login");
   }
 
-  const messages = (agent.data?.messages ?? []) as Message[];
+  const messages = (agent.data?.messages ?? []) as readonly Message[];
   const status = agent.status ?? "ready";
   const busy = status === "submitted" || status === "streaming";
 
