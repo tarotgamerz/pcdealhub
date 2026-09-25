@@ -1,7 +1,7 @@
 import githubExtension from "@github-tools/eve-extension";
 
 export default githubExtension({
-  preset: ["maintainer", "ci-ops", "repo-explorer"],
+  preset: "maintainer",
   context: {
     owner: "tarotgamerz",
     repo: "pcdealhub",
