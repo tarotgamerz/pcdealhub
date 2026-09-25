@@ -44,6 +44,10 @@
 <script>
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]||c));
 const money=n=>"₹"+Number(n).toLocaleString("en-IN");
+const comparisonLinks={
+ "wd-blue-sn5100-1tb-md-20260925":{label:"PC Studio",url:"https://www.pcstudio.in/product/wd-blue-sn5100-1tb-nvme-gen4-ssd/"},
+ "lg-24gs65f-b-vedant-20260925":{label:"SimplyShopping",url:"https://www.simplyshopping.in/products/lg-24gs65f-b-ultragear-full-hd-ips-panel-gaming-monitor-24-1920-x-1080"}
+};
 const grid=document.getElementById("grid");
 fetch("deals.json?v="+Date.now(),{cache:"no-store"}).then(r=>r.json()).then(deals=>{
  if(!Array.isArray(deals)||!deals.length)return;
@@ -52,7 +56,7 @@ fetch("deals.json?v="+Date.now(),{cache:"no-store"}).then(r=>r.json()).then(deal
   const anchor=esc(d.id);
   const pageUrl="https://tarotgamerz.github.io/pcdealhub/deals.html#"+anchor;
   const shareText=encodeURIComponent(d.name+" ₹"+Number(d.price).toLocaleString("en-IN")+" — PCDealHub");
-  return '<article class="card" id="'+anchor+'"><div class="thumb">'+esc(d.icon||"🖥️")+'</div><span class="tag">'+esc(d.category)+'</span><h2>'+esc(d.name)+'</h2><div class="price">'+money(d.price)+'</div><div class="muted">Reference: '+money(d.reference)+'</div><div class="saving">Potential saving: '+money(saving)+'</div><div class="muted">Seller: '+esc(d.seller)+' · '+esc(d.condition||"See listing")+'</div><div class="muted">Checked: '+esc(new Date(d.checked_at).toLocaleString("en-IN"))+'</div><a class="btn" href="'+esc(d.url)+'" target="_blank" rel="sponsored nofollow noopener">View retailer listing →</a><div class="share-row"><a class="btn share" href="https://wa.me/?text='+shareText+'%20'+encodeURIComponent(pageUrl)+'" target="_blank" rel="noopener">WhatsApp</a><a class="btn share" href="https://twitter.com/intent/tweet?text='+shareText+'&url='+encodeURIComponent(pageUrl)+'" target="_blank" rel="noopener">Share on X</a></div></article>'
+  return '<article class="card" id="'+anchor+'"><div class="thumb">'+esc(d.icon||"🖥️")+'</div><span class="tag">'+esc(d.category)+'</span><h2>'+esc(d.name)+'</h2><div class="price">'+money(d.price)+'</div><div class="muted">Reference: '+money(d.reference)+'</div><div class="saving">Potential saving: '+money(saving)+'</div><div class="muted">Seller: '+esc(d.seller)+' · '+esc(d.condition||"See listing")+'</div>'+((comparisonLinks[d.id])?'<div class="muted">Comparison: <a href="'+comparisonLinks[d.id].url+'" target="_blank" rel="noopener">'+comparisonLinks[d.id].label+'</a></div>':"")+'<div class="muted">Checked: '+esc(new Date(d.checked_at).toLocaleString("en-IN"))+'</div><a class="btn" href="'+esc(d.url)+'" target="_blank" rel="sponsored nofollow noopener">View retailer listing →</a><div class="share-row"><a class="btn share" href="https://wa.me/?text='+shareText+'%20'+encodeURIComponent(pageUrl)+'" target="_blank" rel="noopener">WhatsApp</a><a class="btn share" href="https://twitter.com/intent/tweet?text='+shareText+'&url='+encodeURIComponent(pageUrl)+'" target="_blank" rel="noopener">Share on X</a></div></article>'
  }).join("");
 }).catch(()=>{});
 </script></body></html>
