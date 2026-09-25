@@ -1,0 +1,7 @@
+node_modules
+.next
+.eve
+.env
+.env.*
+!.env.example
+vercel.json.local
