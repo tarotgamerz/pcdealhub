@@ -13,3 +13,4 @@ Primary pages:
 Publishing rule: deal listings are intended to be verified for current price, seller, availability, condition, warranty/returns and a reasonable reference price before publication. Prices and stock can change after publication.
 
 - https://tarotgamerz.github.io/pcdealhub/guides/rx-580-upgrade-guide-india.html
+- https://tarotgamerz.github.io/pcdealhub/guides/gaming-pc-under-30000-india.html
