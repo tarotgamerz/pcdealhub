@@ -31,7 +31,7 @@
 <div class="field"><label for="reference">Reference price (optional)</label><input id="reference" inputmode="numeric" placeholder="If you compared another store"></div>
 <div class="field full"><label for="notes">Why you think it’s a deal</label><textarea id="notes" placeholder="Mention stock, warranty, coupon, price history, variant, or anything else we should check."></textarea></div>
 </div>
-<div class="actions"><button class="btn primary" type="submit">✉️ Prepare deal email</button><a class="btn" href="index.html#deals">Back to deals</a></div>
+<div class="actions"><button class="btn primary" type="submit">✉️ Prepare deal email</button><button class="btn" id="copyDeal" type="button">📋 Copy details</button><a class="btn" href="deals.html">Back to deals</a></div>
 <small>We verify the listing independently. Submission does not guarantee publication.</small>
 </form>
 </div>
@@ -52,6 +52,12 @@ const body=[
 "Notes: "+esc(document.getElementById("notes").value)
 ].join("\n");
 window.location.href="mailto:tarotgamerz@gmail.com?subject="+encodeURIComponent(subject)+"&body="+encodeURIComponent(body);
+});
+document.getElementById("copyDeal").addEventListener("click",async()=>{
+const fields=["product","category","price","seller","url","condition","reference","notes"];
+const labels=["Product","Category","Price seen","Seller","URL","Condition","Reference price","Notes"];
+const lines=fields.map((id,i)=>labels[i]+": "+String(document.getElementById(id).value||"").trim());
+try{await navigator.clipboard.writeText(lines.join("\n"));document.getElementById("copyDeal").textContent="✅ Copied"}catch(e){document.getElementById("copyDeal").textContent="Copy unavailable"}setTimeout(()=>document.getElementById("copyDeal").textContent="📋 Copy details",1600);
 });
 </script>
 </body>
