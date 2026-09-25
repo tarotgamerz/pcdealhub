@@ -2,7 +2,7 @@
 
 Private autonomous AI workspace for PCDealHub.
 
-The Operator is designed to understand an outcome, research unfamiliar/current information, inspect and edit project files, execute shell commands in an isolated Eve sandbox, use GitHub tools, delegate research/review, retain stable memory, recover from failures, and verify completed work.
+The Operator is designed to understand an outcome, research unfamiliar/current information, inspect and edit project files, execute shell commands in an isolated Eve sandbox, use GitHub tools and browser automation, delegate research/review, retain stable memory, recover from failures, and verify completed work.
 
 ## Private access
 
