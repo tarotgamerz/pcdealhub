@@ -2,11 +2,20 @@ const COOKIE_NAME = "pcdealhub_operator_session";
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
 
 function bytesToBase64Url(bytes: Uint8Array): string {
-  return Buffer.from(bytes).toString("base64url");
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary)
+    .replace(/\\+/g, "-")
+    .replace(/\\//g, "_")
+    .replace(/=+$/g, "");
 }
 
 function base64UrlToBytes(value: string): Uint8Array {
-  return new Uint8Array(Buffer.from(value, "base64url"));
+  const base64 = value.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (value.length % 4)) % 4);
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
 }
 
 async function hmac(message: string, secret: string): Promise<Uint8Array> {
@@ -17,9 +26,7 @@ async function hmac(message: string, secret: string): Promise<Uint8Array> {
     false,
     ["sign"],
   );
-  return new Uint8Array(
-    await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message)),
-  );
+  return new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(message)));
 }
 
 function equalBytes(a: Uint8Array, b: Uint8Array): boolean {
