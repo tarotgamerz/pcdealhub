@@ -172,7 +172,7 @@ function render(){
  }
  grid.innerHTML=list.map(d=>{
    const save=Number(d.reference)-Number(d.price);
-   const url=validUrl(d.url);
+   const url=validUrl(d.affiliate_url||d.url);
    const checked=d.checked_at?new Date(d.checked_at):null;
    return '<article class="card"><div class="thumb">'+esc(d.icon||"🖥️")+'</div>'+
      '<div class="row" style="margin-top:14px"><span class="tag">'+esc(d.category)+'</span><span class="score">'+esc(d.score)+"/10</span></div>"+
