@@ -1,5 +1,5 @@
 ---
-cron: "0 9 * * *"
+cron: "30 3 * * *"
 ---
 
 Run a read-first daily PCDealHub maintenance audit.
