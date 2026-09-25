@@ -12,7 +12,7 @@
     "start:eve": "eve start"
   },
   "dependencies": {
-    "ai": "7.0.58",
+    "ai": "7.0.105",
     "eve": "^0.66.3",
     "@github-tools/sdk": "latest",
     "next": "16.3.0-preview.6",
