@@ -1,1 +1,24 @@
-[]
+[
+  {
+    "id": "wd-blue-sn5100-1tb-md-20260925",
+    "name": "WD Blue SN5100 1TB NVMe Gen4 SSD",
+    "category": "SSD",
+    "price": 16695,
+    "reference": 16990,
+    "score": 8.4,
+    "seller": "MD Computers",
+    "url": "https://mdcomputers.in/product/wd-blue-sn5100-1tb-nvme-ssd-wds100t5b0e",
+    "checked_at": "2026-09-25T10:09:00Z",
+    "condition": "New",
+    "stock": "In Stock",
+    "warranty": "5 Years",
+    "verification": {
+      "price": true,
+      "seller": true,
+      "availability": true,
+      "terms": true,
+      "reference_price": true
+    },
+    "icon": "💾"
+  }
+]
