@@ -1,0 +1,8 @@
+# PCDealHub
+PCDealHub is an India-focused PC hardware deal and buying-guide website.
+Primary pages:
+- https://tarotgamerz.github.io/pcdealhub/
+- https://tarotgamerz.github.io/pcdealhub/deals.html
+- https://tarotgamerz.github.io/pcdealhub/guides/index.html
+- https://tarotgamerz.github.io/pcdealhub/build-planner.html
+Publishing rule: deal listings are intended to be verified for current price, seller, availability, condition, warranty/returns and a reasonable reference price before publication. Prices and stock can change after publication.
