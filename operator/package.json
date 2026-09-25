@@ -21,7 +21,8 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "ai": "^7.0.113",
-    "zod": "^4.4.3"
+    "zod": "^4.4.3",
+    "@agent-browser/eve": "^0.38.1"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
