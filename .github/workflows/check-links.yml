@@ -18,10 +18,16 @@ jobs:
   links:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Fetch repository files
+        run: |
+          set -euo pipefail
+          base="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_SHA}"
+          curl -fsSL "$base/deals.json" -o deals.json
+          curl -fsSL "$base/scripts/check_deal_links.py" -o check_deal_links.py
+          chmod +x check_deal_links.py
 
       - name: Validate affiliate links
-        run: python3 scripts/check_deal_links.py
+        run: python3 check_deal_links.py
 
       - name: Check reachable public deal URLs
         run: |
@@ -37,11 +43,16 @@ for deal in data:
     req=urllib.request.Request(url, method='GET', headers={'User-Agent':'Mozilla/5.0 (compatible; PCDealHub-LinkCheck/1.0)','Range':'bytes=0-1023'})
     try:
         with urllib.request.urlopen(req, timeout=20) as r:
-            if r.status >= 400: failures.append(f"{deal.get('id')}: HTTP {r.status} {url}")
+            if r.status >= 400:
+                failures.append(f"{deal.get('id')}: HTTP {r.status} {url}")
     except Exception as exc:
         msg=str(exc)
-        if 'HTTP Error 403' in msg or 'HTTP Error 429' in msg: print(f"WARN {deal.get('id')}: retailer blocks automated checks ({msg})")
-        else: failures.append(f"{deal.get('id')}: {msg}")
+        if 'HTTP Error 403' in msg or 'HTTP Error 429' in msg:
+            print(f"WARN {deal.get('id')}: retailer blocks automated checks ({msg})")
+        else:
+            failures.append(f"{deal.get('id')}: {msg}")
 print(f'Checked {checked} published link(s).')
-if failures: print('\n'.join(failures)); sys.exit(1)
+if failures:
+    print('\n'.join(failures))
+    sys.exit(1)
 PY
