@@ -15,15 +15,15 @@
     "eve:build": "eve build --skip-sandbox-prewarm"
   },
   "dependencies": {
-    "@github-tools/eve-extension": "0.7.0",
-    "eve": "0.57.0",
-    "next": "16.2.6",
-    "react": "19.2.6",
-    "react-dom": "19.2.6",
-    "ai": "7.0.102",
+    "@github-tools/eve-extension": "0.7.2",
+    "eve": "0.66.3",
+    "next": "16.3.5",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "ai": "7.0.113",
     "zod": "4.4.3",
     "@agent-browser/eve": "0.38.1",
-    "@vercel/connect": "0.2.2"
+    "@vercel/connect": "2.0.1"
   },
   "devDependencies": {
     "@types/node": "24.x",
