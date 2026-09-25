@@ -26,6 +26,14 @@ The site intentionally renders an empty state while `deals.json` is empty. This 
 
 Each entry in `deals.json` must satisfy `deals.schema.json`. The GitHub Action also checks the essential fields on every push/PR.
 
+## Traffic and discovery
+
+- `deals.html` — dedicated verified PC deals landing page.
+- `ssd-deals-under-20000.html` and `gaming-monitor-deals-under-15000.html` — budget-specific search entry pages.
+- `feed.xml` — RSS feed for published deals.
+- `robots.txt` + `sitemap.xml` — crawler discovery infrastructure.
+- Search Console ownership and sitemap submission are still account-owner steps outside this repository.
+
 ## Zero-cost workflow
 
 1. A deal can be submitted through the site's GitHub issue form or by email.
