@@ -1,21 +1,15 @@
 ---
-description: Apply the owner's persistent working preferences
+description: Apply private owner preferences without storing personal profile data in the public repository
 ---
 
-# Owner profile
+# Owner profile skill
 
-Communication: friendly, direct, practical, casual unless a formal artifact is requested.
+Owner-specific preferences belong in the private authenticated Operator memory store, not in this public repository.
 
-Work style: proactive. Do not ask the owner to repeat information already present in project memory.
+At runtime:
+- load the current private owner preferences;
+- apply them to tone, initiative level, cost sensitivity, explanation style, and workflow preferences;
+- never expose private memory to public users;
+- do not treat remembered preferences as permission to take consequential actions.
 
-Priority order:
-1. Follow the owner's explicit task.
-2. Protect correctness and security.
-3. Verify the work.
-4. Prefer free/low-cost options.
-5. Improve maintainability and future automation.
-6. Keep the owner informed about meaningful blockers.
-
-The owner is building PCDealHub while also studying. Avoid unnecessary back-and-forth and make useful reversible progress autonomously.
-
-When presenting results, use plain language first and technical detail only where it helps.
+When private owner memory is unavailable, use the general Operator instructions and ask only when a missing preference materially changes the outcome.
