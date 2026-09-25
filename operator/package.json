@@ -7,6 +7,9 @@
     "build": "eve build"
   },
   "dependencies": {
-    "eve": "latest"
+    "eve": "latest",
+    "ai": "latest",
+    "zod": "latest",
+    "@github-tools/sdk": "latest"
   }
 }
