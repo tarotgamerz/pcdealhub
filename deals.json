@@ -27,7 +27,7 @@
     "category": "MONITOR",
     "price": 11390,
     "reference": 13990,
-    "score": 9.0,
+    "score": 9,
     "seller": "Vedant Computers",
     "url": "https://www.vedantcomputers.com/lg-24inch-24gs65f-b",
     "checked_at": "2026-09-25T10:27:00Z",
@@ -42,5 +42,27 @@
       "reference_price": true
     },
     "icon": "🖥️"
+  },
+  {
+    "id": "gigabyte-rx7600-gaming-oc-8gb-md-20260925",
+    "name": "Gigabyte Radeon RX 7600 Gaming OC 8GB GDDR6",
+    "category": "GPU",
+    "price": 34803,
+    "reference": 36990,
+    "score": 8.8,
+    "seller": "MD Computers",
+    "url": "https://mdcomputers.in/product/gigabyte-gaming-graphics-card-gv-r76gaming-oc-8gd",
+    "checked_at": "2026-09-25T10:42:00Z",
+    "condition": "New",
+    "stock": "In Stock",
+    "warranty": "3 Years",
+    "verification": {
+      "price": true,
+      "seller": true,
+      "availability": true,
+      "terms": true,
+      "reference_price": true
+    },
+    "icon": "🎮"
   }
 ]
