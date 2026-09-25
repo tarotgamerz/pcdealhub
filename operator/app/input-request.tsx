@@ -1,12 +1,14 @@
 "use client";
 
+import { useState, type FormEvent } from "react";
+
 type InputOption = {
   id: string;
   label: string;
   style?: string;
 };
 
-type InputRequest = {
+export type InputRequest = {
   requestId: string;
   prompt?: string;
   display?: string;
@@ -14,7 +16,7 @@ type InputRequest = {
   options?: InputOption[];
 };
 
-function getInputRequest(part: unknown): InputRequest | null {
+export function getInputRequest(part: unknown): InputRequest | null {
   if (!part || typeof part !== "object") return null;
   const toolMetadata = (part as Record<string, unknown>).toolMetadata;
   if (!toolMetadata || typeof toolMetadata !== "object") return null;
@@ -31,7 +33,11 @@ function getInputRequest(part: unknown): InputRequest | null {
         if (!option || typeof option !== "object") return [];
         const item = option as Record<string, unknown>;
         if (typeof item.id !== "string" || typeof item.label !== "string") return [];
-        return [{ id: item.id, label: item.label, style: typeof item.style === "string" ? item.style : undefined }];
+        return [{
+          id: item.id,
+          label: item.label,
+          style: typeof item.style === "string" ? item.style : undefined,
+        }];
       })
     : [];
 
@@ -56,14 +62,14 @@ export default function InputRequest({
   const request = getInputRequest(part);
   if (!request) return null;
 
-  const [text, setText] = React.useState("");
+  const [text, setText] = useState("");
 
   async function choose(optionId: string) {
     if (!canRespond) return;
     await respond([{ optionId, requestId: request.requestId }]);
   }
 
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const value = text.trim();
     if (!canRespond || !value) return;
@@ -82,13 +88,7 @@ export default function InputRequest({
       {request.options.length > 0 ? (
         <div className="input-request-options">
           {request.options.map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              disabled={!canRespond}
-              className={option.style === "danger" ? "danger" : ""}
-              onClick={() => void choose(option.id)}
-            >
+            <button key={option.id} type="button" disabled={!canRespond} className={option.style === "danger" ? "danger" : ""} onClick={() => void choose(option.id)}>
               {option.label}
             </button>
           ))}
@@ -96,15 +96,8 @@ export default function InputRequest({
       ) : null}
       {showFreeform ? (
         <form onSubmit={submit} className="input-request-form">
-          <input
-            value={text}
-            onChange={(event) => setText(event.currentTarget.value)}
-            disabled={!canRespond}
-            placeholder="Response"
-          />
-          <button type="submit" disabled={!canRespond || text.trim().length === 0}>
-            Send
-          </button>
+          <input value={text} onChange={(event) => setText(event.currentTarget.value)} disabled={!canRespond} placeholder="Response" />
+          <button type="submit" disabled={!canRespond || text.trim().length === 0}>Send</button>
         </form>
       ) : null}
     </div>
