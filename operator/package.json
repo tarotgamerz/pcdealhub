@@ -22,12 +22,13 @@
     "react-dom": "^19.3.0",
     "ai": "^7.0.113",
     "zod": "^4.4.3",
-    "@agent-browser/eve": "^0.38.1"
+    "@agent-browser/eve": "^0.38.1",
+    "@vercel/connect": "2.0.1"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
-    "typescript": "^5.9.0"
+    "typescript": "^6.0.3"
   }
 }
