@@ -207,5 +207,5 @@ async function loadDeals(){
 document.querySelectorAll(".filter").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".filter").forEach(x=>x.classList.remove("active"));b.classList.add("active");category=b.dataset.cat;render()}));
 search.addEventListener("input",()=>{render();const u=new URL(location.href);if(search.value.trim())u.searchParams.set("q",search.value.trim());else u.searchParams.delete("q");history.replaceState({}, "", u)});sort.addEventListener("change",render);loadDeals();
 </script>
-</body>
-</html>
+<script src="https://api.outsideagent.ai/widget.js" data-agent="pcdealhub-ai" async></script>
+</body></html>

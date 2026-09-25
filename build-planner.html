@@ -96,5 +96,5 @@ goal.addEventListener("change",()=>{render();renderDeals()});
 fetch("deals.json?v="+Date.now(),{cache:"no-store"}).then(r=>r.json()).then(d=>{deals=Array.isArray(d)?d:[];render();renderDeals()}).catch(()=>{render();renderDeals()});
 render();
 </script>
-</body>
-</html>
+<script src="https://api.outsideagent.ai/widget.js" data-agent="pcdealhub-ai" async></script>
+</body></html>

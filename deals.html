@@ -128,4 +128,6 @@ fetch("deals.json?v="+Date.now(),{cache:"no-store"}).then(r=>r.json()).then(deal
   return '<article class="card" id="'+anchor+'"><div class="thumb">'+esc(d.icon||"🖥️")+'</div><span class="tag">'+esc(d.category)+'</span><h2>'+esc(d.name)+'</h2><div class="price">'+money(d.price)+'</div><div class="muted">Reference: '+money(d.reference)+'</div><div class="saving">Potential saving: '+money(saving)+'</div><div class="muted">Seller: '+esc(d.seller)+' · '+esc(d.condition||"See listing")+'</div>'+((comparisonLinks[d.id])?'<div class="muted">Comparison: <a href="'+comparisonLinks[d.id].url+'" target="_blank" rel="noopener">'+comparisonLinks[d.id].label+'</a></div>':"")+'<div class="muted">Checked: '+esc(new Date(d.checked_at).toLocaleString("en-IN"))+" · "+freshness(d.checked_at)+'</div><a class="btn" href="'+esc(d.affiliate_url||d.url)+'" target="_blank" rel="sponsored nofollow noopener">View retailer listing →</a><button class="save-btn" data-save="'+anchor+'">'+(saved.has(d.id)?"★ Saved":"☆ Save deal")+'</button><div class="share-row"><a class="btn share" href="https://wa.me/?text='+shareText+'%20'+encodeURIComponent(pageUrl)+'" target="_blank" rel="noopener">WhatsApp</a><a class="btn share" href="https://twitter.com/intent/tweet?text='+shareText+'&url='+encodeURIComponent(pageUrl)+'" target="_blank" rel="noopener">Share on X</a></div></article>'
  }).join("");
 }).catch(()=>{});
-</script></body></html>
+</script>
+<script src="https://api.outsideagent.ai/widget.js" data-agent="pcdealhub-ai" async></script>
+</body></html>
