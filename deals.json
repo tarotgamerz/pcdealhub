@@ -108,5 +108,27 @@
       "reference_price": true
     },
     "icon": "🖥️"
+  },
+  {
+    "id": "wd-black-sn7100-1tb-vedant-20260925",
+    "name": "WD Black SN7100 1TB NVMe Gen4 SSD",
+    "category": "SSD",
+    "price": 17690,
+    "reference": 18565,
+    "score": 9,
+    "seller": "Vedant Computers",
+    "url": "https://www.vedantcomputers.com/wd-black-sn7100-1tb-wds100t4x0e",
+    "checked_at": "2026-09-25T10:52:00Z",
+    "condition": "New",
+    "stock": "In Stock",
+    "warranty": "5 Years Limited Warranty",
+    "verification": {
+      "price": true,
+      "seller": true,
+      "availability": true,
+      "terms": true,
+      "reference_price": true
+    },
+    "icon": "💾"
   }
 ]
