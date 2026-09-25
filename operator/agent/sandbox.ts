@@ -1,5 +1,4 @@
-import { defineSandbox, defaultBackend } from "eve/sandbox";
+import { DefaultSandbox, defineSandbox } from "eve/sandbox";
 
-export default defineSandbox({
-  backend: defaultBackend(),
-});
+export const environment = DefaultSandbox.environment();
+export default defineSandbox(() => environment.open());
