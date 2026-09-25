@@ -9,7 +9,7 @@
     "properties":{
       "id":{"type":"string","minLength":3},
       "name":{"type":"string","minLength":3},
-      "category":{"enum":["GPU","CPU","RAM","SSD","PC"]},
+      "category":{"enum":["GPU","CPU","RAM","SSD","PC","MONITOR"]},
       "price":{"type":"number","exclusiveMinimum":0},
       "reference":{"type":"number","exclusiveMinimum":0},
       "score":{"type":"number","minimum":0,"maximum":10},
