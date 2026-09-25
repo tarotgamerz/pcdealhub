@@ -16,8 +16,7 @@ function textOf(message: Message) {
   return (message.parts ?? [])
     .filter((part) => part.type === "text")
     .map((part) => part.text ?? "")
-    .join("
-");
+    .join("\n");
 }
 
 export function OperatorConsole() {
