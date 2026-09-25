@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="index,follow">
+<meta name="description" content="Verified PC deals in India for GPUs, CPUs, RAM, SSDs and gaming monitors. PCDealHub checks current price, seller, availability and buying terms before publishing.">
+<link rel="canonical" href="https://tarotgamerz.github.io/pcdealhub/deals.html">
+<meta property="og:type" content="website">
+<meta property="og:title" content="PC Deals India — Verified GPU, CPU, SSD & More | PCDealHub">
+<meta property="og:description" content="Browse PC hardware deals checked for price, seller, availability and terms.">
+<meta property="og:url" content="https://tarotgamerz.github.io/pcdealhub/deals.html">
+<title>PC Deals India — Verified GPU, CPU, SSD & More | PCDealHub</title>
+<style>
+:root{--bg:#070b16;--panel:#10182a;--text:#eef2ff;--muted:#9aa8c3;--line:#24324f;--purple:#8067ff;--blue:#5d7cff;--green:#38d9aa;--shadow:0 24px 70px rgba(0,0,0,.28)}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(900px 500px at 10% 0%,rgba(128,103,255,.15),transparent 60%),var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Arial,sans-serif}.wrap{width:min(1100px,92%);margin:auto}header{border-bottom:1px solid rgba(255,255,255,.06);padding:18px 0}header a{color:var(--muted);text-decoration:none}.hero{padding:55px 0 25px}.hero h1{font-size:clamp(2.4rem,6vw,4.7rem);line-height:1;letter-spacing:-.055em;margin:0 0 14px}.hero p{max-width:720px;color:var(--muted);line-height:1.8}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:24px 0 70px}.card{padding:19px;border:1px solid var(--line);border-radius:20px;background:linear-gradient(180deg,rgba(17,26,46,.95),rgba(10,15,28,.95));box-shadow:var(--shadow)}.thumb{height:120px;border-radius:14px;display:grid;place-items:center;font-size:3rem;background:linear-gradient(135deg,#1b2743,#0d1528);margin-bottom:15px}.tag{display:inline-block;font-size:.75rem;color:#dfe5f7;background:rgba(128,103,255,.13);border:1px solid rgba(128,103,255,.35);padding:5px 8px;border-radius:999px}.price{font-size:1.5rem;font-weight:900;margin-top:8px}.muted{color:var(--muted);font-size:.86rem}.saving{color:#79e9c8;font-size:.84rem;margin-top:7px}.btn{display:inline-flex;align-items:center;justify-content:center;width:100%;margin-top:14px;padding:12px 15px;border-radius:11px;font-weight:800;color:#fff;text-decoration:none;background:linear-gradient(135deg,var(--purple),var(--blue))}.note{padding:18px;border:1px solid var(--line);border-radius:16px;color:#c9d2e7;background:rgba(255,255,255,.02);line-height:1.7}@media(max-width:850px){.grid{grid-template-columns:1fr 1fr}}@media(max-width:600px){.grid{grid-template-columns:1fr}}
+</style>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"CollectionPage","name":"PC Deals India","url":"https://tarotgamerz.github.io/pcdealhub/deals.html","description":"Verified PC hardware deals in India."}</script>
+</head>
+<body><header><div class="wrap"><a href="index.html">← PCDealHub</a></div></header>
+<main class="wrap"><section class="hero"><h1>Verified PC Deals in India</h1><p>Current listings for PC hardware, checked against the product page and a reasonable comparison point. Prices and stock can change, so always confirm the retailer page before checkout.</p></section>
+<div id="grid" class="grid"></div>
+<div class="note"><strong>How we publish:</strong> we check the exact product, current price, seller, availability and relevant purchase terms before a listing is added. Affiliate links may earn PCDealHub a commission at no extra cost. <a href="verification.html">Read the verification standard →</a></div>
+</main>
+<script>
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]||c));
+const money=n=>"₹"+Number(n).toLocaleString("en-IN");
+fetch("deals.json?v="+Date.now(),{cache:"no-store"}).then(r=>r.json()).then(deals=>{
+ if(!Array.isArray(deals)||!deals.length){document.getElementById("grid").innerHTML='<div class="note" style="grid-column:1/-1">No verified deals are currently published. Check back after the next verification cycle.</div>';return}
+ document.getElementById("grid").innerHTML=deals.map(d=>{
+  const saving=Number(d.reference)-Number(d.price);
+  return '<article class="card"><div class="thumb">'+esc(d.icon||"🖥️")+'</div><span class="tag">'+esc(d.category)+'</span><h2>'+esc(d.name)+'</h2><div class="price">'+money(d.price)+'</div><div class="muted">Reference: '+money(d.reference)+'</div><div class="saving">Potential saving: '+money(saving)+'</div><div class="muted">Seller: '+esc(d.seller)+' · '+esc(d.condition||"See listing")+'</div><div class="muted">Checked: '+esc(new Date(d.checked_at).toLocaleString("en-IN"))+'</div><a class="btn" href="'+esc(d.url)+'" target="_blank" rel="sponsored nofollow noopener">View retailer listing →</a></article>'
+ }).join("");
+}).catch(()=>{document.getElementById("grid").innerHTML='<div class="note" style="grid-column:1/-1">The deal feed could not be loaded right now.</div>'});
+</script></body></html>
