@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useEveAgent } from "eve/react";
+import { useEveAgent } from "eve/react";\nimport InputRequest, { getInputRequest } from "./input-request";
 
 const QUICK_TASKS = [
   "Audit PCDealHub for broken links, stale deal data, and deployment problems. Fix safe issues and report anything requiring approval.",
