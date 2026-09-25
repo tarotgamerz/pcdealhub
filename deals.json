@@ -218,5 +218,27 @@
       "reference_price": true
     },
     "icon": "🖥️"
+  },
+  {
+    "id": "lg-24gs60f-b-md-20260925",
+    "name": "LG UltraGear 24GS60F-B 24-inch FHD IPS 180Hz Gaming Monitor",
+    "category": "MONITOR",
+    "price": 10300,
+    "reference": 10999,
+    "score": 8.8,
+    "seller": "MD Computers",
+    "url": "https://www.mdcomputers.in/product/lg-ultragear-24-inch-monitor-24gs60f-bb",
+    "checked_at": "2026-09-25T12:02:00Z",
+    "condition": "New",
+    "stock": "In Stock",
+    "warranty": "3 Years",
+    "verification": {
+      "price": true,
+      "seller": true,
+      "availability": true,
+      "terms": true,
+      "reference_price": true
+    },
+    "icon": "🖥️"
   }
 ]
