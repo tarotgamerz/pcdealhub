@@ -1,1 +1,3 @@
-export { default } from "eve/tools/sleep";
+import { sleep } from "eve/tools/sleep";
+
+export default sleep;
