@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { makeOperatorSession, operatorCookie, operatorMaxAge } from "../../../lib/private-auth";
+import { makeOperatorSession, operatorCookie, operatorMaxAge } from "../../../lib/private-auth.js";
 
 export async function POST(request: Request) {
   const configured = process.env.OPERATOR_PASSWORD;
