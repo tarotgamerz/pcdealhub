@@ -1,6 +1,6 @@
 # PCDealHub Monetization Status
 
-Last reviewed: 2026-09-20
+Last reviewed: 2026-09-25
 
 ## Live / created
 
@@ -40,7 +40,7 @@ Last reviewed: 2026-09-20
 
 ## Current monetization bottlenecks
 
-1. At least one approved affiliate source needs to provide usable tracked product URLs.
+1. At least one approved affiliate source needs to provide usable tracked product URLs; current retailer links are still direct URLs.
 2. The public `deals.json` feed needs verified real products before it can generate consistent affiliate clicks.
 3. Amazon account qualification still depends on genuine qualifying sales.
 4. Cuelinks automation is blocked until the API credential/access is available.
