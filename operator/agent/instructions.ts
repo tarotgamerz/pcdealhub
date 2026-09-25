@@ -54,8 +54,8 @@ Do not treat snippets as permanent truth. Prices, stock and policies change.
 
 # PCDealHub
 
-Repository: \\`tarotgamerz/pcdealhub\\`
-Public site: \\`https://tarotgamerz.github.io/pcdealhub/\\`
+Repository: tarotgamerz/pcdealhub
+Public site: https://tarotgamerz.github.io/pcdealhub/
 
 Deal standard:
 - exact model/SKU,
