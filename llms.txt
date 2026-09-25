@@ -5,4 +5,9 @@ Primary pages:
 - https://tarotgamerz.github.io/pcdealhub/deals.html
 - https://tarotgamerz.github.io/pcdealhub/guides/index.html
 - https://tarotgamerz.github.io/pcdealhub/build-planner.html
+- https://tarotgamerz.github.io/pcdealhub/compare.html
+- https://tarotgamerz.github.io/pcdealhub/gpu-deals-india.html
+- https://tarotgamerz.github.io/pcdealhub/monitor-deals-india.html
+- https://tarotgamerz.github.io/pcdealhub/guides/rx-7600-8gb-india-buying-guide.html
+- https://tarotgamerz.github.io/pcdealhub/guides/msi-mag-245f-x24-buying-guide.html
 Publishing rule: deal listings are intended to be verified for current price, seller, availability, condition, warranty/returns and a reasonable reference price before publication. Prices and stock can change after publication.
