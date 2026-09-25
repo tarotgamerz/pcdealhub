@@ -3,13 +3,32 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "eve dev",
-    "build": "eve build"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build:eve": "eve build",
+    "dev:eve": "eve dev",
+    "start:eve": "eve start"
   },
   "dependencies": {
-    "eve": "latest",
-    "ai": "latest",
-    "zod": "latest",
-    "@github-tools/sdk": "latest"
+    "ai": "7.0.58",
+    "eve": "^0.41.0",
+    "@github-tools/sdk": "latest",
+    "next": "16.3.0-preview.6",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "@tailwindcss/postcss": "4.3.0",
+    "tailwindcss": "4.3.0",
+    "zod": "4.4.3"
+  },
+  "engines": {
+    "node": "24.x"
+  },
+  "devDependencies": {
+    "@types/node": "24.x",
+    "@types/react": "19.2.15",
+    "@types/react-dom": "19.2.3",
+    "typescript": "6.0.3"
   }
 }
