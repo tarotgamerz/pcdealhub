@@ -1,0 +1,16 @@
+name: Runner Test
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/runner-test.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "PCDealHub runner test"
