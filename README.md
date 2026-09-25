@@ -1,6 +1,6 @@
 # PCDealHub
 
-**Live site:** https://tarotgamerz.github.io/pcdealhub/
+**Public site address:** https://tarotgamerz.github.io/pcdealhub/
 
 
 PCDealHub is a free-to-use PC hardware deal discovery site focused on India.
@@ -35,7 +35,7 @@ Each entry in `deals.json` must satisfy `deals.schema.json`. The GitHub Action a
 - `ssd-deals-under-20000.html` and `gaming-monitor-deals-under-15000.html` — budget-specific search entry pages.
 - `feed.xml` — RSS feed for published deals.
 - `robots.txt` + `sitemap.xml` — crawler discovery infrastructure.
-- Search Console ownership and sitemap submission are still account-owner steps outside this repository.
+- Search Console ownership and sitemap submission are still account-owner steps outside this repository. Google recommends submitting the sitemap for many new/updated pages; URL Inspection can also test a live URL and request indexing.
 
 ## Zero-cost workflow
 
