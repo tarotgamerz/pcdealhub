@@ -1,0 +1,12 @@
+{
+  "name": "pcdealhub-operator",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "eve dev",
+    "build": "eve build"
+  },
+  "dependencies": {
+    "eve": "latest"
+  }
+}
