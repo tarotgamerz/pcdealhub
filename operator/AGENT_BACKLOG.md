@@ -5,37 +5,41 @@
 - [x] Owner preference memory
 - [x] PCDealHub project memory
 - [x] Research-first skill
+- [x] General autonomous task skill
 - [x] Verification skill
 - [x] Isolated sandbox definition
 - [x] Maintenance schedule definition
-- [x] GitHub maintainer tool preset with approval enabled
+- [x] GitHub maintainer connection/tool strategy
 - [x] Recover repository CI validation
 
 ## Phase 2 — private runtime
-- [ ] Connect the private authenticated control panel to the eve agent session API
+- [ ] Connect private authenticated control panel to the eve agent session API in production
 - [ ] Bind authenticated owner identity to each session
-- [ ] Connect GitHub through Vercel Connect instead of long-lived personal tokens
+- [ ] Install a GitHub connection using Vercel Connect or another short-lived OAuth mechanism
 - [ ] Add browser access for UI inspection and interaction
-- [ ] Add live web research/search tool
-- [ ] Add durable memory service with source/date/conflict handling
+- [x] Add live web research
+- [x] Add durable memory definitions
 - [ ] Add task/event audit stream
-- [ ] Add approval inbox and resume flow
-- [ ] Add kill switch that blocks new autonomous runs
+- [ ] Add persistent approval inbox and resume flow
+- [ ] Add server-side kill switch
 
 ## Phase 3 — autonomous software factory
-- [ ] Add specialist subagents: researcher, coder, reviewer, SEO/content, deal verifier
-- [ ] Add automatic test-and-repair loop
+- [x] Specialist subagents: researcher, implementer, reviewer
+- [ ] Add automatic test-and-repair workflow
 - [ ] Add preview/deployment inspection
-- [ ] Add scheduled PCDealHub maintenance runs
-- [ ] Add evaluation suite executed on deployment
+- [x] Define scheduled PCDealHub maintenance
+- [x] Add acceptance/smoke tests
 - [ ] Add budget-aware model routing and usage reporting
 
 ## Phase 4 — broader personal operator
-- [ ] General project/task routing
+- [x] General project/task routing design
 - [ ] Personal study helper mode
 - [ ] Cross-project memory namespaces
 - [ ] Additional app/service connectors
 - [ ] User-configurable automation policies
 
 ## Hard rules
-Never grant "do anything" authority without scoped permissions, sandboxing, observability, and an approval path for consequential actions.
+
+Never grant unrestricted authority without scoped permissions, sandboxing, observability, and an approval path for consequential actions.
+
+The public PCDealHub repository must not contain private owner memory, mailbox contents, credentials, tokens, payment/tax data, or private task history.
