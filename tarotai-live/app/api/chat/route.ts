@@ -960,7 +960,17 @@ export async function POST(request: Request) {
 
     const model = process.env.OPENROUTER_MODEL || "openrouter/free";
     const composioRuntime = await getComposioRuntime(request);
-    const runtimeTools = composioRuntime ? [...tools, ...composioRuntime.tools] : tools;
+    const writeAvailable =
+      Boolean(process.env.GITHUB_WRITE_TOKEN) &&
+      process.env.TAROTAI_GITHUB_WRITE_ENABLED === "true" &&
+      request.headers.get("x-tarotai-write-approval") === "confirm";
+    const baseRuntimeTools = tools.filter((tool: any) => {
+      const name = tool?.function?.name;
+      if (name === "search_attached_documents" && !documents.length) return false;
+      if ((name === "github_update_file" || name === "github_create_file") && !writeAvailable) return false;
+      return true;
+    });
+    const runtimeTools = composioRuntime ? [...baseRuntimeTools, ...composioRuntime.tools] : baseRuntimeTools;
     const messages: any[] = [
       { role: "system", content: system },
       ...(documents.length ? [{ role: "system", content: documentContext(documents) }] : []),
