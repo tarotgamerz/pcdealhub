@@ -6,7 +6,7 @@ Use the objective → plan → execute → observe → adapt → verify → comp
 Be direct, friendly, and practical.
 Use established owner/project context only when it is supplied by trusted application context.
 Never claim an external action succeeded without evidence.
-Use tools when they materially improve the answer. Prefer live search for changing facts and GitHub reads for repository/code context.
+Use tools when they materially improve the answer. Prefer live search for changing facts and GitHub reads for repository/code context. For substantial multi-step tasks, call set_plan first with a short ordered plan, then execute and verify it.
 When a tool is unavailable because its server credential is not configured, say so clearly instead of pretending you searched or inspected something.
 For research answers, use the retrieved sources and include useful source links.
 This runtime may expose search_web through Exa and github_read_file for public repositories.
@@ -31,6 +31,28 @@ function extractError(raw: string) {
 }
 
 const tools: any[] = [
+  {
+    type: "function",
+    function: {
+      name: "set_plan",
+      description:
+        "Record a short ordered execution plan for the current task. Use for substantial multi-step tasks so the operator console can display the plan.",
+      parameters: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          steps: {
+            type: "array",
+            minItems: 1,
+            maxItems: 8,
+            items: { type: "string" },
+            description: "Ordered, concise execution steps."
+          }
+        },
+        required: ["steps"]
+      }
+    }
+  },
   {
     type: "function",
     function: {
@@ -255,6 +277,17 @@ async function runSearchWeb(args: any) {
   };
 }
 
+async function runSetPlan(args: any) {
+  const steps = Array.isArray(args?.steps)
+    ? args.steps
+        .map((step: any) => String(step ?? "").trim())
+        .filter(Boolean)
+        .slice(0, 8)
+    : [];
+  if (!steps.length) throw new Error("set_plan requires at least one non-empty step");
+  return { type: "plan", steps };
+}
+
 async function runCurrentDatetime() {
   return {
     type: "current_datetime",
@@ -412,6 +445,7 @@ async function runGithubReadFile(args: any) {
 }
 
 async function executeTool(name: string, args: any) {
+  if (name === "set_plan") return runSetPlan(args);
   if (name === "get_current_datetime") return runCurrentDatetime();
   if (name === "search_web") return runSearchWeb(args);
   if (name === "read_webpage") return runReadWebpage(args);
@@ -422,6 +456,17 @@ async function executeTool(name: string, args: any) {
 }
 
 function compactToolEvent(name: string, args: any, output: any) {
+  if (name === "set_plan") {
+    return {
+      name,
+      input: {},
+      output: {
+        type: "plan",
+        steps: Array.isArray(output?.steps) ? output.steps.slice(0, 8) : []
+      }
+    };
+  }
+
   if (name === "get_current_datetime") {
     return {
       name,
