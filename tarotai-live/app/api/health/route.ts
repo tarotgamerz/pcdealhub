@@ -7,6 +7,7 @@ export async function GET() {
       buildSource: "github-main",
       oidcFeatureEnabled: true,
       hasExa: Boolean(process.env.EXA_API_KEY),
+      hasComposio: Boolean(process.env.COMPOSIO_API_KEY),
       hasGatewayKey: Boolean(process.env.AI_GATEWAY_API_KEY),
       hasOpenRouterKey: Boolean(process.env.OPENROUTER_API_KEY),
       hasAccessCode: Boolean(process.env.TAROTAI_ACCESS_CODE),
