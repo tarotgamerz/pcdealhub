@@ -60,3 +60,23 @@ The browser console may keep local notes in `localStorage`, but those notes are 
 The chat endpoint accepts user/assistant messages only, applies a 40-message cap, uses `no-store` caching, and enforces an upstream timeout.
 
 Live tool integrations such as Exa and GitHub are not claimed until they are actually connected and verified.
+
+## Advanced capabilities
+
+TarotAI can now accept authenticated uploads for PDF, DOCX, PPTX, XLSX and common text formats through /api/documents. Extracted content is attached to chat as untrusted reference data, and the runtime can search attached-document text with search_attached_documents. The current upload size limit is 12 MB and extracted context is bounded.
+
+The model prompt includes controlled policies for application access and cybersecurity assistance. Application automation is only enabled when a real Composio session is available. Composio uses a user-scoped Tool Router session so app credentials stay in the provider rather than the TarotAI browser or source code.
+
+GitHub write execution is implemented but disabled by default. It requires a server-side GITHUB_WRITE_TOKEN, TAROTAI_GITHUB_WRITE_ENABLED=true, an allowed repository, and the operator's explicit Write ON session switch. Read-only GitHub tools remain available separately.
+
+## Current production environment
+
+Required: OPENROUTER_API_KEY, TAROTAI_ACCESS_CODE
+
+For live web research: EXA_API_KEY
+
+For connected application tooling: COMPOSIO_API_KEY
+
+For guarded GitHub writes: GITHUB_WRITE_TOKEN and TAROTAI_GITHUB_WRITE_ENABLED=true
+
+Never commit or paste API keys into GitHub or chat.
