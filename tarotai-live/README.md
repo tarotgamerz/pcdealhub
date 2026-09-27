@@ -80,3 +80,17 @@ For connected application tooling: COMPOSIO_API_KEY
 For guarded GitHub writes: GITHUB_WRITE_TOKEN and TAROTAI_GITHUB_WRITE_ENABLED=true
 
 Never commit or paste API keys into GitHub or chat.
+
+## Advanced capability activation
+
+Production capabilities are deliberately server-configured:
+
+- OPENROUTER_API_KEY: core model runtime.
+- TAROTAI_ACCESS_CODE: required private access gate.
+- EXA_API_KEY: live web search and webpage reading.
+- UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN: durable private memory, chat history and task state.
+- COMPOSIO_API_KEY: session-scoped connected applications; the console can start provider authorization links.
+- GITHUB_WRITE_TOKEN + TAROTAI_GITHUB_WRITE_ENABLED=true: guarded GitHub writes; repository allowlist and console Write approval still apply.
+- OPENROUTER_VISION_MODEL: optional override for image/OCR analysis; default uses a free multimodal model when available.
+
+The browser never receives these server secrets.
