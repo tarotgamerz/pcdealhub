@@ -1,7 +1,7 @@
 {
   "name": "tarotai-core",
   "private": true,
-  "version": "2.3.0",
+  "version": "2.4.0",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -14,7 +14,8 @@
     "react-dom": "19.1.0",
     "zod": "4.3.5",
     "office-text-extractor": "4.0.0",
-    "@composio/core": "0.21.0"
+    "@composio/core": "0.18.1",
+    "@upstash/redis": "1.39.0"
   },
   "devDependencies": {
     "@types/node": "22.15.3",
