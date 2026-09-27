@@ -3,6 +3,7 @@ export async function GET() {
     ok: true,
     runtime: "next-app-router",
     aiTransport: "direct-openrouter",
+    buildSource: "github-main",
     oidcFeatureEnabled: true,
     hasExa: Boolean(process.env.EXA_API_KEY),
     hasGatewayKey: Boolean(process.env.AI_GATEWAY_API_KEY),
