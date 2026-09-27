@@ -11,14 +11,21 @@ on:
       - ".github/workflows/validate-tarotai.yml"
 
 jobs:
-  syntax:
+  next-build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tarotai-live
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Validate server JavaScript
-        run: |
-          node --check tarotai-live/api/auth.js
-          node --check tarotai-live/api/chat.js
+          cache: npm
+          cache-dependency-path: tarotai-live/package.json
+      - name: Install dependencies
+        run: npm install
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Production build
+        run: npm run build
