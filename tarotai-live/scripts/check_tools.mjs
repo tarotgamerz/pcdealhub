@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 const route = readFileSync("app/api/chat/route.ts", "utf8");
 const auth = readFileSync("app/api/auth/route.ts", "utf8");
 const health = readFileSync("app/api/health/route.ts", "utf8");
+const documents = readFileSync("app/api/documents/route.ts", "utf8");
+const packageJson = readFileSync("package.json", "utf8");
 
 const required = [
   'name: "set_plan"',
@@ -17,7 +19,9 @@ const required = [
   'if (name === "github_actions_runs")',
   'if (name === "github_read_file")',
   'if (name === "search_web")',
-  'if (name === "read_webpage")'
+  'if (name === "read_webpage")',
+  'documents',
+  'documentContext(documents)'
 ];
 
 const forbidden = [
@@ -39,14 +43,27 @@ const healthRequired = [
 
 const missing = required.filter((needle) => !route.includes(needle));
 const missingAuth = authRequired.filter((needle) => !auth.includes(needle));
+const documentRequired = [
+  'export async function POST',
+  'new FormData',
+  'MAX_BYTES = 12 * 1024 * 1024',
+  'getTextExtractor',
+  'Authentication required'
+];
+const dependencyRequired = ['"office-text-extractor":"4.0.0"'];
+
 const missingHealth = healthRequired.filter((needle) => !health.includes(needle));
+const missingDocuments = documentRequired.filter((needle) => !documents.includes(needle));
+const missingDependency = dependencyRequired.filter((needle) => !packageJson.includes(needle));
 const presentForbidden = forbidden.filter((needle) => route.includes(needle));
 
-if (missing.length || missingAuth.length || missingHealth.length || presentForbidden.length) {
+if (missing.length || missingAuth.length || missingHealth.length || missingDocuments.length || missingDependency.length || presentForbidden.length) {
   console.error("TarotAI runtime contract failed.");
   if (missing.length) console.error("Missing chat/tool contract:", missing);
   if (missingAuth.length) console.error("Missing auth contract:", missingAuth);
   if (missingHealth.length) console.error("Missing health contract:", missingHealth);
+  if (missingDocuments.length) console.error("Missing document contract:", missingDocuments);
+  if (missingDependency.length) console.error("Missing dependency:", missingDependency);
   if (presentForbidden.length) console.error("Forbidden:", presentForbidden);
   process.exit(1);
 }
