@@ -263,7 +263,7 @@ async function runCurrentDatetime() {
 }
 
 function validateRepository(repository: string) {
-  if (!/^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repository)) {
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) {
     throw new Error("repository must use owner/name format");
   }
 }
