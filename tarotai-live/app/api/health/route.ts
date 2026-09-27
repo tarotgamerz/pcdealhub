@@ -11,6 +11,10 @@ export async function GET() {
       hasOpenRouterKey: Boolean(process.env.OPENROUTER_API_KEY),
       hasAccessCode: Boolean(process.env.TAROTAI_ACCESS_CODE),
       documentExtraction: "pdf-docx-pptx-xlsx-text",
+      githubWriteEnabled: Boolean(
+        process.env.GITHUB_WRITE_TOKEN &&
+        process.env.TAROTAI_GITHUB_WRITE_ENABLED === "true"
+      ),
       securityMode: process.env.NODE_ENV === "production" ? "access-code-required" : "development",
       model: process.env.OPENROUTER_MODEL || "openrouter/free",
       deployment: process.env.VERCEL_DEPLOYMENT_ID || null
