@@ -34,6 +34,73 @@ const tools: any[] = [
   {
     type: "function",
     function: {
+      name: "get_current_datetime",
+      description:
+        "Get the server's current date and time in ISO format. Use for date-relative questions instead of guessing.",
+      parameters: {
+        type: "object",
+        additionalProperties: false,
+        properties: {}
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "github_list_commits",
+      description:
+        "List recent commits for a public GitHub repository, optionally filtered to a path. Use for current project history and recent changes.",
+      parameters: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          repository: {
+            type: "string",
+            description: "Repository in owner/name form."
+          },
+          path: {
+            type: "string",
+            description: "Optional repository-relative path to filter commits."
+          },
+          per_page: {
+            type: "integer",
+            minimum: 1,
+            maximum: 20,
+            description: "Number of commits to return."
+          }
+        },
+        required: ["repository"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "github_actions_runs",
+      description:
+        "List recent GitHub Actions workflow runs for a public repository. Use to inspect CI/build/deployment health.",
+      parameters: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          repository: {
+            type: "string",
+            description: "Repository in owner/name form."
+          },
+          per_page: {
+            type: "integer",
+            minimum: 1,
+            maximum: 20,
+            description: "Number of workflow runs to return."
+          }
+        },
+        required: ["repository"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
       name: "github_read_file",
       description:
         "Read a file or directory from a public GitHub repository. Use this for current source-code or project-file context. Returns bounded text/metadata.",
@@ -188,6 +255,98 @@ async function runSearchWeb(args: any) {
   };
 }
 
+async function runCurrentDatetime() {
+  return {
+    type: "current_datetime",
+    iso: new Date().toISOString()
+  };
+}
+
+function validateRepository(repository: string) {
+  if (!/^[A-Za-z0-9_.-]+\\/[A-Za-z0-9_.-]+$/.test(repository)) {
+    throw new Error("repository must use owner/name format");
+  }
+}
+
+async function runGithubListCommits(args: any) {
+  const repository = String(args?.repository ?? "").trim();
+  validateRepository(repository);
+  const path = String(args?.path ?? "").trim();
+  const perPage = Math.max(1, Math.min(20, Number(args?.per_page ?? 10) || 10));
+  const params = new URLSearchParams({ per_page: String(perPage) });
+  if (path) params.set("path", path.slice(0, 500));
+
+  const response = await fetch(
+    "https://api.github.com/repos/" + repository + "/commits?" + params.toString(),
+    {
+      headers: {
+        Accept: "application/vnd.github+json",
+        "User-Agent": "tarotai-core"
+      },
+      cache: "no-store"
+    }
+  );
+  const raw = await response.text();
+  if (!response.ok) {
+    throw new Error("GitHub commits request failed (" + response.status + "): " + extractError(raw));
+  }
+
+  const data = JSON.parse(raw);
+  return {
+    type: "github_commits",
+    repository,
+    commits: Array.isArray(data)
+      ? data.slice(0, perPage).map((item: any) => ({
+          sha: item?.sha,
+          message: item?.commit?.message?.split("\\n")[0] || "",
+          author: item?.commit?.author?.name || null,
+          date: item?.commit?.author?.date || null,
+          url: item?.html_url || null
+        }))
+      : []
+  };
+}
+
+async function runGithubActionsRuns(args: any) {
+  const repository = String(args?.repository ?? "").trim();
+  validateRepository(repository);
+  const perPage = Math.max(1, Math.min(20, Number(args?.per_page ?? 10) || 10));
+
+  const response = await fetch(
+    "https://api.github.com/repos/" + repository + "/actions/runs?per_page=" + perPage,
+    {
+      headers: {
+        Accept: "application/vnd.github+json",
+        "User-Agent": "tarotai-core"
+      },
+      cache: "no-store"
+    }
+  );
+  const raw = await response.text();
+  if (!response.ok) {
+    throw new Error("GitHub Actions request failed (" + response.status + "): " + extractError(raw));
+  }
+
+  const data = JSON.parse(raw);
+  return {
+    type: "github_actions",
+    repository,
+    runs: Array.isArray(data?.workflow_runs)
+      ? data.workflow_runs.slice(0, perPage).map((run: any) => ({
+          id: run?.id,
+          name: run?.name,
+          branch: run?.head_branch,
+          sha: run?.head_sha,
+          status: run?.status,
+          conclusion: run?.conclusion,
+          createdAt: run?.created_at,
+          updatedAt: run?.updated_at,
+          url: run?.html_url || null
+        }))
+      : []
+  };
+}
+
 async function runGithubReadFile(args: any) {
   const repository = String(args?.repository ?? "").trim();
   const path = String(args?.path ?? "").trim();
@@ -253,13 +412,27 @@ async function runGithubReadFile(args: any) {
 }
 
 async function executeTool(name: string, args: any) {
+  if (name === "get_current_datetime") return runCurrentDatetime();
   if (name === "search_web") return runSearchWeb(args);
   if (name === "read_webpage") return runReadWebpage(args);
+  if (name === "github_list_commits") return runGithubListCommits(args);
+  if (name === "github_actions_runs") return runGithubActionsRuns(args);
   if (name === "github_read_file") return runGithubReadFile(args);
   throw new Error("Unknown tool: " + name);
 }
 
 function compactToolEvent(name: string, args: any, output: any) {
+  if (name === "get_current_datetime") {
+    return {
+      name,
+      input: {},
+      output: {
+        type: "current_datetime",
+        iso: output?.iso || null
+      }
+    };
+  }
+
   if (name === "search_web") {
     return {
       name,
@@ -286,6 +459,33 @@ function compactToolEvent(name: string, args: any, output: any) {
         title: output?.title || "",
         url: output?.url || args?.url || "",
         characters: typeof output?.text === "string" ? output.text.length : 0
+      }
+    };
+  }
+
+  if (name === "github_list_commits") {
+    return {
+      name,
+      input: {
+        repository: args?.repository,
+        path: args?.path || null
+      },
+      output: {
+        type: "github_commits",
+        commits: Array.isArray(output?.commits) ? output.commits.slice(0, 10) : []
+      }
+    };
+  }
+
+  if (name === "github_actions_runs") {
+    return {
+      name,
+      input: { repository: args?.repository },
+      output: {
+        type: "github_actions",
+        runs: Array.isArray(output?.runs)
+          ? output.runs.slice(0, 10)
+          : []
       }
     };
   }
