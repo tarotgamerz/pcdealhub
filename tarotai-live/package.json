@@ -1,0 +1,16 @@
+{
+  "name": "tarotai-live",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node -e \"console.log('Vercel serverless app')\""
+  },
+  "dependencies": {
+    "ai": "latest",
+    "zod": "latest"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
