@@ -24,7 +24,7 @@ The App Router is the only active route layer. Legacy `pages/` and top-level `ap
 
 ## Tool layer
 
-The chat runtime now supports an OpenRouter tool loop with bounded execution. It can use `search_web` through Exa when `EXA_API_KEY` is present and `github_read_file` for public GitHub repository context. Tool outputs are returned to the model and summarized in `toolEvents` for the console. The model is limited to four tool turns per request.
+The chat runtime now supports an OpenRouter tool loop with bounded execution. It can use `search_web` and `read_webpage` through Exa when `EXA_API_KEY` is present, plus `github_read_file` for public GitHub repository context. Tool outputs are returned to the model and summarized in `toolEvents` for the console. The model is limited to four tool turns per request.
 
 ## Required production environment
 
