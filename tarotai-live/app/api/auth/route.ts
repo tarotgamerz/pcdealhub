@@ -21,6 +21,10 @@ export async function POST(request: Request) {
   if (body?.code !== required) return NextResponse.json({ error: "Access denied" }, { status: 401 });
   const response = NextResponse.json({ authenticated: true });
   response.cookies.set("tarotai_session","authorized",{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:60*60*24*30});
+  const existingUser = request.headers.get("cookie")?.split(";").find((v) => v.trim().startsWith("tarotai_user="));
+  if (!existingUser) {
+    response.cookies.set("tarotai_user", crypto.randomUUID(), {httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:60*60*24*365});
+  }
   return response;
 }
 
