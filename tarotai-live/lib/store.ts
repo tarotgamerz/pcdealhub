@@ -1,6 +1,13 @@
 import { Redis } from "@upstash/redis";
 
-export const redis = Redis.fromEnv();
+export const redis = memoryEnabled() ? Redis.fromEnv() : null;
+
+export function memoryEnabled() {
+  return Boolean(
+    process.env.UPSTASH_REDIS_REST_URL &&
+    process.env.UPSTASH_REDIS_REST_TOKEN
+  );
+}
 
 export function memoryKey(userId: string) {
   return "tarotai:memory:" + userId;
@@ -8,13 +15,6 @@ export function memoryKey(userId: string) {
 
 export function stateKey(userId: string) {
   return "tarotai:state:" + userId;
-}
-
-export function memoryEnabled() {
-  return Boolean(
-    process.env.UPSTASH_REDIS_REST_URL &&
-    process.env.UPSTASH_REDIS_REST_TOKEN
-  );
 }
 
 export function privateUserId(request: Request) {
