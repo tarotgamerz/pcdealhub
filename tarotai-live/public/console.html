@@ -31,7 +31,7 @@ function render(){document.getElementById('root').innerHTML=`
 <div class="composer-wrap"><div class="composer"><textarea id="input" placeholder="Tell tarotai what you want done…" onkeydown="key(event)"></textarea><div class="composerbar"><div class="hint">${state.busy?'Agent is working…':'Enter to send • Shift+Enter for a new line'}</div><button class="send" onclick="send()" ${state.busy?'disabled':''}>${state.busy?'Working…':'Send'}</button></div></div></div></main>
 <aside class="right">${rightHtml()}</aside>
 </div>`;
-document.getElementById('input')?.focus();scrollChat();ensureDocumentUi();ensureWriteUi();ensureCapabilitiesUi()}
+document.getElementById('input')?.focus();scrollChat();ensureDocumentUi();ensureWriteUi();ensureCapabilitiesUi();ensureAppsUi()}
 function chatHtml(){if(!state.messages.length)return '<div class="welcome"><div class="eyebrow">PRIVATE AUTONOMOUS WORKSPACE</div><h2>What should tarotai do?</h2><p>This is the real runtime, not a simulation. It sends your request to the server-side model and can plan, research, read public pages, verify results and call an authorized executor.</p><div class="chips">'+starter.map(x=>'<button class="chip" onclick="prefill('+JSON.stringify(x)+')">'+esc(x)+'</button>').join('')+'</div></div>';return state.messages.map(m=>`<div class="msg ${m.role==='user'?'user':'ai'}"><div class="label">${m.role==='user'?'You':'tarotai'}</div><div class="bubble">${esc(m.content||'')}</div>${(m.toolEvents||[]).map(t=>`<div class="tool">↳ ${esc(toolName(t.name))}</div>`).join('')}</div>`).join('')}
 function rightHtml(){return '<div class="section"><h3>Task state</h3><div class="card"><div class="mini">'+(state.busy?'Executing':'Ready')+'</div><strong>'+(state.tasks[0]?esc(state.tasks[0].title):'No active task')+'</strong></div></div>'+
 '<div class="section"><h3>Plan</h3><div class="card">'+(state.plan.length?state.plan.map((x,i)=>'<div class="step"><span class="badge">'+(i+1)+'</span><span>'+esc(x)+'</span></div>').join(''):'<div class="mini">The plan appears here when tarotai starts a substantial task.</div>')+'</div></div>'+
@@ -80,6 +80,29 @@ function ensureDocumentUi(){
   refreshDocs();
   window.refreshTarotaiDocuments=()=>{refresh();refreshDocs();};
 }
+function ensureAppsUi(){
+  const right=document.querySelector('.right');
+  if(!right)return;
+  let panel=document.getElementById('tarotai-apps-panel');
+  if(!panel){
+    panel=document.createElement('div');
+    panel.className='section';
+    panel.id='tarotai-apps-panel';
+    panel.innerHTML='<h3>Connected Apps</h3><div class="card" id="tarotai-apps-list"><div class="mini">Checking app connector…</div></div>';
+    right.appendChild(panel);
+  }
+  const list=document.getElementById('tarotai-apps-list');
+  if(!list)return;
+  if(!state.runtime?.hasComposio){
+    list.innerHTML='<div class="mini">Composio is not configured on the server yet. Add COMPOSIO_API_KEY in Vercel Production.</div>';
+    return;
+  }
+  fetch('/api/apps',{cache:'no-store'}).then(r=>r.json()).then(d=>{
+    if(!d.enabled){list.innerHTML='<div class="mini">'+esc(d.message||'Apps unavailable.')+'</div>';return}
+    list.innerHTML=(d.items||[]).slice(0,12).map(app=>'<div class="step"><span class="badge">'+(app.connected?'ON':'OFF')+'</span><span><strong>'+esc(app.name||app.slug)+'</strong><br><span class="mini">'+esc(app.slug)+'</span> '+(app.connected?'':'<button class="ghost" style="padding:2px 6px" data-connect-app="'+esc(app.slug)+'">Connect</button>')+'</span></div>').join('');
+    list.querySelectorAll('[data-connect-app]').forEach(btn=>btn.addEventListener('click',async()=>{const rr=await fetch('/api/apps',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({toolkit:btn.dataset.connectApp})});const dd=await rr.json();if(!rr.ok||!dd.redirectUrl){alert(dd.error||'Could not start app authorization.');return}window.open(dd.redirectUrl,'_blank','noopener,noreferrer');}));
+  }).catch(()=>{list.innerHTML='<div class="mini">Could not load connected apps.</div>'});
+}
 function ensureCapabilitiesUi(){
   const right=document.querySelector('.right');
   if(!right)return;
@@ -100,6 +123,7 @@ function ensureCapabilitiesUi(){
     ['GitHub read', 'Enabled'],
     ['GitHub write',r.githubWriteEnabled?'Server enabled • approval required':'Not configured'],
     ['Connected apps',r.hasComposio?'Composio ready':'Not configured'],
+    ['Durable memory',r.hasDurableMemory?'Redis connected':'Needs Redis setup'],
     ['Cybersecurity', 'Authorized defensive/learning mode']
   ];
   list.innerHTML=rows.map(([a,b])=>'<div class="step"><span class="badge">'+(b.includes('Connected')||b.includes('Enabled')||b.includes('ready')||b.includes('Authorized')?'ON':'—')+'</span><span><strong>'+esc(a)+'</strong><br><span class="mini">'+esc(b)+'</span></span></div>').join('');
@@ -148,13 +172,20 @@ async function uploadDocument(e){
   try{
     const form=new FormData();
     form.append('file',file);
-    const r=await fetch('/api/documents',{method:'POST',body:form});
+    const endpoint=file.type.startsWith('image/')?'/api/vision':'/api/documents';
+    if(file.type.startsWith('image/'))form.append('prompt','Analyze this image for the user. Read visible text, identify relevant objects/UI/errors/diagrams, and summarize useful facts without inventing details.');
+    const r=await fetch(endpoint,{method:'POST',body:form});
     const raw=await r.text();
     let d;
     try{d=raw?JSON.parse(raw):{};}catch{throw new Error(raw.slice(0,500)||('HTTP '+r.status));}
     if(!r.ok)throw new Error(d.error||('Document upload failed (HTTP '+r.status+')'));
-    state.documents.push({name:d.name,mime:d.mime,characters:d.characters,truncated:d.truncated,text:d.text});
-    state.activity.unshift('Document ready: '+d.name+(d.warning?' • '+d.warning:''));
+    if(file.type.startsWith('image/')){
+      state.documents.push({name:'[Image] '+d.name,mime:d.mime,characters:String(d.text||'').length,truncated:false,text:'Image analysis result:\n'+String(d.text||'')});
+      state.activity.unshift('Image understood: '+d.name);
+    }else{
+      state.documents.push({name:d.name,mime:d.mime,characters:d.characters,truncated:d.truncated,text:d.text});
+      state.activity.unshift('Document ready: '+d.name+(d.warning?' • '+d.warning:''));
+    }
     if(window.refreshTarotaiDocuments)window.refreshTarotaiDocuments();
   }catch(err){
     state.activity.unshift('Document failed: '+err.message);
