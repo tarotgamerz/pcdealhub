@@ -8,6 +8,10 @@ export async function GET() {
       oidcFeatureEnabled: true,
       hasExa: Boolean(process.env.EXA_API_KEY),
       hasComposio: Boolean(process.env.COMPOSIO_API_KEY),
+      hasDurableMemory: Boolean(
+        process.env.UPSTASH_REDIS_REST_URL &&
+        process.env.UPSTASH_REDIS_REST_TOKEN
+      ),
       hasGatewayKey: Boolean(process.env.AI_GATEWAY_API_KEY),
       hasOpenRouterKey: Boolean(process.env.OPENROUTER_API_KEY),
       hasAccessCode: Boolean(process.env.TAROTAI_ACCESS_CODE),
