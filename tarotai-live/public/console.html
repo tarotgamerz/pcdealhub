@@ -31,7 +31,7 @@ function render(){document.getElementById('root').innerHTML=`
 <div class="composer-wrap"><div class="composer"><textarea id="input" placeholder="Tell tarotai what you want done…" onkeydown="key(event)"></textarea><div class="composerbar"><div class="hint">${state.busy?'Agent is working…':'Enter to send • Shift+Enter for a new line'}</div><button class="send" onclick="send()" ${state.busy?'disabled':''}>${state.busy?'Working…':'Send'}</button></div></div></div></main>
 <aside class="right">${rightHtml()}</aside>
 </div>`;
-document.getElementById('input')?.focus();scrollChat();ensureDocumentUi();ensureWriteUi();ensureCapabilitiesUi();ensureAppsUi()}
+document.getElementById('input')?.focus();scrollChat();ensureDocumentUi();ensureWriteUi();ensureCapabilitiesUi();ensureAppsUi();ensureAuditUi()}
 function chatHtml(){if(!state.messages.length)return '<div class="welcome"><div class="eyebrow">PRIVATE AUTONOMOUS WORKSPACE</div><h2>What should tarotai do?</h2><p>This is the real runtime, not a simulation. It sends your request to the server-side model and can plan, research, read public pages, verify results and call an authorized executor.</p><div class="chips">'+starter.map(x=>'<button class="chip" onclick="prefill('+JSON.stringify(x)+')">'+esc(x)+'</button>').join('')+'</div></div>';return state.messages.map(m=>`<div class="msg ${m.role==='user'?'user':'ai'}"><div class="label">${m.role==='user'?'You':'tarotai'}</div><div class="bubble">${esc(m.content||'')}</div>${(m.toolEvents||[]).map(t=>`<div class="tool">↳ ${esc(toolName(t.name))}</div>`).join('')}</div>`).join('')}
 function rightHtml(){return '<div class="section"><h3>Task state</h3><div class="card"><div class="mini">'+(state.busy?'Executing':'Ready')+'</div><strong>'+(state.tasks[0]?esc(state.tasks[0].title):'No active task')+'</strong></div></div>'+
 '<div class="section"><h3>Plan</h3><div class="card">'+(state.plan.length?state.plan.map((x,i)=>'<div class="step"><span class="badge">'+(i+1)+'</span><span>'+esc(x)+'</span></div>').join(''):'<div class="mini">The plan appears here when tarotai starts a substantial task.</div>')+'</div></div>'+
@@ -79,6 +79,25 @@ function ensureDocumentUi(){
   };
   refreshDocs();
   window.refreshTarotaiDocuments=()=>{refresh();refreshDocs();};
+}
+function ensureAuditUi(){
+  const right=document.querySelector('.right');
+  if(!right)return;
+  let panel=document.getElementById('tarotai-audit-panel');
+  if(!panel){
+    panel=document.createElement('div');
+    panel.className='section';
+    panel.id='tarotai-audit-panel';
+    panel.innerHTML='<h3>Audit history</h3><div class="card" id="tarotai-audit-list"><div class="mini">Checking audit history…</div></div>';
+    right.appendChild(panel);
+  }
+  const list=document.getElementById('tarotai-audit-list');
+  if(!list)return;
+  fetch('/api/audit',{cache:'no-store'}).then(r=>r.json()).then(d=>{
+    if(!d.enabled){list.innerHTML='<div class="mini">Durable audit history is inactive until Redis is configured.</div>';return;}
+    const events=Array.isArray(d.events)?d.events:[];
+    list.innerHTML=events.length?events.slice(0,20).map(ev=>'<div class="step"><span class="badge">'+esc(ev.type||'event')+'</span><span><strong>'+esc(ev.tool||'Chat')+'</strong><br><span class="mini">'+esc(ev.at||'')+(ev.status?' • '+esc(ev.status):'')+(ev.error?' • '+esc(ev.error):'')+'</span></span></div>').join(''):'<div class="mini">No audit events yet.</div>';
+  }).catch(()=>{list.innerHTML='<div class="mini">Could not load audit history.</div>'});
 }
 function ensureAppsUi(){
   const right=document.querySelector('.right');
