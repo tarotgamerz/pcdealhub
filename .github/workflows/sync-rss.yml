@@ -73,11 +73,81 @@ jobs:
           print(f"Generated RSS for {len(deals)} deal(s).")
           PY
 
-      - name: Commit RSS when changed
+      - name: Commit RSS safely
+        shell: bash
         run: |
+          set -euo pipefail
           git config user.name "pcdealhub-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add feed.xml
-          git diff --cached --quiet && exit 0
-          git commit -m "chore: sync RSS feed"
-          git push
+
+          for attempt in 1 2 3; do
+            git add feed.xml
+
+            if git diff --cached --quiet; then
+              echo "RSS already up to date."
+              exit 0
+            fi
+
+            git commit -m "chore: sync RSS feed"
+
+            if git push; then
+              echo "RSS update pushed successfully."
+              exit 0
+            fi
+
+            echo "Remote changed during the job; rebasing and rebuilding RSS (attempt $attempt)."
+            git fetch origin main
+            git reset --hard origin/main
+
+            python3 - <<'PY'
+          import html
+          import json
+          from datetime import datetime, timezone
+          from email.utils import format_datetime
+          from pathlib import Path
+
+          deals = json.loads(Path("deals.json").read_text(encoding="utf-8"))
+          deals = sorted(deals, key=lambda d: d["checked_at"], reverse=True)
+
+          def esc(value):
+              return html.escape(str(value), quote=True)
+
+          def pubdate(value):
+              dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+              return format_datetime(dt.astimezone(timezone.utc), usegmt=True)
+
+          items = []
+          for d in deals:
+              title = f'{d["name"]} — ₹{d["price"]:,.0f}'
+              description = (
+                  f'Verified {d["category"]} listing. Seller: {d["seller"]}. '
+                  f'Stock when checked: {d.get("stock", "not stated")}. '
+                  f'Warranty: {d.get("warranty", "not stated")}. '
+                  'Re-check the retailer page for current price and availability before buying.'
+              )
+              items.append(
+                  f'<item><title>{esc(title)}</title>'
+                  f'<link>https://tarotgamerz.github.io/pcdealhub/deals.html#{esc(d["id"])}</link>'
+                  f'<guid>{esc(d["id"])}</guid>'
+                  f'<pubDate>{pubdate(d["checked_at"])}</pubDate>'
+                  f'<description>{esc(description)}</description></item>'
+              )
+
+          latest = max((d["checked_at"] for d in deals), default=datetime.now(timezone.utc).isoformat())
+          rss = '''<?xml version="1.0" encoding="UTF-8"?>
+          <rss version="2.0"><channel>
+          <title>PCDealHub — Verified PC Deals India</title>
+          <link>https://tarotgamerz.github.io/pcdealhub/</link>
+          <description>Verified PC hardware deals and buying guides for India.</description>
+          <language>en-IN</language>
+          <lastBuildDate>''' + pubdate(latest) + '''</lastBuildDate>
+          ''' + "\n".join(items) + '''
+          </channel></rss>
+          '''
+          Path("feed.xml").write_text(rss, encoding="utf-8")
+          print(f"Rebuilt RSS for {len(deals)} deal(s).")
+          PY
+          done
+
+          echo "Unable to push RSS after 3 attempts."
+          exit 1
