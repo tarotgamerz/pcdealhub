@@ -4,6 +4,10 @@ const route = readFileSync("app/api/chat/route.ts", "utf8");
 const auth = readFileSync("app/api/auth/route.ts", "utf8");
 const health = readFileSync("app/api/health/route.ts", "utf8");
 const documents = readFileSync("app/api/documents/route.ts", "utf8");
+const memory = readFileSync("app/api/memory/route.ts", "utf8");
+const state = readFileSync("app/api/state/route.ts", "utf8");
+const apps = readFileSync("app/api/apps/route.ts", "utf8");
+const vision = readFileSync("app/api/vision/route.ts", "utf8");
 const packageJson = readFileSync("package.json", "utf8");
 
 const required = [
@@ -62,15 +66,23 @@ const dependencyRequired = ['"office-text-extractor":"4.0.0"', '"@composio/core"
 
 const missingHealth = healthRequired.filter((needle) => !health.includes(needle));
 const missingDocuments = documentRequired.filter((needle) => !documents.includes(needle));
+const missingMemory = memoryRequired.filter((needle) => !memory.includes(needle));
+const missingState = stateRequired.filter((needle) => !state.includes(needle));
+const missingApps = appRequired.filter((needle) => !apps.includes(needle));
+const missingVision = visionRequired.filter((needle) => !vision.includes(needle));
 const missingDependency = dependencyRequired.filter((needle) => !packageJson.includes(needle));
 const presentForbidden = forbidden.filter((needle) => route.includes(needle));
 
-if (missing.length || missingAuth.length || missingHealth.length || missingDocuments.length || missingDependency.length || presentForbidden.length) {
+if (missing.length || missingAuth.length || missingHealth.length || missingDocuments.length || missingMemory.length || missingState.length || missingApps.length || missingVision.length || missingDependency.length || presentForbidden.length) {
   console.error("TarotAI runtime contract failed.");
   if (missing.length) console.error("Missing chat/tool contract:", missing);
   if (missingAuth.length) console.error("Missing auth contract:", missingAuth);
   if (missingHealth.length) console.error("Missing health contract:", missingHealth);
   if (missingDocuments.length) console.error("Missing document contract:", missingDocuments);
+  if (missingMemory.length) console.error("Missing memory contract:", missingMemory);
+  if (missingState.length) console.error("Missing state contract:", missingState);
+  if (missingApps.length) console.error("Missing apps contract:", missingApps);
+  if (missingVision.length) console.error("Missing vision contract:", missingVision);
   if (missingDependency.length) console.error("Missing dependency:", missingDependency);
   if (presentForbidden.length) console.error("Forbidden:", presentForbidden);
   process.exit(1);
