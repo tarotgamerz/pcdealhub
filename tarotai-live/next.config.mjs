@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ["office-text-extractor"],
+  serverExternalPackages: ["office-text-extractor", "@composio/core"],
   async headers() {
     return [
       {
