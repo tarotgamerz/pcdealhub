@@ -1,4 +1,4 @@
-import { createGateway, generateText, stepCountIs, tool } from 'ai';
+import { generateText, stepCountIs, tool } from 'ai';
 import { z } from 'zod';
 const model = process.env.TAROTAI_MODEL || 'openai/gpt-5.6-sol';
 
@@ -210,19 +210,10 @@ export default async function handler(req, res) {
     : '';
 
   try {
-    // In a Vercel Function the OIDC credential is provided on the request header.
-    // Prefer an explicitly configured Gateway API key, otherwise use the request OIDC token.
-    const gatewayApiKey = process.env.AI_GATEWAY_API_KEY
-      || req.headers['x-vercel-oidc-token']
-      || process.env.VERCEL_OIDC_TOKEN;
-    if (!gatewayApiKey) {
-      return res.status(503).json({
-        error: 'AI Gateway authentication is not available on this deployment.'
-      });
-    }
-    const gateway = createGateway({ apiKey: gatewayApiKey });
+    // On Vercel, the AI SDK automatically uses the platform's OIDC authentication
+    // when a plain Gateway model string is supplied.
     const result = await generateText({
-      model: gateway(model),
+      model,
       system: system + memoryText,
       messages,
       tools: {
