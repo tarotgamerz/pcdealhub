@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     return Response.json({
       ok: true,
       toolkit,
-      redirectUrl: requestData?.redirectUrl || requestData?.redirect_url || null
+      redirectUrl: requestData?.redirectUrl || null
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return Response.json(
