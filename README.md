@@ -33,6 +33,9 @@ Each entry in `deals.json` must satisfy `deals.schema.json`. The GitHub Action a
 
 ## Traffic and discovery
 
+- `pc-buying-hub.html` — consolidated internal-link hub for PC buying, budget builds, component deals, guides and planning tools.
+
+
 - `deals.html` — dedicated verified PC deals landing page.
 - `ssd-deals-under-20000.html` and `gaming-monitor-deals-under-15000.html` — budget-specific search entry pages.
 - `feed.xml` — RSS feed for published deals.
