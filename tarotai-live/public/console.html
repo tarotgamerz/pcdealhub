@@ -13,7 +13,7 @@
 <body>
 <div id="root"></div>
 <script>
-const state={messages:JSON.parse(localStorage.getItem('tarotai-messages')||'[]'),memory:JSON.parse(localStorage.getItem('tarotai-memory')||'[]'),tasks:JSON.parse(localStorage.getItem('tarotai-tasks')||'[]'),busy:false,auth:null,runtime:null,active:'Command Center',plan:[],activity:[],sources:[],documents:[]};
+const state={messages:JSON.parse(localStorage.getItem('tarotai-messages')||'[]'),memory:JSON.parse(localStorage.getItem('tarotai-memory')||'[]'),tasks:JSON.parse(localStorage.getItem('tarotai-tasks')||'[]'),busy:false,auth:null,runtime:null,active:'Command Center',plan:[],activity:[],sources:[],documents:[],writeApproved:false};
 const starter=['Diagnose my PC performance problem from everything you know about my setup.','Research a current topic and give me a source-backed answer.','Audit my project and tell me what I should work on next.'];
 const nav=[['⌂','Command Center'],['＋','New Task'],['◉','Active Tasks'],['↺','Task History'],['▦','Projects'],['□','Files'],['◎','Memory'],['◈','Connected Apps'],['⚙','Settings']];
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -29,7 +29,7 @@ function render(){document.getElementById('root').innerHTML=`
 <div class="composer-wrap"><div class="composer"><textarea id="input" placeholder="Tell tarotai what you want done…" onkeydown="key(event)"></textarea><div class="composerbar"><div class="hint">${state.busy?'Agent is working…':'Enter to send • Shift+Enter for a new line'}</div><button class="send" onclick="send()" ${state.busy?'disabled':''}>${state.busy?'Working…':'Send'}</button></div></div></div></main>
 <aside class="right">${rightHtml()}</aside>
 </div>`;
-document.getElementById('input')?.focus();scrollChat();ensureDocumentUi()}
+document.getElementById('input')?.focus();scrollChat();ensureDocumentUi();ensureWriteUi()}
 function chatHtml(){if(!state.messages.length)return '<div class="welcome"><div class="eyebrow">PRIVATE AUTONOMOUS WORKSPACE</div><h2>What should tarotai do?</h2><p>This is the real runtime, not a simulation. It sends your request to the server-side model and can plan, research, read public pages, verify results and call an authorized executor.</p><div class="chips">'+starter.map(x=>'<button class="chip" onclick="prefill('+JSON.stringify(x)+')">'+esc(x)+'</button>').join('')+'</div></div>';return state.messages.map(m=>`<div class="msg ${m.role==='user'?'user':'ai'}"><div class="label">${m.role==='user'?'You':'tarotai'}</div><div class="bubble">${esc(m.content||'')}</div>${(m.toolEvents||[]).map(t=>`<div class="tool">↳ ${esc(toolName(t.name))}</div>`).join('')}</div>`).join('')}
 function rightHtml(){return '<div class="section"><h3>Task state</h3><div class="card"><div class="mini">'+(state.busy?'Executing':'Ready')+'</div><strong>'+(state.tasks[0]?esc(state.tasks[0].title):'No active task')+'</strong></div></div>'+
 '<div class="section"><h3>Plan</h3><div class="card">'+(state.plan.length?state.plan.map((x,i)=>'<div class="step"><span class="badge">'+(i+1)+'</span><span>'+esc(x)+'</span></div>').join(''):'<div class="mini">The plan appears here when tarotai starts a substantial task.</div>')+'</div></div>'+
@@ -78,6 +78,40 @@ function ensureDocumentUi(){
   refreshDocs();
   window.refreshTarotaiDocuments=()=>{refresh();refreshDocs();};
 }
+function ensureWriteUi(){
+  const sendButton=document.querySelector('.composerbar .send');
+  if(!sendButton)return;
+  let button=document.getElementById('tarotai-write-button');
+  if(!button){
+    button=document.createElement('button');
+    button.className='ghost';
+    button.id='tarotai-write-button';
+    button.type='button';
+    button.addEventListener('click',()=>{
+      state.writeApproved=!state.writeApproved;
+      ensureWriteUi();
+    });
+    sendButton.parentElement.insertBefore(button,sendButton);
+  }
+  button.textContent=state.writeApproved?'Write ON':'Write OFF';
+  button.title=state.writeApproved?'GitHub write actions are approved for this session.':'Read-only mode. Click to allow guarded GitHub write actions for this session.';
+  button.style.borderColor=state.writeApproved?'#72e6b0':'#1e2733';
+  button.style.color=state.writeApproved?'#72e6b0':'#b8c4d0';
+
+  const right=document.querySelector('.right');
+  if(right&&!document.getElementById('tarotai-permissions-panel')){
+    const section=document.createElement('div');
+    section.className='section';
+    section.id='tarotai-permissions-panel';
+    section.innerHTML='<h3>Execution permissions</h3><div class="card"><div class="mini">GitHub writes require both a server-side GitHub token and this session switch.</div><button class="ghost" id="tarotai-permission-toggle" style="margin-top:8px;width:100%"></button></div>';
+    right.prepend(section);
+  }
+  const toggle=document.getElementById('tarotai-permission-toggle');
+  if(toggle){
+    toggle.textContent=state.writeApproved?'Disable write mode':'Enable write mode';
+    toggle.onclick=()=>{state.writeApproved=!state.writeApproved;ensureWriteUi();};
+  }
+}
 async function uploadDocument(e){
   const file=e.target.files?.[0];
   e.target.value='';
@@ -111,7 +145,7 @@ function addMemory(){const k=document.getElementById('mk').value.trim(),v=docume
 function delMemory(i){state.memory.splice(i,1);save();render()}
 function key(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}}
 function scrollChat(){const el=document.getElementById('chat');if(el)el.scrollTop=el.scrollHeight}
-async function send(){const box=document.getElementById('input');const text=box?.value.trim();if(!text||state.busy)return;state.busy=true;state.messages.push({role:'user',content:text});state.tasks.unshift({title:text,status:'executing',createdAt:new Date().toISOString()});state.activity.unshift('Task started: '+text);save();render();try{const r=await fetch('/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({messages:state.messages.map(m=>({role:m.role,content:m.content})),documents:state.documents.map(d=>({name:d.name,mime:d.mime,characters:d.characters,truncated:d.truncated,text:d.text}))})});const raw=await r.text();let d;try{d=raw?JSON.parse(raw):{}}catch{throw new Error(raw.slice(0,500)||`HTTP ${r.status}`)}if(!r.ok)throw new Error(d.error||`Request failed (HTTP ${r.status})`);state.messages.push({role:'assistant',content:d.text,toolEvents:d.toolEvents||[]});state.activity.unshift(d.toolEvents?.length?'Used '+d.toolEvents.length+' tool step(s)':'Answered directly');for(const t of (d.toolEvents||[])){if(t.output?.type==='plan')state.plan=t.output.steps||[];if(t.output?.type==='web_search'&&t.output.results)state.sources=t.output.results;state.activity.unshift('Used '+toolName(t.name));}state.tasks[0].status='completed';state.tasks[0].result=d.text;save()}catch(e){state.messages.push({role:'assistant',content:'I could not complete the request. '+e.message});if(state.tasks[0])state.tasks[0].status='failed';save()}state.busy=false;render()}
+async function send(){const box=document.getElementById('input');const text=box?.value.trim();if(!text||state.busy)return;state.busy=true;state.messages.push({role:'user',content:text});state.tasks.unshift({title:text,status:'executing',createdAt:new Date().toISOString()});state.activity.unshift('Task started: '+text);save();render();try{const reqHeaders={'content-type':'application/json'};if(state.writeApproved)reqHeaders['x-tarotai-write-approval']='confirm';const r=await fetch('/api/chat',{method:'POST',headers:reqHeaders,body:JSON.stringify({messages:state.messages.map(m=>({role:m.role,content:m.content})),documents:state.documents.map(d=>({name:d.name,mime:d.mime,characters:d.characters,truncated:d.truncated,text:d.text}))})});const raw=await r.text();let d;try{d=raw?JSON.parse(raw):{}}catch{throw new Error(raw.slice(0,500)||`HTTP ${r.status}`)}if(!r.ok)throw new Error(d.error||`Request failed (HTTP ${r.status})`);state.messages.push({role:'assistant',content:d.text,toolEvents:d.toolEvents||[]});state.activity.unshift(d.toolEvents?.length?'Used '+d.toolEvents.length+' tool step(s)':'Answered directly');for(const t of (d.toolEvents||[])){if(t.output?.type==='plan')state.plan=t.output.steps||[];if(t.output?.type==='web_search'&&t.output.results)state.sources=t.output.results;state.activity.unshift('Used '+toolName(t.name));}state.tasks[0].status='completed';state.tasks[0].result=d.text;save()}catch(e){state.messages.push({role:'assistant',content:'I could not complete the request. '+e.message});if(state.tasks[0])state.tasks[0].status='failed';save()}state.busy=false;render()}
 async function lock(){await fetch('/api/auth',{method:'DELETE'});location.reload()}
 async function boot(){try{const h=await fetch('/api/health',{cache:'no-store'});state.runtime=await h.json().catch(()=>null)}catch{state.runtime=null}const r=await fetch('/api/auth',{cache:'no-store'});const d=await r.json();state.auth=d.authenticated;if(!state.auth){renderLogin();return}render();const el=document.getElementById('runtimeStatus');if(el){el.textContent=!state.runtime?.hasAccessCode?'SECURITY SETUP REQUIRED':(state.runtime?.hasOpenRouterKey?(state.runtime?.hasExa?'AI runtime connected':'AI key connected • Exa not configured'):'AI runtime needs configuration');}}
 boot();
