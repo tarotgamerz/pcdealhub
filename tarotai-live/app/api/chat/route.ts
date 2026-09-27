@@ -304,6 +304,19 @@ function compactToolEvent(name: string, args: any, output: any) {
 
 export async function POST(request: Request) {
   try {
+    const accessCodeConfigured = Boolean(process.env.TAROTAI_ACCESS_CODE);
+    const sessionCookie = request.headers
+      .get("cookie")
+      ?.split(";")
+      .some((v) => v.trim() === "tarotai_session=authorized");
+
+    if (accessCodeConfigured && !sessionCookie) {
+      return Response.json(
+        { error: "Authentication required." },
+        { status: 401, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
       return Response.json(
