@@ -15,6 +15,7 @@ const required = [
   'name: "github_read_file"',
   'name: "search_web"',
   'name: "read_webpage"',
+  'if (name === "security_audit_url")',
   'if (name === "search_attached_documents")',
   'if (name === "get_current_datetime")',
   'if (name === "github_list_commits")',
@@ -26,6 +27,7 @@ const required = [
   'session.execute',
   'documents',
   'search_attached_documents',
+  'security_audit_url',
 
   'documentContext(documents)'
 ];
