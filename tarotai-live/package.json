@@ -1,20 +1,13 @@
 {
-  "name": "tarotai-live",
-  "private": true,
-  "version": "1.0.0",
-  "type": "module",
-  "scripts": {
-    "build": "next build",
-    "start": "next start"
+  "name":"tarotai-core",
+  "private":true,
+  "version":"1.0.0",
+  "type":"module",
+  "dependencies":{
+    "ai":"latest",
+    "zod":"latest"
   },
-  "dependencies": {
-    "ai": "latest",
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "zod": "latest"
-  },
-  "engines": {
-    "node": ">=20"
+  "engines":{
+    "node":">=20"
   }
 }
