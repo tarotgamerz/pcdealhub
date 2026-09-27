@@ -1,26 +1,58 @@
-# tarotai live runtime
+# TarotAI runtime
 
-This folder is the real server-backed version of the tarotai command center.
+Private operator-style AI command center for the owner.
 
-## Production behavior
+## Current architecture
 
-- The browser UI sends conversations to `/api/chat`.
-- `/api/chat` runs a real model through Vercel AI SDK + AI Gateway.
-- Default model: `openai/gpt-5.6-sol`.
-- The agent can plan, search via Exa, read public webpages, verify, and call an authorized task executor.
-- `/api/auth` provides an optional HTTP-only private access cookie.
-- Memory is currently stored in the browser and supplied as context on requests.
+- Host: Vercel project `tarotai-core`
+- Source: GitHub `tarotgamerz/pcdealhub`
+- Production branch: `main`
+- Root directory: `tarotai-live`
+- Framework: Next.js App Router
+- Node: 22.x
+- Model transport: direct OpenRouter HTTP
+- Default model: `openrouter/free`
 
-## Vercel environment
+## Runtime routes
 
-The model can use Vercel's automatic OIDC authentication in a Vercel deployment. For local/non-Vercel hosting, provide an `AI_GATEWAY_API_KEY`.
+- `/api/auth` — access-code session gate
+- `/api/chat` — server-side OpenRouter chat proxy
+- `/api/health` — runtime configuration/health check
+- `/console.html` — operator console
+
+The App Router is the only active route layer. Legacy `pages/` and top-level `api/` routes were removed to prevent duplicate routing.
+
+## Required production environment
+
+Set this in Vercel Production environment variables:
+
+`OPENROUTER_API_KEY`
 
 Optional:
-- `TAROTAI_MODEL`
-- `EXA_API_KEY`
-- `TAROTAI_ACCESS_CODE`
-- `TAROTAI_TOOL_EXECUTOR_URL`
-- `TAROTAI_TOOL_EXECUTOR_TOKEN`
-- `TAROTAI_AUTONOMOUS_PERMISSIONS`
 
-Computer/application control intentionally uses an explicit executor hook. A normal website cannot safely reach the host PC's terminal or filesystem just because a model asks it to.
+`OPENROUTER_MODEL`
+
+Never commit or paste API keys into GitHub or chat.
+
+## Verification
+
+After a production deployment, open:
+
+`/api/health`
+
+Expected fields include:
+
+- `runtime: "next-app-router"`
+- `aiTransport: "direct-openrouter"`
+- `hasOpenRouterKey: true`
+- `model: "openrouter/free"`
+
+Then send a real POST request to `/api/chat` through the console.
+
+## Security notes
+
+The browser console may keep local notes in `localStorage`, but those notes are not sent to the server chat endpoint. Server-side secrets are read only from environment variables.
+
+The chat endpoint accepts user/assistant messages only, applies a 40-message cap, uses `no-store` caching, and enforces an upstream timeout.
+
+Live tool integrations such as Exa and GitHub are not claimed until they are actually connected and verified.
