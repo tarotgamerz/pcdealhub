@@ -1,3 +1,13 @@
-export async function GET(){
-  return Response.json({ok:true,runtime:"next-app-router",oidcFeatureEnabled:true,hasExa:Boolean(process.env.EXA_API_KEY),hasGatewayKey:Boolean(process.env.AI_GATEWAY_API_KEY),deployment:process.env.VERCEL_DEPLOYMENT_ID||null});
+export async function GET() {
+  return Response.json({
+    ok: true,
+    runtime: "next-app-router",
+    aiTransport: "direct-openrouter",
+    oidcFeatureEnabled: true,
+    hasExa: Boolean(process.env.EXA_API_KEY),
+    hasGatewayKey: Boolean(process.env.AI_GATEWAY_API_KEY),
+    hasOpenRouterKey: Boolean(process.env.OPENROUTER_API_KEY),
+    model: process.env.OPENROUTER_MODEL || "openrouter/free",
+    deployment: process.env.VERCEL_DEPLOYMENT_ID || null
+  });
 }
