@@ -1,9 +1,9 @@
 {
   "functions": {
-    "pages/api/chat.js": {
+    "api/chat.js": {
       "maxDuration": 120
     },
-    "pages/api/auth.js": {
+    "api/auth.js": {
       "maxDuration": 10
     }
   }
