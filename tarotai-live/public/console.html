@@ -13,7 +13,7 @@
 <body>
 <div id="root"></div>
 <script>
-const state={messages:JSON.parse(localStorage.getItem('tarotai-messages')||'[]'),memory:JSON.parse(localStorage.getItem('tarotai-memory')||'[]'),tasks:JSON.parse(localStorage.getItem('tarotai-tasks')||'[]'),busy:false,auth:null,runtime:null,active:'Command Center',plan:[],activity:[],sources:[]};
+const state={messages:JSON.parse(localStorage.getItem('tarotai-messages')||'[]'),memory:JSON.parse(localStorage.getItem('tarotai-memory')||'[]'),tasks:JSON.parse(localStorage.getItem('tarotai-tasks')||'[]'),busy:false,auth:null,runtime:null,active:'Command Center',plan:[],activity:[],sources:[],documents:[]};
 const starter=['Diagnose my PC performance problem from everything you know about my setup.','Research a current topic and give me a source-backed answer.','Audit my project and tell me what I should work on next.'];
 const nav=[['⌂','Command Center'],['＋','New Task'],['◉','Active Tasks'],['↺','Task History'],['▦','Projects'],['□','Files'],['◎','Memory'],['◈','Connected Apps'],['⚙','Settings']];
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -29,7 +29,7 @@ function render(){document.getElementById('root').innerHTML=`
 <div class="composer-wrap"><div class="composer"><textarea id="input" placeholder="Tell tarotai what you want done…" onkeydown="key(event)"></textarea><div class="composerbar"><div class="hint">${state.busy?'Agent is working…':'Enter to send • Shift+Enter for a new line'}</div><button class="send" onclick="send()" ${state.busy?'disabled':''}>${state.busy?'Working…':'Send'}</button></div></div></div></main>
 <aside class="right">${rightHtml()}</aside>
 </div>`;
-document.getElementById('input')?.focus();scrollChat()}
+document.getElementById('input')?.focus();scrollChat();ensureDocumentUi()}
 function chatHtml(){if(!state.messages.length)return '<div class="welcome"><div class="eyebrow">PRIVATE AUTONOMOUS WORKSPACE</div><h2>What should tarotai do?</h2><p>This is the real runtime, not a simulation. It sends your request to the server-side model and can plan, research, read public pages, verify results and call an authorized executor.</p><div class="chips">'+starter.map(x=>'<button class="chip" onclick="prefill('+JSON.stringify(x)+')">'+esc(x)+'</button>').join('')+'</div></div>';return state.messages.map(m=>`<div class="msg ${m.role==='user'?'user':'ai'}"><div class="label">${m.role==='user'?'You':'tarotai'}</div><div class="bubble">${esc(m.content||'')}</div>${(m.toolEvents||[]).map(t=>`<div class="tool">↳ ${esc(toolName(t.name))}</div>`).join('')}</div>`).join('')}
 function rightHtml(){return '<div class="section"><h3>Task state</h3><div class="card"><div class="mini">'+(state.busy?'Executing':'Ready')+'</div><strong>'+(state.tasks[0]?esc(state.tasks[0].title):'No active task')+'</strong></div></div>'+
 '<div class="section"><h3>Plan</h3><div class="card">'+(state.plan.length?state.plan.map((x,i)=>'<div class="step"><span class="badge">'+(i+1)+'</span><span>'+esc(x)+'</span></div>').join(''):'<div class="mini">The plan appears here when tarotai starts a substantial task.</div>')+'</div></div>'+
@@ -37,15 +37,81 @@ function rightHtml(){return '<div class="section"><h3>Task state</h3><div class=
 '<div class="section"><h3>Sources</h3><div class="card">'+(state.sources.length?state.sources.slice(0,6).map(x=>'<div class="source step"><span>↗</span><span><a href="'+esc(x.url||'#')+'" target="_blank" rel="noreferrer">'+esc(x.title||x.url)+'</a><br><span class="mini">'+esc(x.snippet||'')+'</span></span></div>').join(''):'<div class="mini">Sources appear when web research is used.</div>')+'</div></div>'+
 '<div class="section"><h3>Local notes</h3><div class="card"><div class="mem"><input id="mk" class="field" placeholder="Key"><input id="mv" class="field" placeholder="Value"></div><button class="ghost" style="margin-top:7px;width:100%" onclick="addMemory()">Save local note</button><div class="mini" style="margin-top:7px">Stored in this browser only; not sent to the server.</div>'+(state.memory.slice(0,8).map((m,i)=>'<div class="step"><span>•</span><span>'+esc(m.key)+': '+esc(m.value)+' <button class="ghost" style="padding:2px 5px" onclick="delMemory('+i+')">×</button></span></div>').join('')||'')+'</div></div>'+
 '<div class="section"><h3>Security</h3><div class="card"><div class="mini">AI model: server-side<br>AI transport: direct OpenRouter<br>Web research: +(state.runtime?.hasExa?"Exa connected":"Exa not configured")+<br>Access code: +(state.runtime?.hasAccessCode?"configured":"MISSING — production is locked")+<br>Live tools: server-side only<br>API secrets: server environment only</div></div></div>'}
+function ensureDocumentUi(){
+  const sendButton=document.querySelector('.composerbar .send');
+  if(!sendButton||document.getElementById('tarotai-doc-input'))return;
+  const input=document.createElement('input');
+  input.type='file';
+  input.id='tarotai-doc-input';
+  input.hidden=true;
+  input.accept='.pdf,.docx,.pptx,.xlsx,.txt,.md,.markdown,.csv,.json,.xml,.html,.log,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  input.addEventListener('change',uploadDocument);
+  document.body.appendChild(input);
+  const button=document.createElement('button');
+  button.className='ghost';
+  button.type='button';
+  button.textContent='Attach';
+  button.title='Attach a PDF, DOCX, PPTX, XLSX or text document';
+  button.addEventListener('click',()=>input.click());
+  sendButton.parentElement.insertBefore(button,sendButton);
+
+  const hint=document.querySelector('.composerbar .hint');
+  const refresh=()=>{
+    if(hint)hint.textContent=state.busy?'Agent is working…':(state.documents.length?('Attached '+state.documents.length+' document(s)'): 'Enter to send • Shift+Enter for a new line');
+  };
+  refresh();
+
+  const right=document.querySelector('.right');
+  if(right&&!document.getElementById('tarotai-doc-panel')){
+    const section=document.createElement('div');
+    section.className='section';
+    section.id='tarotai-doc-panel';
+    section.innerHTML='<h3>Documents</h3><div class="card" id="tarotai-doc-list"><div class="mini">No documents attached.</div></div>';
+    right.insertBefore(section,right.firstChild);
+  }
+  const refreshDocs=()=>{
+    const list=document.getElementById('tarotai-doc-list');
+    if(!list)return;
+    list.innerHTML=state.documents.length?state.documents.map((d,i)=>'<div class="step"><span>📄</span><span><strong>'+esc(d.name)+'</strong><br><span class="mini">'+esc(String(d.characters))+' chars'+(d.truncated?' • clipped':'')+'</span> <button class="ghost" style="padding:2px 5px" data-doc-remove="'+i+'">×</button></span></div>').join(''):'<div class="mini">No documents attached.</div>';
+    list.querySelectorAll('[data-doc-remove]').forEach(b=>b.addEventListener('click',()=>{removeDocument(Number(b.dataset.docRemove));}));
+  };
+  refreshDocs();
+  window.refreshTarotaiDocuments=()=>{refresh();refreshDocs();};
+}
+async function uploadDocument(e){
+  const file=e.target.files?.[0];
+  e.target.value='';
+  if(!file||state.busy)return;
+  if(state.documents.length>=4){alert('Maximum 4 documents per task.');return;}
+  state.activity.unshift('Extracting document: '+file.name);
+  if(window.refreshTarotaiDocuments)window.refreshTarotaiDocuments();
+  try{
+    const form=new FormData();
+    form.append('file',file);
+    const r=await fetch('/api/documents',{method:'POST',body:form});
+    const raw=await r.text();
+    let d;
+    try{d=raw?JSON.parse(raw):{};}catch{throw new Error(raw.slice(0,500)||('HTTP '+r.status));}
+    if(!r.ok)throw new Error(d.error||('Document upload failed (HTTP '+r.status+')'));
+    state.documents.push({name:d.name,mime:d.mime,characters:d.characters,truncated:d.truncated,text:d.text});
+    state.activity.unshift('Document ready: '+d.name+(d.warning?' • '+d.warning:''));
+    if(window.refreshTarotaiDocuments)window.refreshTarotaiDocuments();
+  }catch(err){
+    state.activity.unshift('Document failed: '+err.message);
+    if(window.refreshTarotaiDocuments)window.refreshTarotaiDocuments();
+    alert(err.message);
+  }
+}
+function removeDocument(i){state.documents.splice(i,1);state.activity.unshift('Removed document attachment');if(window.refreshTarotaiDocuments)window.refreshTarotaiDocuments();render()}
 function navTo(n){state.active=n;render()}
 function prefill(x){document.getElementById('input').value=x;document.getElementById('input').focus()}
 function newTask(){state.active='New Task';document.getElementById('input')?.focus();render()}
-function clearChat(){state.messages=[];state.plan=[];state.sources=[];state.activity=[];save();render()}
+function clearChat(){state.messages=[];state.plan=[];state.sources=[];state.activity=[];state.documents=[];save();render()}
 function addMemory(){const k=document.getElementById('mk').value.trim(),v=document.getElementById('mv').value.trim();if(!k||!v)return;state.memory.unshift({key:k,value:v});save();render()}
 function delMemory(i){state.memory.splice(i,1);save();render()}
 function key(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}}
 function scrollChat(){const el=document.getElementById('chat');if(el)el.scrollTop=el.scrollHeight}
-async function send(){const box=document.getElementById('input');const text=box?.value.trim();if(!text||state.busy)return;state.busy=true;state.messages.push({role:'user',content:text});state.tasks.unshift({title:text,status:'executing',createdAt:new Date().toISOString()});state.activity.unshift('Task started: '+text);save();render();try{const r=await fetch('/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({messages:state.messages.map(m=>({role:m.role,content:m.content}))})});const raw=await r.text();let d;try{d=raw?JSON.parse(raw):{}}catch{throw new Error(raw.slice(0,500)||`HTTP ${r.status}`)}if(!r.ok)throw new Error(d.error||`Request failed (HTTP ${r.status})`);state.messages.push({role:'assistant',content:d.text,toolEvents:d.toolEvents||[]});state.activity.unshift(d.toolEvents?.length?'Used '+d.toolEvents.length+' tool step(s)':'Answered directly');for(const t of (d.toolEvents||[])){if(t.output?.type==='plan')state.plan=t.output.steps||[];if(t.output?.type==='web_search'&&t.output.results)state.sources=t.output.results;state.activity.unshift('Used '+toolName(t.name));}state.tasks[0].status='completed';state.tasks[0].result=d.text;save()}catch(e){state.messages.push({role:'assistant',content:'I could not complete the request. '+e.message});if(state.tasks[0])state.tasks[0].status='failed';save()}state.busy=false;render()}
+async function send(){const box=document.getElementById('input');const text=box?.value.trim();if(!text||state.busy)return;state.busy=true;state.messages.push({role:'user',content:text});state.tasks.unshift({title:text,status:'executing',createdAt:new Date().toISOString()});state.activity.unshift('Task started: '+text);save();render();try{const r=await fetch('/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({messages:state.messages.map(m=>({role:m.role,content:m.content})),documents:state.documents.map(d=>({name:d.name,mime:d.mime,characters:d.characters,truncated:d.truncated,text:d.text}))})});const raw=await r.text();let d;try{d=raw?JSON.parse(raw):{}}catch{throw new Error(raw.slice(0,500)||`HTTP ${r.status}`)}if(!r.ok)throw new Error(d.error||`Request failed (HTTP ${r.status})`);state.messages.push({role:'assistant',content:d.text,toolEvents:d.toolEvents||[]});state.activity.unshift(d.toolEvents?.length?'Used '+d.toolEvents.length+' tool step(s)':'Answered directly');for(const t of (d.toolEvents||[])){if(t.output?.type==='plan')state.plan=t.output.steps||[];if(t.output?.type==='web_search'&&t.output.results)state.sources=t.output.results;state.activity.unshift('Used '+toolName(t.name));}state.tasks[0].status='completed';state.tasks[0].result=d.text;save()}catch(e){state.messages.push({role:'assistant',content:'I could not complete the request. '+e.message});if(state.tasks[0])state.tasks[0].status='failed';save()}state.busy=false;render()}
 async function lock(){await fetch('/api/auth',{method:'DELETE'});location.reload()}
 async function boot(){try{const h=await fetch('/api/health',{cache:'no-store'});state.runtime=await h.json().catch(()=>null)}catch{state.runtime=null}const r=await fetch('/api/auth',{cache:'no-store'});const d=await r.json();state.auth=d.authenticated;if(!state.auth){renderLogin();return}render();const el=document.getElementById('runtimeStatus');if(el){el.textContent=!state.runtime?.hasAccessCode?'SECURITY SETUP REQUIRED':(state.runtime?.hasOpenRouterKey?(state.runtime?.hasExa?'AI runtime connected':'AI key connected • Exa not configured'):'AI runtime needs configuration');}}
 boot();
