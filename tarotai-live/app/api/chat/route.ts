@@ -1,4 +1,4 @@
-import { redis, memoryKey, memoryEnabled, privateUserId, forbiddenMemoryKey } from "@/lib/store";
+import { redis, memoryKey, memoryEnabled, privateUserId, forbiddenMemoryKey, consumeRateLimit, appendAudit } from "@/lib/store";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -1081,6 +1081,18 @@ export async function POST(request: Request) {
       );
     }
 
+    const userId = privateUserId(request);
+    if (userId) {
+      const limit = Math.max(5, Math.min(120, Number(process.env.TAROTAI_CHAT_RPM || 30) || 30));
+      const rate = await consumeRateLimit(userId, limit);
+      if (!rate.allowed) {
+        return Response.json(
+          { error: "Rate limit reached. Please retry after the current minute window." },
+          { status: 429, headers: { "Cache-Control": "no-store", "Retry-After": "60" } }
+        );
+      }
+    }
+
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
       return Response.json(
@@ -1210,6 +1222,14 @@ export async function POST(request: Request) {
           );
         }
 
+        if (userId) {
+          await appendAudit(userId, {
+            type: "chat_completed",
+            tools: toolEvents.map((event: any) => event.name).slice(0, 20),
+            finishReason: data?.choices?.[0]?.finish_reason || null
+          }).catch(() => {});
+        }
+
         return Response.json(
           {
             text,
@@ -1246,6 +1266,13 @@ export async function POST(request: Request) {
             content: JSON.stringify(output).slice(0, 30000)
           });
           toolEvents.push(compactToolEvent(name, args, output));
+          if (userId) {
+            await appendAudit(userId, {
+              type: "tool_executed",
+              tool: name,
+              status: "ok"
+            }).catch(() => {});
+          }
         } catch (toolError) {
           const detail = toolError instanceof Error ? toolError.message : String(toolError);
           messages.push({
@@ -1259,6 +1286,13 @@ export async function POST(request: Request) {
             input: args,
             output: { type: "error", error: detail }
           });
+          if (userId) {
+            await appendAudit(userId, {
+              type: "tool_error",
+              tool: name,
+              error: detail.slice(0, 500)
+            }).catch(() => {});
+          }
         }
       }
     }
