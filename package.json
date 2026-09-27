@@ -1,0 +1,15 @@
+{
+  "name":"tarotai-core",
+  "private":true,
+  "version":"2.0.0",
+  "scripts":{"dev":"next dev","build":"next build","start":"next start"},
+  "dependencies":{
+    "@ai-sdk/gateway":"2.0.27",
+    "ai":"5.0.121",
+    "next":"15.3.8",
+    "react":"19.1.0",
+    "react-dom":"19.1.0",
+    "zod":"4.3.5"
+  },
+  "engines":{"node":">=22"}
+}
