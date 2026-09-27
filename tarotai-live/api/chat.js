@@ -1,7 +1,5 @@
 import { generateText, stepCountIs, tool } from 'ai';
 import { z } from 'zod';
-import { parse } from 'cookie';
-
 const model = process.env.TAROTAI_MODEL || 'openai/gpt-5.6-sol';
 
 const planTool = tool({
@@ -187,8 +185,8 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const cookies = parse(req.headers.cookie || '');
-  if (process.env.TAROTAI_ACCESS_CODE && cookies.tarotai_session !== 'authorized') {
+  const authorized = (req.headers.cookie || '').split(';').map(v => v.trim()).some(v => v === 'tarotai_session=authorized');
+  if (process.env.TAROTAI_ACCESS_CODE && !authorized) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
