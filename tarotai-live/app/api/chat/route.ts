@@ -64,6 +64,31 @@ if (process.env.EXA_API_KEY) {
   tools.unshift({
     type: "function",
     function: {
+      name: "read_webpage",
+      description:
+        "Read a public webpage or document URL with Exa and return clean source text. Use after search_web or when the user gives a URL and asks about its contents.",
+      parameters: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          url: {
+            type: "string",
+            description: "A public http(s) URL to read."
+          },
+          max_characters: {
+            type: "integer",
+            minimum: 1000,
+            maximum: 12000,
+            description: "Maximum source text to return."
+          }
+        },
+        required: ["url"]
+      }
+    }
+  });
+  tools.unshift({
+    type: "function",
+    function: {
       name: "search_web",
       description:
         "Search the live web with Exa for current facts, recent information, products, software, research, or source discovery. Returns titles, URLs, and concise relevant excerpts.",
@@ -86,6 +111,39 @@ if (process.env.EXA_API_KEY) {
       }
     }
   });
+}
+
+async function runReadWebpage(args: any) {
+  const url = String(args?.url ?? "").trim();
+  if (!/^https?:\/\//i.test(url)) throw new Error("read_webpage requires an http(s) URL");
+  if (!process.env.EXA_API_KEY) throw new Error("read_webpage is unavailable because EXA_API_KEY is not configured.");
+  const maxCharacters = Math.max(1000, Math.min(12000, Number(args?.max_characters ?? 6000) || 6000));
+
+  const response = await fetch("https://api.exa.ai/contents", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + process.env.EXA_API_KEY,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      urls: [url],
+      text: { maxCharacters }
+    }),
+    cache: "no-store"
+  });
+
+  const raw = await response.text();
+  if (!response.ok) throw new Error("Exa contents request failed (" + response.status + "): " + extractError(raw));
+
+  const data = JSON.parse(raw);
+  const item = Array.isArray(data?.results) ? data.results[0] : null;
+  return {
+    type: "webpage",
+    title: String(item?.title ?? ""),
+    url: String(item?.url ?? url),
+    publishedDate: item?.publishedDate ?? null,
+    text: String(item?.text ?? "").slice(0, maxCharacters)
+  };
 }
 
 async function runSearchWeb(args: any) {
@@ -196,6 +254,7 @@ async function runGithubReadFile(args: any) {
 
 async function executeTool(name: string, args: any) {
   if (name === "search_web") return runSearchWeb(args);
+  if (name === "read_webpage") return runReadWebpage(args);
   if (name === "github_read_file") return runGithubReadFile(args);
   throw new Error("Unknown tool: " + name);
 }
@@ -214,6 +273,19 @@ function compactToolEvent(name: string, args: any, output: any) {
               snippet: String(x.highlights ?? "").slice(0, 700)
             }))
           : []
+      }
+    };
+  }
+
+  if (name === "read_webpage") {
+    return {
+      name,
+      input: { url: String(args?.url ?? "").slice(0, 500) },
+      output: {
+        type: "webpage",
+        title: output?.title || "",
+        url: output?.url || args?.url || "",
+        characters: typeof output?.text === "string" ? output.text.length : 0
       }
     };
   }
