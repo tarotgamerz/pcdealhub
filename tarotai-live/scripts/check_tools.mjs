@@ -62,7 +62,11 @@ const documentRequired = [
   'getTextExtractor',
   'Authentication required'
 ];
-const dependencyRequired = ['"office-text-extractor":"4.0.0"', '"@composio/core":"0.21.0"'];
+const memoryRequired = ['memoryEnabled', 'memoryKey', 'forbiddenMemoryKey', 'export async function POST'];
+const stateRequired = ['stateKey', 'export async function GET', 'export async function POST'];
+const appRequired = ['new Composio', 'session!.toolkits', 'session!.authorize'];
+const visionRequired = ['OPENROUTER_VISION_MODEL', 'image_url', 'dataUrl'];
+const dependencyRequired = ['"office-text-extractor":"4.0.0"', '"@composio/core":"0.18.1"', '"@upstash/redis":"1.39.0"'];
 
 const missingHealth = healthRequired.filter((needle) => !health.includes(needle));
 const missingDocuments = documentRequired.filter((needle) => !documents.includes(needle));
