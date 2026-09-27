@@ -1,0 +1,24 @@
+name: Validate tarotai runtime
+
+on:
+  push:
+    paths:
+      - "tarotai-live/**"
+      - ".github/workflows/validate-tarotai.yml"
+  pull_request:
+    paths:
+      - "tarotai-live/**"
+      - ".github/workflows/validate-tarotai.yml"
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate server JavaScript
+        run: |
+          node --check tarotai-live/api/auth.js
+          node --check tarotai-live/api/chat.js
