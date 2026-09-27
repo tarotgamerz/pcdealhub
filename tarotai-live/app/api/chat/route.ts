@@ -89,6 +89,22 @@ const tools: any[] = [
   {
     type: "function",
     function: {
+      name: "security_audit_url",
+      description:
+        "Perform a passive security check of a public HTTPS URL. Inspect status, redirect behavior, TLS-level fetch metadata, and common HTTP security headers. This is read-only and non-intrusive; do not use it for exploitation or credential attacks.",
+      parameters: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          url: { type: "string", description: "Public HTTPS URL to inspect." }
+        },
+        required: ["url"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
       name: "github_update_file",
       description:
         "Update an existing text file in an allowed GitHub repository. Use only when the user explicitly asked you in the current task to modify/write/fix/commit code and runtime write approval is enabled. Never fabricate success.",
@@ -320,6 +336,72 @@ if (process.env.EXA_API_KEY) {
       }
     }
   });
+}
+
+function isPrivateHostname(hostname: string) {
+  const h = hostname.toLowerCase();
+  if (h === "localhost" || h.endsWith(".localhost") || h === "::1") return true;
+  if (/^127\./.test(h) || /^10\./.test(h) || /^192\.168\./.test(h) || /^169\.254\./.test(h)) return true;
+  const m = h.match(/^172\.(\d{1,2})\./);
+  if (m && Number(m[1]) >= 16 && Number(m[1]) <= 31) return true;
+  return false;
+}
+
+async function runSecurityAuditUrl(args: any) {
+  const rawUrl = String(args?.url ?? "").trim();
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    throw new Error("security_audit_url requires a valid URL");
+  }
+  if (parsed.protocol !== "https:") {
+    throw new Error("security_audit_url only permits HTTPS URLs.");
+  }
+  if (parsed.username || parsed.password) {
+    throw new Error("URLs with embedded credentials are not permitted.");
+  }
+  if (isPrivateHostname(parsed.hostname)) {
+    throw new Error("Private or loopback hosts are not permitted.");
+  }
+
+  const response = await fetch(parsed.toString(), {
+    method: "GET",
+    redirect: "manual",
+    headers: {
+      "User-Agent": "tarotai-security-audit/1.0",
+      Range: "bytes=0-4095"
+    },
+    cache: "no-store"
+  });
+
+  const interesting = [
+    "strict-transport-security",
+    "content-security-policy",
+    "x-content-type-options",
+    "x-frame-options",
+    "referrer-policy",
+    "permissions-policy",
+    "cross-origin-opener-policy",
+    "cross-origin-resource-policy"
+  ];
+  const headers: Record<string, string | null> = {};
+  for (const key of interesting) headers[key] = response.headers.get(key);
+
+  const missing = interesting.filter((key) => !headers[key]);
+  const location = response.headers.get("location");
+
+  return {
+    type: "security_audit",
+    url: parsed.toString(),
+    status: response.status,
+    statusText: response.statusText,
+    redirected: response.status >= 300 && response.status < 400,
+    location: location ? location.slice(0, 500) : null,
+    securityHeaders: headers,
+    missingSecurityHeaders: missing,
+    note: "Passive HTTP inspection only; this tool does not exploit, authenticate, scan ports, or modify the target."
+  };
 }
 
 function cookieValue(request: Request, name: string) {
@@ -768,6 +850,7 @@ async function runGithubReadFile(args: any) {
 }
 
 async function executeTool(name: string, args: any, documents: Array<{name:string; mime:string; characters:number; text:string; truncated?:boolean}> = [], request?: Request, composioRuntime?: any) {
+  if (name === "security_audit_url") return runSecurityAuditUrl(args);
   if (name === "github_update_file") return runGithubWriteFile(args, request as Request, false);
   if (name === "github_create_file") return runGithubWriteFile(args, request as Request, true);
   if (name === "search_attached_documents") return runSearchAttachedDocuments(args, documents);
@@ -803,6 +886,18 @@ function compactToolEvent(name: string, args: any, output: any) {
       output: {
         type: "current_datetime",
         iso: output?.iso || null
+      }
+    };
+  }
+
+  if (name === "security_audit_url") {
+    return {
+      name,
+      input: { url: String(args?.url ?? "").slice(0, 500) },
+      output: {
+        type: "security_audit",
+        status: output?.status ?? null,
+        missingSecurityHeaders: Array.isArray(output?.missingSecurityHeaders) ? output.missingSecurityHeaders : []
       }
     };
   }
