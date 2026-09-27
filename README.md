@@ -15,6 +15,7 @@ PCDealHub is a free-to-use PC hardware deal discovery site focused on India.
 - `.github/workflows/check-links.yml` — scheduled affiliate/public-link health checks.
 - `.github/workflows/freshness.yml` — scheduled freshness guard that flags deal records older than 72 hours so stale offers do not quietly look current.
 - `.github/workflows/sync-deals.yml` — scheduled candidate collection when Cuelinks credentials are configured.
+- `.github/workflows/sync-rss.yml` — automatically rebuilds the RSS feed whenever the verified deal feed changes.
 - `scripts/check_deal_links.py` — validates affiliate URLs and the Amazon Associates tag.
 - `scripts/sync_cuelinks.py` — keeps unverified Cuelinks candidates out of the public feed.
 - `data/affiliate-programs.json` — tracks the monetization/affiliate pipeline.
