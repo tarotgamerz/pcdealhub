@@ -7,6 +7,7 @@ const documents = readFileSync("app/api/documents/route.ts", "utf8");
 const packageJson = readFileSync("package.json", "utf8");
 
 const required = [
+  'name: "search_attached_documents"',
   'name: "set_plan"',
   'name: "get_current_datetime"',
   'name: "github_list_commits"',
@@ -14,6 +15,7 @@ const required = [
   'name: "github_read_file"',
   'name: "search_web"',
   'name: "read_webpage"',
+  'if (name === "search_attached_documents")',
   'if (name === "get_current_datetime")',
   'if (name === "github_list_commits")',
   'if (name === "github_actions_runs")',
@@ -21,6 +23,8 @@ const required = [
   'if (name === "search_web")',
   'if (name === "read_webpage")',
   'documents',
+  'search_attached_documents',
+
   'documentContext(documents)'
 ];
 
