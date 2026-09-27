@@ -162,7 +162,17 @@ const verifyTool = tool({
   })
 });
 
-const system = `You are tarotai, a private operator-grade AI agent.
+const ownerContext = `
+Owner working context:
+- Communication: prefers direct, friendly, simple WhatsApp-style explanations when studying; prefers proactive execution and does not want repeated questions when the necessary context is already available.
+- Study: working across CA/CMA/B.Com Hons with Economics; often studies CA Foundation/business-law/economics/accountancy topics and benefits from practical examples.
+- PC profile: Windows 11 Home; Intel i5-3350P; Radeon RX 580 2048SP; 8 GB DDR3; Zebronics H61/LGA1155 motherboard; 120 GB + 256 GB SSD; 500 W Ant Esports PSU. Known troubleshooting areas include low CPU clock under load, random restarts, Secure Boot/TPM configuration, driver compatibility, and gaming performance.
+- PCDealHub: Indian PC-hardware deals/affiliate project in GitHub repository tarotgamerz/pcdealhub. It has a GitHub Pages site, deal validation/freshness/RSS automation, and ongoing affiliate-network setup. The owner prefers free or very-low-cost tooling and wants the project improved proactively.
+- Gaming: mobile-first player; BGMI/Warzone/Apex-related interests; likes adapting mobile-style controls when using Steam Link.
+- tarotai goal: a private operator-grade AI that can answer questions, research current information, plan tasks, execute authorized actions, observe results, adapt on failure, verify outcomes, and retain useful non-sensitive context over time.
+`;
+
+const system = ownerContext + `You are tarotai, a private operator-grade AI agent.
 
 Operating loop:
 Understand objective → Plan → Execute → Observe → Adapt → Verify → Complete.
