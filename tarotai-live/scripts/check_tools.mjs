@@ -8,6 +8,7 @@ const memory = readFileSync("app/api/memory/route.ts", "utf8");
 const state = readFileSync("app/api/state/route.ts", "utf8");
 const apps = readFileSync("app/api/apps/route.ts", "utf8");
 const vision = readFileSync("app/api/vision/route.ts", "utf8");
+const audit = readFileSync("app/api/audit/route.ts", "utf8");
 const packageJson = readFileSync("package.json", "utf8");
 
 const required = [
@@ -66,6 +67,7 @@ const memoryRequired = ['memoryEnabled', 'memoryKey', 'forbiddenMemoryKey', 'exp
 const stateRequired = ['stateKey', 'export async function GET', 'export async function POST'];
 const appRequired = ['new Composio', 'session!.toolkits', 'session!.authorize'];
 const visionRequired = ['OPENROUTER_VISION_MODEL', 'image_url', 'dataUrl'];
+const auditRequired = ['auditKey', 'lrange', 'JSON.parse'];
 const dependencyRequired = ['"office-text-extractor": "4.0.0"', '"@composio/core": "0.18.1"', '"@upstash/redis": "1.39.0"'];
 
 const missingHealth = healthRequired.filter((needle) => !health.includes(needle));
@@ -74,10 +76,11 @@ const missingMemory = memoryRequired.filter((needle) => !memory.includes(needle)
 const missingState = stateRequired.filter((needle) => !state.includes(needle));
 const missingApps = appRequired.filter((needle) => !apps.includes(needle));
 const missingVision = visionRequired.filter((needle) => !vision.includes(needle));
+const missingAudit = auditRequired.filter((needle) => !audit.includes(needle));
 const missingDependency = dependencyRequired.filter((needle) => !packageJson.includes(needle));
 const presentForbidden = forbidden.filter((needle) => route.includes(needle));
 
-if (missing.length || missingAuth.length || missingHealth.length || missingDocuments.length || missingMemory.length || missingState.length || missingApps.length || missingVision.length || missingDependency.length || presentForbidden.length) {
+if (missing.length || missingAuth.length || missingHealth.length || missingDocuments.length || missingMemory.length || missingState.length || missingApps.length || missingVision.length || missingAudit.length || missingDependency.length || presentForbidden.length) {
   console.error("TarotAI runtime contract failed.");
   if (missing.length) console.error("Missing chat/tool contract:", missing);
   if (missingAuth.length) console.error("Missing auth contract:", missingAuth);
@@ -87,6 +90,7 @@ if (missing.length || missingAuth.length || missingHealth.length || missingDocum
   if (missingState.length) console.error("Missing state contract:", missingState);
   if (missingApps.length) console.error("Missing apps contract:", missingApps);
   if (missingVision.length) console.error("Missing vision contract:", missingVision);
+  if (missingAudit.length) console.error("Missing audit contract:", missingAudit);
   if (missingDependency.length) console.error("Missing dependency:", missingDependency);
   if (presentForbidden.length) console.error("Forbidden:", presentForbidden);
   process.exit(1);
