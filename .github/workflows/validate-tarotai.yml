@@ -25,6 +25,8 @@ jobs:
           cache-dependency-path: tarotai-live/package.json
       - name: Install dependencies
         run: npm install
+      - name: Tool contract checks
+        run: node scripts/check_tools.mjs
       - name: Typecheck
         run: npx tsc --noEmit
       - name: Production build
