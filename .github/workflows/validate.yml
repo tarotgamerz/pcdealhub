@@ -52,9 +52,11 @@ jobs:
               if parsed.scheme not in {"http", "https"} or not parsed.netloc:
                   raise SystemExit(f"Deal {i}: invalid URL")
               datetime.fromisoformat(deal["checked_at"].replace("Z", "+00:00"))
-              for key in ("price", "seller", "availability", "terms"):
+              for key in ("price", "seller", "availability", "terms", "reference_price"):
                   if deal.get("verification", {}).get(key) is not True:
                       raise SystemExit(f"Deal {i}: verification.{key} must be true")
+              if float(deal["reference"]) < float(deal["price"]):
+                  raise SystemExit(f"Deal {i}: reference price cannot be below current price")
 
           print(f"Validated {len(data)} verified deal(s).")
           PY
