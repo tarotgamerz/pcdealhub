@@ -7,7 +7,7 @@ type MemoryItem = {
 };
 
 async function load(userId: string): Promise<MemoryItem[]> {
-  const data = await redis.get<MemoryItem[]>(memoryKey(userId));
+  const data = await redis!.get<MemoryItem[]>(memoryKey(userId));
   return Array.isArray(data) ? data.slice(0, 100) : [];
 }
 
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
   const items = await load(userId).then((list) => list.filter((item) => item.key !== key));
   items.unshift({ key, value, updatedAt: new Date().toISOString() });
-  await redis.set(memoryKey(userId), items.slice(0, 100));
+  await redis!.set(memoryKey(userId), items.slice(0, 100));
   return Response.json({ ok: true, item: items[0] }, { headers: { "Cache-Control": "no-store" } });
 }
 
@@ -47,6 +47,6 @@ export async function DELETE(request: Request) {
   const key = String(body?.key ?? "").trim().slice(0, 80);
   if (!key) return Response.json({ error: "key is required." }, { status: 400 });
   const items = await load(userId);
-  await redis.set(memoryKey(userId), items.filter((item) => item.key !== key));
+  await redis!.set(memoryKey(userId), items.filter((item) => item.key !== key));
   return Response.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });
 }
