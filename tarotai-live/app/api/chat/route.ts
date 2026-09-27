@@ -244,6 +244,14 @@ export async function POST(request: Request) {
       );
     }
 
+    const contentLength = Number(request.headers.get("content-length") || "0");
+    if (contentLength > 256_000) {
+      return Response.json(
+        { error: "Request payload is too large." },
+        { status: 413, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
     const body: any = await request.json().catch(() => ({}));
     const initialMessages = normalizeMessages(body?.messages);
     if (!initialMessages.length) {
