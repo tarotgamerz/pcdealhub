@@ -1,0 +1,48 @@
+name: Deal freshness guard
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 3 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "deals.json"
+      - ".github/workflows/freshness.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  freshness:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check published deal age
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          data = json.loads(Path("deals.json").read_text(encoding="utf-8"))
+          now = datetime.now(timezone.utc)
+          stale = []
+
+          for deal in data:
+              checked = datetime.fromisoformat(deal["checked_at"].replace("Z", "+00:00"))
+              age_hours = (now - checked).total_seconds() / 3600
+              if age_hours > 72:
+                  stale.append(f'{deal["id"]}: {age_hours:.1f}h old')
+
+          if stale:
+              print("Stale published deals detected (>72h since verification):")
+              print("\n".join(stale))
+              raise SystemExit(1)
+
+          print(f"Freshness guard passed for {len(data)} published deal(s).")
+          PY
