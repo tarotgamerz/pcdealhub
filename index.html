@@ -185,6 +185,7 @@ function render(){
      '<h3>'+esc(d.name)+'</h3><div class="price">'+money(d.price)+'</div>'+
      '<div class="muted">Reference: '+money(d.reference)+'</div><div class="saving">💰 Potential saving: '+money(save)+'</div>'+
      '<div class="meta">Seller: '+esc(d.seller)+' · '+esc(d.condition||"See listing")+'</div>'+
+     '<div class="meta">Stock: '+esc(d.stock||"Check listing")+' · Warranty: '+esc(d.warranty||"Check listing")+'</div>'+
      '<div class="meta">Checked: '+(checked&&!isNaN(checked)?checked.toLocaleDateString("en-IN"):"—") + (checked&&!isNaN(checked) ? " · "+freshness(d.checked_at) : "")+'</div>'+
      '<a class="btn primary" href="'+esc(url)+'" target="_blank" rel="noopener sponsored nofollow">View verified deal →</a></article>';
  }).join("");
