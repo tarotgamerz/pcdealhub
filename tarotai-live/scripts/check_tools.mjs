@@ -22,6 +22,8 @@ const required = [
   'if (name === "github_read_file")',
   'if (name === "search_web")',
   'if (name === "read_webpage")',
+  'getComposioRuntime',
+  'session.execute',
   'documents',
   'search_attached_documents',
 
@@ -54,7 +56,7 @@ const documentRequired = [
   'getTextExtractor',
   'Authentication required'
 ];
-const dependencyRequired = ['"office-text-extractor":"4.0.0"'];
+const dependencyRequired = ['"office-text-extractor":"4.0.0"', '"@composio/core":"0.21.0"'];
 
 const missingHealth = healthRequired.filter((needle) => !health.includes(needle));
 const missingDocuments = documentRequired.filter((needle) => !documents.includes(needle));
