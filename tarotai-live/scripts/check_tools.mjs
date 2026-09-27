@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 const route = readFileSync("app/api/chat/route.ts", "utf8");
 
 const required = [
-  'name: "get_current_datetime"',
+  'name: "set_plan"',
+  ,'name: "get_current_datetime"',
   'name: "github_list_commits"',
   'name: "github_actions_runs"',
   'name: "github_read_file"',
