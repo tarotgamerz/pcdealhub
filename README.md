@@ -53,3 +53,14 @@ Each entry in `deals.json` must satisfy `deals.schema.json`. The GitHub Action a
 ## Next automation layer
 
 The next stage is to connect approved retailer/affiliate feeds where permitted, normalize them into this same schema, and keep human verification as the final publication gate. The repository now has separate infrastructure for candidate discovery, published-link monitoring and deal freshness protection.
+## PCDealHub is live
+
+Website: https://tarotgamerz.github.io/pcdealhub/
+
+Instagram: https://www.instagram.com/pcdealhub/
+
+Telegram: https://t.me/Pcdealhubdealsbot
+
+YouTube: https://www.youtube.com/@pcdealhub
+
+The current deal feed is maintained in `deals.json` and should only be promoted after retailer price/stock checks.
