@@ -1,6 +1,6 @@
 [
   {
-    "id": "wd-green-sn3000-1tb-md-20260928",
+    "id": "wd-green-sn3000-1tb-md-20260925",
     "name": "WD Green SN3000 1TB NVMe Gen4 SSD",
     "category": "SSD",
     "price": 14660,
@@ -8,7 +8,7 @@
     "score": 8.8,
     "seller": "MD Computers",
     "url": "https://www.mdcomputers.in/product/wd-green-sn3000-1tb-nvme-ssd-wds100t5g0e",
-    "checked_at": "2026-09-28T06:25:00Z",
+    "checked_at": "2026-09-25T10:34:00Z",
     "condition": "New",
     "stock": "In Stock",
     "warranty": "3 Years",
@@ -22,15 +22,15 @@
     "icon": "💾"
   },
   {
-    "id": "gigabyte-rx7600-gaming-oc-8gb-md-20260928",
+    "id": "gigabyte-rx7600-gaming-oc-8gb-md-20260925",
     "name": "Gigabyte Radeon RX 7600 Gaming OC 8GB GDDR6",
     "category": "GPU",
-    "price": 40999,
+    "price": 40821,
     "reference": 91350,
     "score": 8,
     "seller": "MD Computers",
     "url": "https://mdcomputers.in/product/gigabyte-gaming-graphics-card-gv-r76gaming-oc-8gd",
-    "checked_at": "2026-09-28T06:28:00Z",
+    "checked_at": "2026-09-25T10:42:00Z",
     "condition": "New",
     "stock": "In Stock",
     "warranty": "3 Years",
@@ -44,7 +44,7 @@
     "icon": "🎮"
   },
   {
-    "id": "zotac-rtx-3050-6gb-md-20260928",
+    "id": "zotac-rtx-3050-6gb-20260925",
     "name": "ZOTAC Gaming GeForce RTX 3050 Twin Edge OC 6GB GDDR6",
     "category": "GPU",
     "price": 30590,
@@ -52,7 +52,7 @@
     "score": 8.2,
     "seller": "MD Computers",
     "url": "https://www.mdcomputers.in/product/zotac-rtx3050-twin-edge-oc-graphics-card-zt-a30510h-10l",
-    "checked_at": "2026-09-28T06:31:00Z",
+    "checked_at": "2026-09-25T11:10:00Z",
     "condition": "New",
     "stock": "In Stock",
     "warranty": "3 Years",
@@ -66,7 +66,7 @@
     "icon": "🎮"
   },
   {
-    "id": "amd-ryzen-5-5500-md-20260928",
+    "id": "amd-ryzen-5-5500-20260925",
     "name": "AMD Ryzen 5 5500 Processor",
     "category": "CPU",
     "price": 9450,
@@ -74,7 +74,7 @@
     "score": 9,
     "seller": "MD Computers",
     "url": "https://mdcomputers.in/product/amd-ryzen-5-5500-100-100000457box-desktop-processor",
-    "checked_at": "2026-09-28T06:34:00Z",
+    "checked_at": "2026-09-25T12:05:00Z",
     "condition": "New",
     "stock": "In Stock",
     "warranty": "3 Years",
