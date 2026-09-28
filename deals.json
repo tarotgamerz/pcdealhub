@@ -22,18 +22,18 @@
     "icon": "💾"
   },
   {
-    "id": "gigabyte-rx7600-gaming-oc-8gb-md-20260925",
-    "name": "Gigabyte Radeon RX 7600 Gaming OC 8GB GDDR6",
-    "category": "GPU",
-    "price": 40821,
-    "reference": 91350,
-    "score": 8,
-    "seller": "MD Computers",
-    "url": "https://mdcomputers.in/product/gigabyte-gaming-graphics-card-gv-r76gaming-oc-8gd",
-    "checked_at": "2026-09-25T10:42:00Z",
+    "id": "lg-24gs65f-b-vedant-20260925",
+    "name": "LG 24GS65F-B 24-inch FHD IPS 180Hz Gaming Monitor",
+    "category": "MONITOR",
+    "price": 11390,
+    "reference": 20000,
+    "score": 8.9,
+    "seller": "Vedant Computers",
+    "url": "https://www.vedantcomputers.com/lg-24inch-24gs65f-b",
+    "checked_at": "2026-09-25T10:27:00Z",
     "condition": "New",
     "stock": "In Stock",
-    "warranty": "3 Years",
+    "warranty": "3 Years Warranty",
     "verification": {
       "price": true,
       "seller": true,
@@ -41,21 +41,21 @@
       "terms": true,
       "reference_price": true
     },
-    "icon": "🎮"
+    "icon": "🖥️"
   },
   {
-    "id": "zotac-rtx-3050-6gb-20260925",
-    "name": "ZOTAC Gaming GeForce RTX 3050 Twin Edge OC 6GB GDDR6",
-    "category": "GPU",
-    "price": 30590,
-    "reference": 52800,
-    "score": 8.2,
-    "seller": "MD Computers",
-    "url": "https://www.mdcomputers.in/product/zotac-rtx3050-twin-edge-oc-graphics-card-zt-a30510h-10l",
-    "checked_at": "2026-09-25T11:10:00Z",
+    "id": "msi-mag-245f-x24-20260925",
+    "name": "MSI MAG 245F X24 24-inch FHD 240Hz Gaming Monitor",
+    "category": "MONITOR",
+    "price": 9150,
+    "reference": 23999,
+    "score": 9.1,
+    "seller": "Vedant Computers",
+    "url": "https://www.vedantcomputers.com/monitor/msi-24inch-mag-245f-x24",
+    "checked_at": "2026-09-25T10:48:00Z",
     "condition": "New",
     "stock": "In Stock",
-    "warranty": "3 Years",
+    "warranty": "3 Years Warranty",
     "verification": {
       "price": true,
       "seller": true,
@@ -63,7 +63,7 @@
       "terms": true,
       "reference_price": true
     },
-    "icon": "🎮"
+    "icon": "🖥️"
   },
   {
     "id": "amd-ryzen-5-5500-20260925",
