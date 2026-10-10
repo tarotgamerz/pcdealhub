@@ -41,8 +41,12 @@ export async function POST(request: Request) {
   }
   try {
     const redis = new Redis({ url: redisUrl, token: redisToken });
+    const dedupeSource = String(body.alertId || body.id || [symbol, action, body.timeframe || "", body.strategy || "", body.time || body.timestamp || "", body.price || ""].join("|"));
+    const dedupeId = createHmac("sha256", expected).update(dedupeSource).digest("hex").slice(0, 32);
+    const firstSeen = await redis.set("tarotai:tradingview:dedupe:" + dedupeId, "1", { nx: true, ex: 86400 });
+    if (firstSeen !== "OK") return NextResponse.json({ accepted: true, duplicate: true, status: "DUPLICATE_IGNORED", id: dedupeId, message: "Duplicate alert ignored; no order was placed." }, { status: 200 });
     const event = {
-      id: createHmac("sha256", expected).update(JSON.stringify(body) + Date.now()).digest("hex").slice(0, 24),
+      id: dedupeId,
       receivedAt: new Date().toISOString(),
       source: "TradingView",
       symbol, action,
