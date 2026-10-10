@@ -12,10 +12,10 @@ export async function POST(req:Request){
  let b:any;try{b=await req.json()}catch{return NextResponse.json({error:"Expected JSON"},{status:400})}
  if(b?.confirmTestnetOrder!==true)return NextResponse.json({error:"Explicit confirmTestnetOrder:true is required"},{status:400});
  const symbol=String(b.symbol||"").toUpperCase(),side=String(b.side||"").toUpperCase(),type=String(b.type||"LIMIT").toUpperCase();
- const quantity=Number(b.quantity),price=Number(b.price);
- if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["BUY","SELL"].includes(side)||!["LIMIT","MARKET"].includes(type)||!Number.isFinite(quantity)||quantity<=0)return NextResponse.json({error:"Invalid symbol, side, type, or quantity"},{status:400});
+ const quantity=Number(b.quantity),price=Number(b.price),clientOrderId=String(b.clientOrderId||"");
+ if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["BUY","SELL"].includes(side)||!["LIMIT","MARKET"].includes(type)||!Number.isFinite(quantity)||quantity<=0||!/^[A-Za-z0-9_.:-]{1,36}$/.test(clientOrderId))return NextResponse.json({error:"Invalid symbol, side, type, or quantity"},{status:400});
  if(type==="LIMIT"&&(!Number.isFinite(price)||price<=0))return NextResponse.json({error:"LIMIT order requires positive price"},{status:400});
- const params=new URLSearchParams({symbol,side,type,quantity:String(quantity),timestamp:String(Date.now()),recvWindow:"5000",newOrderRespType:"RESULT"});
+ const params=new URLSearchParams({symbol,side,type,quantity:String(quantity),timestamp:String(Date.now()),recvWindow:"5000",newOrderRespType:"RESULT",newClientOrderId:clientOrderId});
  if(type==="LIMIT"){params.set("price",String(price));params.set("timeInForce",String(b.timeInForce||"GTC"));}
  const signature=createHmac("sha256",secret).update(params.toString()).digest("hex");params.set("signature",signature);
  try{
