@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isAuthorized } from "../../auth/route";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,8 +17,7 @@ export async function POST(request: Request) {
   if (!process.env.TAROTAI_ACCESS_CODE) {
     return NextResponse.json({ error: "Private access is not configured; set TAROTAI_ACCESS_CODE and redeploy." }, { status: 503 });
   }
-  const cookies = request.headers.get("cookie") || "";
-  if (!cookies.split(";").some(v => v.trim() === "tarotai_session=authorized")) {
+  if (!isAuthorized(request)) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
   let body: any;
@@ -46,16 +46,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Insufficient historical candles or upstream error", detail: raw?.msg || "Need more candles" }, { status: 502 });
     }
     const candles = raw.map((k: any[]) => ({ time: Number(k[0]), close: Number(k[4]) }));
+    if (candles.some(c => !Number.isFinite(c.time) || !Number.isFinite(c.close) || c.close <= 0) || candles.some((c, i) => i > 0 && c.time <= candles[i - 1].time)) {
+      return NextResponse.json({ error: "Malformed or unordered market candles rejected" }, { status: 502 });
+    }
+    const closes = candles.map(c => c.close);
+    const fastMeans = candles.map((_, i) => i + 1 < fast ? NaN : closes.slice(i-fast+1, i+1).reduce((a,b)=>a+b,0)/fast);
+    const slowMeans = candles.map((_, i) => i + 1 < slow ? NaN : closes.slice(i-slow+1, i+1).reduce((a,b)=>a+b,0)/slow);
     const split = Math.floor(candles.length * 0.7);
     const costs = (feeBps + slippageBps) / 10000;
     let position = 0, entry = 0, equity = 1, peak = 1, maxDrawdown = 0, trades = 0, wins = 0;
     let trainReturn = 0, testReturn = 0, trainTrades = 0, testTrades = 0;
     const equityCurve: Array<{ time: number; equity: number }> = [];
     for (let i = slow; i < candles.length - 1; i++) {
-      const fastNow = SMA(candles.map(c => c.close), i, fast)!;
-      const slowNow = SMA(candles.map(c => c.close), i, slow)!;
-      const fastPrev = SMA(candles.map(c => c.close), i - 1, fast)!;
-      const slowPrev = SMA(candles.map(c => c.close), i - 1, slow)!;
+      const fastNow = fastMeans[i];
+      const slowNow = slowMeans[i];
+      const fastPrev = fastMeans[i - 1];
+      const slowPrev = slowMeans[i - 1];
       const desired = fastNow > slowNow ? 1 : -1;
       const crossed = (fastPrev <= slowPrev && fastNow > slowNow) || (fastPrev >= slowPrev && fastNow < slowNow);
       if (crossed && position !== desired) {
