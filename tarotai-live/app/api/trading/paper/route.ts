@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
 import { isAuthorized } from "../../../../lib/auth";
-import { applySlippage, calculateFee, isStale, validateStops } from "../../../../lib/trading-rules.mjs";
+import { applySlippage, calculateFee, isStale, validateStops, resolveStopTarget } from "../../../../lib/trading-rules.mjs";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 function store(){const url=process.env.UPSTASH_REDIS_REST_URL,token=process.env.UPSTASH_REDIS_REST_TOKEN;if(!url||!token)throw new Error("STORE_OFF");return new Redis({url,token});}
@@ -30,7 +30,24 @@ export async function POST(req:Request){
    await d.lpush("tarotai:paper:replays",JSON.stringify(replay));await d.ltrim("tarotai:paper:replays",0,19);
    return NextResponse.json({mode:"PAPER_ONLY",replayId:replay.id,candles,stored:true,liveTradingEnabled:false});
   }
-  if(!["OPEN","CLOSE"].includes(action))return NextResponse.json({error:"action must be OPEN, CLOSE, or REPLAY"},{status:400});
+  if(action==="STOP_CHECK"){
+   const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),marketTime=Number(b.marketTime),candle=b.candle;
+   if(!/^[A-Z0-9]{4,20}$/.test(symbol)||isStale(marketTime)||!candle||![Number(candle.open),Number(candle.high),Number(candle.low)].every(Number.isFinite))return NextResponse.json({error:"Valid fresh candle required for stop check"},{status:400});
+   if(Number(candle.high)<Number(candle.low)||Number(candle.open)<=0)return NextResponse.json({error:"Malformed candle rejected"},{status:400});
+   const rows=(await d.lrange("tarotai:paper:ledger",0,999)).map((x:any)=>typeof x==="string"?JSON.parse(x):x);
+   const closed=new Set(rows.filter((x:any)=>x.parentTradeId&&["PAPER_CLOSE","PAPER_STOP","PAPER_TARGET"].includes(x.status)).map((x:any)=>x.parentTradeId));
+   const triggered:any[]=[];
+   for(const trade of rows.filter((x:any)=>x.status==="PAPER_OPEN"&&x.symbol===symbol&&!closed.has(x.id)&&x.stopPrice&&x.targetPrice)){
+    const result=resolveStopTarget({open:Number(candle.open),high:Number(candle.high),low:Number(candle.low)},trade.side==="BUY"?"LONG":"SHORT",Number(trade.stopPrice),Number(trade.targetPrice));
+    if(!result.exit)continue;
+    const closeSide=trade.side==="BUY"?"SELL":"BUY",fill=applySlippage(closeSide,result.price,Number(trade.slippageBps)),fee=calculateFee(fill,Number(trade.quantity),Number(trade.feeBps));
+    const closedTrade={id:crypto.randomUUID(),parentTradeId:trade.id,createdAt:new Date().toISOString(),symbol,side:closeSide,quantity:trade.quantity,requestedPrice:result.price,fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),feeBps:trade.feeBps,slippageBps:trade.slippageBps,status:result.exit==="STOP"?"PAPER_STOP":"PAPER_TARGET",ambiguousCandle:result.ambiguous,mode:"PAPER_ONLY"};
+    await d.lpush("tarotai:paper:ledger",JSON.stringify(closedTrade));triggered.push(closedTrade);closed.add(trade.id);
+   }
+   await d.ltrim("tarotai:paper:ledger",0,999);
+   return NextResponse.json({mode:"PAPER_ONLY",checkedSymbol:symbol,triggered,liveTradingEnabled:false,stopFirstOnAmbiguousCandle:true});
+  }
+  if(!["OPEN","CLOSE"].includes(action))return NextResponse.json({error:"action must be OPEN, CLOSE, REPLAY, or STOP_CHECK"},{status:400});
   const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),side=String(b.side||"").toUpperCase(),qty=Number(b.quantity),price=Number(b.price),feeBps=Number(b.feeBps??5),slipBps=Number(b.slippageBps??2),marketTime=Number(b.marketTime);
   if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["BUY","SELL"].includes(side)||![qty,price,feeBps,slipBps,marketTime].every(Number.isFinite)||qty<=0||price<=0||feeBps<0||feeBps>50||slipBps<0||slipBps>50)return NextResponse.json({error:"Invalid trade inputs; include marketTime and costs 0-50 bps"},{status:400});
   if(isStale(marketTime))return NextResponse.json({error:"Stale or missing market timestamp; refresh market data before paper trading"},{status:409});
