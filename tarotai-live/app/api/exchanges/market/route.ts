@@ -24,6 +24,8 @@ export async function GET(req:Request){
   const candles=rows.map(normalize);
   if(!candles.length||candles.some(c=>![c.time,c.open,c.high,c.low,c.close].every(Number.isFinite)||c.high<c.low||c.close<=0))return NextResponse.json({error:"Exchange returned no valid candles",venue,detail:raw?.retMsg||raw?.msg||raw?.code},{status:502});
   const last=candles[candles.length-1],ageMs=Date.now()-last.time;
-  return NextResponse.json({venue,symbol,interval,fetchedAt:new Date().toISOString(),lastCandleAgeMs:ageMs,stale:ageMs>60000,candles,readOnly:true,orderPlacement:false},{headers:{"Cache-Control":"no-store"}});
+  const intervalMs:Record<string,number>={"1m":60000,"3m":180000,"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"2h":7200000,"4h":14400000,"1d":86400000};
+  const stale=ageMs>intervalMs[interval]+60000;
+  return NextResponse.json({venue,symbol,interval,fetchedAt:new Date().toISOString(),lastCandleAgeMs:ageMs,dataAgeMs:0,stale,candles,readOnly:true,orderPlacement:false},{headers:{"Cache-Control":"no-store"}});
  }catch{return NextResponse.json({error:"Exchange market-data request timed out",venue},{status:502});}
 }
