@@ -33,7 +33,7 @@ export async function POST(req:Request){
   if(action==="STOP_CHECK"){
    const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),marketTime=Number(b.marketTime),candle=b.candle;
    if(!/^[A-Z0-9]{4,20}$/.test(symbol)||isStale(marketTime)||!candle||![Number(candle.open),Number(candle.high),Number(candle.low)].every(Number.isFinite))return NextResponse.json({error:"Valid fresh candle required for stop check"},{status:400});
-   if(Number(candle.high)<Number(candle.low)||Number(candle.open)<=0)return NextResponse.json({error:"Malformed candle rejected"},{status:400});
+   if(Number(candle.high)<Number(candle.low)||Number(candle.open)<=0||Number(candle.low)<=0||Number(candle.open)<Number(candle.low)||Number(candle.open)>Number(candle.high))return NextResponse.json({error:"Malformed candle rejected"},{status:400});
    const rows=(await d.lrange("tarotai:paper:ledger",0,999)).map((x:any)=>typeof x==="string"?JSON.parse(x):x);
    const closed=new Set(rows.filter((x:any)=>x.parentTradeId&&["PAPER_CLOSE","PAPER_STOP","PAPER_TARGET"].includes(x.status)).map((x:any)=>x.parentTradeId));
    const triggered:any[]=[];
@@ -59,6 +59,15 @@ export async function POST(req:Request){
    const latest=marketRows[marketRows.length-1],closeTime=Number(latest[6]);verifiedMarketPrice=Number(latest[4]);
    if(!Number.isFinite(closeTime)||!Number.isFinite(verifiedMarketPrice)||verifiedMarketPrice<=0||Date.now()-closeTime>120000||closeTime>Date.now()+60000)return NextResponse.json({error:"Server-side market data is stale or malformed; paper entry blocked"},{status:409});
   }catch{return NextResponse.json({error:"Market freshness verification failed; paper entry blocked"},{status:502});}
+  let parentTrade:any=null;
+  if(action==="CLOSE"){
+   const parentTradeId=String(b.parentTradeId||"");
+   if(!parentTradeId)return NextResponse.json({error:"CLOSE requires parentTradeId from an open paper position"},{status:400});
+   const rows=(await d.lrange("tarotai:paper:ledger",0,999)).map((x:any)=>typeof x==="string"?JSON.parse(x):x);
+   parentTrade=rows.find((x:any)=>x.id===parentTradeId&&x.status==="PAPER_OPEN");
+   const alreadyClosed=rows.some((x:any)=>x.parentTradeId===parentTradeId&&["PAPER_CLOSE","PAPER_STOP","PAPER_TARGET"].includes(x.status));
+   if(!parentTrade||alreadyClosed||parentTrade.symbol!==symbol||parentTrade.side===side||Math.abs(Number(parentTrade.quantity)-qty)>1e-10)return NextResponse.json({error:"Parent trade is missing, already closed, mismatched, or quantity must fully close the position"},{status:409});
+  }
   const stopPrice=b.stopPrice==null?null:Number(b.stopPrice),targetPrice=b.targetPrice==null?null:Number(b.targetPrice);
   if(action==="OPEN"&&(!Number.isFinite(stopPrice)||!Number.isFinite(targetPrice)||!validateStops(side==="BUY"?"LONG":"SHORT",price,stopPrice,targetPrice)))return NextResponse.json({error:"Opening paper trade requires valid stop and target geometry"},{status:400});
   const fill=applySlippage(side,price,slipBps),fee=calculateFee(fill,qty,feeBps);
