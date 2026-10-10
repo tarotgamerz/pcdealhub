@@ -51,10 +51,18 @@ export async function POST(req:Request){
   const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),side=String(b.side||"").toUpperCase(),qty=Number(b.quantity),price=Number(b.price),feeBps=Number(b.feeBps??5),slipBps=Number(b.slippageBps??2),marketTime=Number(b.marketTime);
   if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["BUY","SELL"].includes(side)||![qty,price,feeBps,slipBps,marketTime].every(Number.isFinite)||qty<=0||price<=0||feeBps<0||feeBps>50||slipBps<0||slipBps>50)return NextResponse.json({error:"Invalid trade inputs; include marketTime and costs 0-50 bps"},{status:400});
   if(isStale(marketTime))return NextResponse.json({error:"Stale or missing market timestamp; refresh market data before paper trading"},{status:409});
+  let verifiedMarketPrice:number;
+  try{
+   const marketUrl=new URL("https://demo-fapi.binance.com/fapi/v1/klines");marketUrl.searchParams.set("symbol",symbol);marketUrl.searchParams.set("interval","1m");marketUrl.searchParams.set("limit","2");
+   const marketResponse=await fetch(marketUrl,{cache:"no-store",signal:AbortSignal.timeout(6000)}),marketRows=await marketResponse.json();
+   if(!marketResponse.ok||!Array.isArray(marketRows)||!marketRows.length)return NextResponse.json({error:"Fresh demo market price could not be verified; paper entry blocked"},{status:502});
+   const latest=marketRows[marketRows.length-1],closeTime=Number(latest[6]);verifiedMarketPrice=Number(latest[4]);
+   if(!Number.isFinite(closeTime)||!Number.isFinite(verifiedMarketPrice)||verifiedMarketPrice<=0||Date.now()-closeTime>120000||closeTime>Date.now()+60000)return NextResponse.json({error:"Server-side market data is stale or malformed; paper entry blocked"},{status:409});
+  }catch{return NextResponse.json({error:"Market freshness verification failed; paper entry blocked"},{status:502});}
   const stopPrice=b.stopPrice==null?null:Number(b.stopPrice),targetPrice=b.targetPrice==null?null:Number(b.targetPrice);
   if(action==="OPEN"&&(!Number.isFinite(stopPrice)||!Number.isFinite(targetPrice)||!validateStops(side==="BUY"?"LONG":"SHORT",price,stopPrice,targetPrice)))return NextResponse.json({error:"Opening paper trade requires valid stop and target geometry"},{status:400});
   const fill=applySlippage(side,price,slipBps),fee=calculateFee(fill,qty,feeBps);
-  const trade={id:crypto.randomUUID(),createdAt:new Date().toISOString(),symbol,side,quantity:qty,requestedPrice:price,fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),feeBps,slippageBps:slipBps,stopPrice,targetPrice,status:"PAPER_"+action,mode:"PAPER_ONLY"};
+  const trade={id:crypto.randomUUID(),createdAt:new Date().toISOString(),symbol,side,quantity:qty,requestedPrice:price,verifiedMarketPrice,marketDataCheckedAt:new Date().toISOString(),marketSource:"Binance Futures demo 1m candles",fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),feeBps,slippageBps:slipBps,stopPrice,targetPrice,status:"PAPER_"+action,mode:"PAPER_ONLY"};
   if([trade.stopPrice,trade.targetPrice].some((x:any)=>x!==null&&(!Number.isFinite(x)||x<=0)))return NextResponse.json({error:"Stop/target must be positive numbers"},{status:400});
   await d.lpush("tarotai:paper:ledger",JSON.stringify(trade));await d.ltrim("tarotai:paper:ledger",0,999);
   return NextResponse.json({accepted:true,trade,liveTradingEnabled:false,note:"Ledger-only simulation; no exchange order sent"},{status:201});
