@@ -23,7 +23,7 @@ function tokenValid(token: string) {
 export function isAuthorized(request: Request) {
   const raw = request.headers.get("cookie") || "";
   const value = raw.split(";").map(v => v.trim()).find(v => v.startsWith(COOKIE + "="))?.slice(COOKIE.length + 1) || "";
-  return tokenValid(decodeURIComponent(value));
+  try { return tokenValid(decodeURIComponent(value)); } catch { return false; }
 }
 export async function GET(request: Request) {
   return NextResponse.json({ authenticated: isAuthorized(request), accessCodeConfigured: Boolean(key()) });
