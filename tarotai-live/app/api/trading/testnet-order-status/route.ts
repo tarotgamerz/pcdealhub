@@ -9,8 +9,8 @@ export async function GET(req:Request){
  const apiKey=process.env.BINANCE_TESTNET_API_KEY,secret=process.env.BINANCE_TESTNET_API_SECRET;
  if(!apiKey||!secret)return NextResponse.json({error:"Binance demo credentials missing from server environment"},{status:503});
  const q=new URL(req.url).searchParams,symbol=(q.get("symbol")||"").toUpperCase(),orderId=q.get("orderId")||"";
- if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!/^[0-9]{1,30}$/.test(orderId))return NextResponse.json({error:"Valid symbol and numeric orderId are required"},{status:400});
- const params=new URLSearchParams({symbol,orderId,timestamp:String(Date.now()),recvWindow:"5000"});
+ if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!/^[A-Za-z0-9_.:-]{1,36}$/.test(orderId))return NextResponse.json({error:"Valid symbol and order/client ID are required"},{status:400});
+ const params=new URLSearchParams({symbol,timestamp:String(Date.now()),recvWindow:"5000"});if(/^[0-9]{1,30}$/.test(orderId))params.set("orderId",orderId);else params.set("origClientOrderId",orderId);
  params.set("signature",createHmac("sha256",secret).update(params.toString()).digest("hex"));
  try{
   const r=await fetch("https://demo-fapi.binance.com/fapi/v1/order?"+params.toString(),{headers:{"X-MBX-APIKEY":apiKey},cache:"no-store",signal:AbortSignal.timeout(8000)});
