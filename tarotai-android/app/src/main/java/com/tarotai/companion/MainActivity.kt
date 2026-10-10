@@ -91,7 +91,7 @@ class MainActivity : Activity() {
             text = "Device control is local. Remote AI-driven automation is not connected yet. Every navigation action is initiated by you."
             textSize = 12f; setTextColor(muted); setPadding(0, dp(12), 0, 0)
         })
-        setContentView(root)
+        setContentView(android.widget.ScrollView(this).apply { isFillViewport = true; addView(root) })
         updateStatus()
     }
     private fun button(label: String, action: () -> Unit): Button =
