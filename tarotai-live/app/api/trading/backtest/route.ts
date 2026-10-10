@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     const fastMeans = candles.map((_, i) => i + 1 < fast ? NaN : closes.slice(i-fast+1, i+1).reduce((a,b)=>a+b,0)/fast);
     const slowMeans = candles.map((_, i) => i + 1 < slow ? NaN : closes.slice(i-slow+1, i+1).reduce((a,b)=>a+b,0)/slow);
     const split = Math.floor(candles.length * 0.7);
-    const costs = (feeBps + slippageBps) / 10000;
+    const feeRate = feeBps / 10000, slipRate = slippageBps / 10000;
     let position = 0, entry = 0, equity = 1, peak = 1, maxDrawdown = 0, trades = 0, wins = 0;
     let trainReturn = 0, testReturn = 0, trainTrades = 0, testTrades = 0;
     const equityCurve: Array<{ time: number; equity: number }> = [];
@@ -66,14 +66,16 @@ export async function POST(request: Request) {
       const crossed = (fastPrev <= slowPrev && fastNow > slowNow) || (fastPrev >= slowPrev && fastNow < slowNow);
       if (crossed && position !== desired) {
         if (position !== 0) {
-          const gross = position * (candles[i].close / entry - 1);
-          const net = gross - costs;
+          const exitFill = candles[i].close * (1 - position * slipRate);
+          const gross = position * (exitFill / entry - 1);
+          const feeCost = feeRate * (1 + exitFill / entry);
+          const net = gross - feeCost;
           equity *= Math.max(0.01, 1 + net);
           trades++; if (net > 0) wins++;
           if (i < split) { trainReturn += net; trainTrades++; } else { testReturn += net; testTrades++; }
         }
         position = desired;
-        entry = candles[i].close * (1 + (position > 0 ? costs / 2 : -costs / 2));
+        entry = candles[i].close * (1 + position * slipRate);
       }
       peak = Math.max(peak, equity);
       maxDrawdown = Math.max(maxDrawdown, (peak - equity) / peak);
@@ -84,7 +86,7 @@ export async function POST(request: Request) {
       mode: "RESEARCH_ONLY_NO_ORDERS", source: "Binance USDⓈ-M Futures demo market data",
       symbol, interval, candles: candles.length, trainCandles: split, testCandles: candles.length - split,
       strategy: { type: "simple moving-average crossover", fastPeriod: fast, slowPeriod: slow },
-      assumptions: { feeBpsPerTurn: feeBps, slippageBpsPerTurn: slippageBps, fundingCostsIncluded: false, leverage: 1, positionSizing: "100% notional per signal; illustrative only" },
+      assumptions: { feeBpsPerSide: feeBps, slippageBpsPerSide: slippageBps, fundingCostsIncluded: false, leverage: 1, positionSizing: "100% notional per signal; illustrative only" },
       results: { totalReturnPct: Number(totalReturnPct.toFixed(3)), closedTrades: trades, winRatePct: trades ? Number((wins / trades * 100).toFixed(2)) : 0, maxDrawdownPct: Number((maxDrawdown * 100).toFixed(3)), trainApproxReturnPct: Number((trainReturn * 100).toFixed(3)), testApproxReturnPct: Number((testReturn * 100).toFixed(3)), trainTrades, testTrades },
       equityCurve: equityCurve.slice(-200),
       caveats: ["Educational baseline only; not an optimised strategy or trading recommendation.", "This implementation is a simple close-based toy backtest; it does not model liquidation, funding, exchange filters, market impact, or intrabar stop fills.", "The 70/30 split is chronological, but parameters must be selected using training data only and assessed on untouched out-of-sample data.", "No testnet or live order is placed."]
