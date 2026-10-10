@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAuthorized } from "../../auth/route";
+import { isAuthorized } from "../../../../lib/auth";
 export const runtime="nodejs";
 export async function POST(req:Request){
  if(!process.env.TAROTAI_ACCESS_CODE)return NextResponse.json({error:"Private access is not configured"},{status:503});
