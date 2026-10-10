@@ -10,10 +10,10 @@ export async function POST(req:Request){
  if(!key||!secret||!passphrase)return NextResponse.json({error:"OKX demo API key, secret and passphrase must be configured server-side"},{status:503});
  let b:any;try{b=await req.json()}catch{return NextResponse.json({error:"Expected JSON"},{status:400})}
  if(b?.confirmTestnetOrder!==true)return NextResponse.json({error:"Explicit demo-trading confirmation required"},{status:400});
- const symbol=String(b.symbol||"").toUpperCase(),side=String(b.side||"").toLowerCase(),type=String(b.type||"limit").toLowerCase(),qty=Number(b.quantity),price=Number(b.price);
- if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["buy","sell"].includes(side)||!["limit","market"].includes(type)||!Number.isFinite(qty)||qty<=0||(type==="limit"&&(!Number.isFinite(price)||price<=0)))return NextResponse.json({error:"Invalid order parameters"},{status:400});
+ const symbol=String(b.symbol||"").toUpperCase(),side=String(b.side||"").toLowerCase(),type=String(b.type||"limit").toLowerCase(),qty=Number(b.quantity),price=Number(b.price),clientOrderId=String(b.clientOrderId||"");
+ if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["buy","sell"].includes(side)||!["limit","market"].includes(type)||!Number.isFinite(qty)||qty<=0||!/^[A-Za-z0-9]{1,32}$/.test(clientOrderId)||(type==="limit"&&(!Number.isFinite(price)||price<=0)))return NextResponse.json({error:"Invalid order parameters"},{status:400});
  const instId=symbol.endsWith("USDT")?symbol.slice(0,-4)+"-USDT-SWAP":symbol;
- const body:any={instId,tdMode:"cross",side,ordType:type,sz:String(qty)};if(type==="limit")body.px=String(price);
+ const body:any={instId,tdMode:"cross",side,ordType:type,sz:String(qty),clOrdId:clientOrderId};if(type==="limit")body.px=String(price);
  const bodyText=JSON.stringify(body),timestamp=new Date().toISOString(),path="/api/v5/trade/order";
  const prehash=timestamp+"POST"+path+bodyText,signature=createHmac("sha256",secret).update(prehash).digest("base64");
  try{
