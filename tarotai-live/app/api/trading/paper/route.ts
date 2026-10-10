@@ -1,0 +1,41 @@
+import { NextResponse } from "next/server";
+import { Redis } from "@upstash/redis";
+import { isAuthorized } from "../../auth/route";
+export const runtime="nodejs";
+export const dynamic="force-dynamic";
+function store(){const url=process.env.UPSTASH_REDIS_REST_URL,token=process.env.UPSTASH_REDIS_REST_TOKEN;if(!url||!token)throw new Error("STORE_OFF");return new Redis({url,token});}
+export async function GET(req:Request){
+ if(!process.env.TAROTAI_ACCESS_CODE)return NextResponse.json({error:"Private access is not configured"},{status:503});
+ if(!isAuthorized(req))return NextResponse.json({error:"Authentication required"},{status:401});
+ try{const d=store();const [ledger,replays]=await Promise.all([d.lrange("tarotai:paper:ledger",0,199),d.lrange("tarotai:paper:replays",0,19)]);return NextResponse.json({mode:"PAPER_ONLY",liveTradingEnabled:false,ledger:ledger.map((x:any)=>typeof x==="string"?JSON.parse(x):x),replays:replays.map((x:any)=>typeof x==="string"?JSON.parse(x):x)});}
+ catch{return NextResponse.json({error:"Persistent store unavailable; configure Upstash Redis"},{status:503});}
+}
+export async function POST(req:Request){
+ if(!process.env.TAROTAI_ACCESS_CODE)return NextResponse.json({error:"Private access is not configured"},{status:503});
+ if(!isAuthorized(req))return NextResponse.json({error:"Authentication required"},{status:401});
+ let b:any;try{b=await req.json()}catch{return NextResponse.json({error:"Expected JSON"},{status:400});}
+ const action=String(b.action||"").toUpperCase();
+ try{
+  const d=store();
+  if(action==="REPLAY"){
+   const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),interval=String(b.interval||"1m"),limit=Math.min(500,Math.max(20,Math.floor(Number(b.limit)||100)));
+   if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["1m","3m","5m","15m","30m","1h","2h","4h","1d"].includes(interval))return NextResponse.json({error:"Invalid symbol or interval"},{status:400});
+   const u=new URL("https://demo-fapi.binance.com/fapi/v1/klines");u.searchParams.set("symbol",symbol);u.searchParams.set("interval",interval);u.searchParams.set("limit",String(limit));
+   const r=await fetch(u,{cache:"no-store",signal:AbortSignal.timeout(8000)}),raw=await r.json();
+   if(!r.ok||!Array.isArray(raw)||!raw.length)return NextResponse.json({error:"Market replay request failed",detail:raw?.msg||"No candles"},{status:502});
+   const candles=raw.map((k:any[])=>({time:+k[0],open:+k[1],high:+k[2],low:+k[3],close:+k[4],volume:+k[5],closeTime:+k[6]}));
+   if(candles.some((c:any)=>![c.time,c.open,c.high,c.low,c.close,c.volume,c.closeTime].every(Number.isFinite)||c.high<c.low||c.close<=0))return NextResponse.json({error:"Malformed candles rejected"},{status:502});
+   const replay={id:crypto.randomUUID(),createdAt:new Date().toISOString(),symbol,interval,candleCount:candles.length,candles};
+   await d.lpush("tarotai:paper:replays",JSON.stringify(replay));await d.ltrim("tarotai:paper:replays",0,19);
+   return NextResponse.json({mode:"PAPER_ONLY",replayId:replay.id,candles,stored:true,liveTradingEnabled:false});
+  }
+  if(!["OPEN","CLOSE"].includes(action))return NextResponse.json({error:"action must be OPEN, CLOSE, or REPLAY"},{status:400});
+  const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),side=String(b.side||"").toUpperCase(),qty=Number(b.quantity),price=Number(b.price),feeBps=Number(b.feeBps??5),slipBps=Number(b.slippageBps??2);
+  if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["BUY","SELL"].includes(side)||![qty,price,feeBps,slipBps].every(Number.isFinite)||qty<=0||price<=0||feeBps<0||feeBps>50||slipBps<0||slipBps>50)return NextResponse.json({error:"Invalid trade inputs; costs must be 0-50 bps"},{status:400});
+  const fill=price*(1+(side==="BUY"?1:-1)*slipBps/10000),fee=fill*qty*feeBps/10000;
+  const trade={id:crypto.randomUUID(),createdAt:new Date().toISOString(),symbol,side,quantity:qty,requestedPrice:price,fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),feeBps,slippageBps:slipBps,stopPrice:b.stopPrice==null?null:Number(b.stopPrice),targetPrice:b.targetPrice==null?null:Number(b.targetPrice),status:"PAPER_"+action,mode:"PAPER_ONLY"};
+  if([trade.stopPrice,trade.targetPrice].some((x:any)=>x!==null&&(!Number.isFinite(x)||x<=0)))return NextResponse.json({error:"Stop/target must be positive numbers"},{status:400});
+  await d.lpush("tarotai:paper:ledger",JSON.stringify(trade));await d.ltrim("tarotai:paper:ledger",0,999);
+  return NextResponse.json({accepted:true,trade,liveTradingEnabled:false,note:"Ledger-only simulation; no exchange order sent"},{status:201});
+ }catch(e:any){return NextResponse.json({error:e?.message==="STORE_OFF"?"Persistent store unavailable; configure Upstash Redis":"Paper ledger write failed; no order was sent"},{status:503});}
+}
