@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">TarotAI Companion</string>
+    <string name="accessibility_service_description">Allows TarotAI to perform only explicit Android navigation actions such as Back, Home and Recents when you enable this service.</string>
+</resources>
