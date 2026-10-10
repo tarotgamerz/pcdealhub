@@ -81,6 +81,18 @@ export async function POST(request: Request) {
       maxDrawdown = Math.max(maxDrawdown, (peak - equity) / peak);
       equityCurve.push({ time: candles[i].time, equity: Number(equity.toFixed(6)) });
     }
+    if (position !== 0) {
+      const last = candles[candles.length - 1];
+      const exitFill = last.close * (1 - position * slipRate);
+      const gross = position * (exitFill / entry - 1);
+      const feeCost = feeRate * (1 + exitFill / entry);
+      const net = gross - feeCost;
+      equity *= Math.max(0.01, 1 + net);
+      trades++; if (net > 0) wins++;
+      if (candles.length - 1 < split) { trainReturn += net; trainTrades++; } else { testReturn += net; testTrades++; }
+      peak = Math.max(peak, equity); maxDrawdown = Math.max(maxDrawdown, (peak-equity)/peak);
+      equityCurve.push({ time: last.time, equity: Number(equity.toFixed(6)) });
+    }
     const totalReturnPct = (equity - 1) * 100;
     return NextResponse.json({
       mode: "RESEARCH_ONLY_NO_ORDERS", source: "Binance USDⓈ-M Futures demo market data",
