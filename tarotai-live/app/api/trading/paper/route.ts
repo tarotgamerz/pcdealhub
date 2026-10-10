@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
-import { isAuthorized } from "../../auth/route";
+import { isAuthorized } from "../../../../lib/auth";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 function store(){const url=process.env.UPSTASH_REDIS_REST_URL,token=process.env.UPSTASH_REDIS_REST_TOKEN;if(!url||!token)throw new Error("STORE_OFF");return new Redis({url,token});}
