@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
 import { isAuthorized } from "../../../../lib/auth";
+import { applySlippage, calculateFee, isStale, validateStops } from "../../../../lib/trading-rules.mjs";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 function store(){const url=process.env.UPSTASH_REDIS_REST_URL,token=process.env.UPSTASH_REDIS_REST_TOKEN;if(!url||!token)throw new Error("STORE_OFF");return new Redis({url,token});}
@@ -30,10 +31,13 @@ export async function POST(req:Request){
    return NextResponse.json({mode:"PAPER_ONLY",replayId:replay.id,candles,stored:true,liveTradingEnabled:false});
   }
   if(!["OPEN","CLOSE"].includes(action))return NextResponse.json({error:"action must be OPEN, CLOSE, or REPLAY"},{status:400});
-  const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),side=String(b.side||"").toUpperCase(),qty=Number(b.quantity),price=Number(b.price),feeBps=Number(b.feeBps??5),slipBps=Number(b.slippageBps??2);
-  if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["BUY","SELL"].includes(side)||![qty,price,feeBps,slipBps].every(Number.isFinite)||qty<=0||price<=0||feeBps<0||feeBps>50||slipBps<0||slipBps>50)return NextResponse.json({error:"Invalid trade inputs; costs must be 0-50 bps"},{status:400});
-  const fill=price*(1+(side==="BUY"?1:-1)*slipBps/10000),fee=fill*qty*feeBps/10000;
-  const trade={id:crypto.randomUUID(),createdAt:new Date().toISOString(),symbol,side,quantity:qty,requestedPrice:price,fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),feeBps,slippageBps:slipBps,stopPrice:b.stopPrice==null?null:Number(b.stopPrice),targetPrice:b.targetPrice==null?null:Number(b.targetPrice),status:"PAPER_"+action,mode:"PAPER_ONLY"};
+  const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),side=String(b.side||"").toUpperCase(),qty=Number(b.quantity),price=Number(b.price),feeBps=Number(b.feeBps??5),slipBps=Number(b.slippageBps??2),marketTime=Number(b.marketTime);
+  if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["BUY","SELL"].includes(side)||![qty,price,feeBps,slipBps,marketTime].every(Number.isFinite)||qty<=0||price<=0||feeBps<0||feeBps>50||slipBps<0||slipBps>50)return NextResponse.json({error:"Invalid trade inputs; include marketTime and costs 0-50 bps"},{status:400});
+  if(isStale(marketTime))return NextResponse.json({error:"Stale or missing market timestamp; refresh market data before paper trading"},{status:409});
+  const stopPrice=b.stopPrice==null?null:Number(b.stopPrice),targetPrice=b.targetPrice==null?null:Number(b.targetPrice);
+  if(action==="OPEN"&&(!Number.isFinite(stopPrice)||!Number.isFinite(targetPrice)||!validateStops(side==="BUY"?"LONG":"SHORT",price,stopPrice,targetPrice)))return NextResponse.json({error:"Opening paper trade requires valid stop and target geometry"},{status:400});
+  const fill=applySlippage(side,price,slipBps),fee=calculateFee(fill,qty,feeBps);
+  const trade={id:crypto.randomUUID(),createdAt:new Date().toISOString(),symbol,side,quantity:qty,requestedPrice:price,fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),feeBps,slippageBps:slipBps,stopPrice,targetPrice,status:"PAPER_"+action,mode:"PAPER_ONLY"};
   if([trade.stopPrice,trade.targetPrice].some((x:any)=>x!==null&&(!Number.isFinite(x)||x<=0)))return NextResponse.json({error:"Stop/target must be positive numbers"},{status:400});
   await d.lpush("tarotai:paper:ledger",JSON.stringify(trade));await d.ltrim("tarotai:paper:ledger",0,999);
   return NextResponse.json({accepted:true,trade,liveTradingEnabled:false,note:"Ledger-only simulation; no exchange order sent"},{status:201});
