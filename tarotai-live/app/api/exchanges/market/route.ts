@@ -20,9 +20,9 @@ export async function GET(req:Request){
   const r=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(8000)}),raw=await r.json();
   if(!r.ok)return NextResponse.json({error:"Exchange HTTP error",venue,detail:raw?.msg||raw?.retMsg||raw?.message||"upstream error"},{status:502});
   let rows:any[]=venue==="binance"?(Array.isArray(raw)?raw:[]):venue==="bybit"?(raw?.retCode===0&&Array.isArray(raw?.result?.list)?raw.result.list:[]):(raw?.code==="0"&&Array.isArray(raw?.data)?raw.data:[]);
-  rows=rows.slice().reverse();
+  if(venue!=="binance")rows=rows.slice().reverse();
   const candles=rows.map(normalize);
-  if(!candles.length||candles.some(c=>![c.time,c.open,c.high,c.low,c.close].every(Number.isFinite)||c.high<c.low||c.close<=0))return NextResponse.json({error:"Exchange returned no valid candles",venue,detail:raw?.retMsg||raw?.msg||raw?.code},{status:502});
+  if(!candles.length||candles.some(c=>![c.time,c.open,c.high,c.low,c.close].every(Number.isFinite)||c.high<c.low||c.low<=0||c.close<=0)||candles.some((c,i)=>i>0&&c.time<=candles[i-1].time))return NextResponse.json({error:"Exchange returned no valid candles",venue,detail:raw?.retMsg||raw?.msg||raw?.code},{status:502});
   const last=candles[candles.length-1],ageMs=Date.now()-last.time;
   const intervalMs:Record<string,number>={"1m":60000,"3m":180000,"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"2h":7200000,"4h":14400000,"1d":86400000};
   const stale=ageMs>intervalMs[interval]+60000;
