@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isAuthorized } from "../../auth/route";
+import { isAuthorized } from "../../../../lib/auth";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 const intervals:Record<string,Record<string,string>>={
