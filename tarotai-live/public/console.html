@@ -39,7 +39,16 @@
 <body>
 <div id="root"></div>
 <script>
-const state={messages:JSON.parse(localStorage.getItem('tarotai-messages')||'[]'),memory:JSON.parse(localStorage.getItem('tarotai-memory')||'[]'),tasks:JSON.parse(localStorage.getItem('tarotai-tasks')||'[]'),busy:false,auth:null,runtime:null,marketContext:null,marketContextUpdatedAt:0,active:'Command Center',plan:[],activity:[],sources:[],documents:[],writeApproved:false};
+function readStoredJson(key,fallback){
+  try{
+    const raw=localStorage.getItem(key);
+    return raw===null?fallback:JSON.parse(raw);
+  }catch{return fallback}
+}
+const state={messages:readStoredJson('tarotai-messages',[]),memory:readStoredJson('tarotai-memory',[]),tasks:readStoredJson('tarotai-tasks',[]),busy:false,auth:null,runtime:null,marketContext:null,marketContextUpdatedAt:0,active:'Command Center',plan:[],activity:[],sources:[],documents:[],writeApproved:false};
+if(!Array.isArray(state.messages))state.messages=[];
+if(!Array.isArray(state.memory))state.memory=[];
+if(!Array.isArray(state.tasks))state.tasks=[];
 const starter=['Diagnose my PC performance problem from everything you know about my setup.','Research a current topic and give me a source-backed answer.','Audit my project and tell me what I should work on next.'];
 const nav=[['⌂','Command Center'],['＋','New Task'],['◉','Active Tasks'],['↺','Task History'],['▦','Projects'],['□','Files'],['◎','Memory'],['◈','Connected Apps'],['⚙','Settings']];
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
