@@ -50,7 +50,8 @@ function persistServerState(){
   stateWriteQueue=stateWriteQueue.catch(()=>null).then(()=>fetch('/api/state',{
     method:'POST',
     headers:{'content-type':'application/json'},
-    body
+    body,
+    signal:AbortSignal.timeout(8000)
   })).catch(()=>null);
   return stateWriteQueue;
 }
