@@ -1,4 +1,5 @@
 import { redis, memoryKey, memoryEnabled, privateUserId, forbiddenMemoryKey, consumeRateLimit, appendAudit } from "@/lib/store";
+import { isAuthorized } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
