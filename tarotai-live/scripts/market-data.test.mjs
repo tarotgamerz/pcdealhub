@@ -8,6 +8,7 @@ const agentPage = readFileSync(new URL("../public/agents.html", import.meta.url)
 const chatRoute = readFileSync(new URL("../app/api/chat/route.ts", import.meta.url), "utf8");
 const visionRoute = readFileSync(new URL("../app/api/vision/route.ts", import.meta.url), "utf8");
 const documentsRoute = readFileSync(new URL("../app/api/documents/route.ts", import.meta.url), "utf8");
+const storeModule = readFileSync(new URL("../lib/store.ts", import.meta.url), "utf8");
 
 test("market feeds use production public endpoints, never demo or testnet prices", () => {
   assert.match(source, /https:\/\/fapi\.binance\.com\/fapi\/v1\/klines/);
@@ -75,4 +76,11 @@ test("uploads stay below the hosting platform request-body limit", () => {
   assert.match(documentsRoute, /Maximum upload size is 4 MB/);
   assert.match(visionRoute, /item\.size > 4 \* 1024 \* 1024/);
   assert.match(consolePage, /file\.size>4\*1024\*1024/);
+});
+
+test("shared state, memory, apps and audit routes fail closed without access secret", () => {
+  assert.match(storeModule, /export function authorized\(request: Request\)/);
+  assert.match(storeModule, /if \(!process\.env\.TAROTAI_ACCESS_CODE\) return false/);
+  assert.match(storeModule, /return isAuthorized\(request\)/);
+  assert.doesNotMatch(storeModule, /return !process\.env\.TAROTAI_ACCESS_CODE \|\| isAuthorized/);
 });
