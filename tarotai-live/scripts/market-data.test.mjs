@@ -118,3 +118,14 @@ test("durable state writes are queued with snapshots and an abort deadline", () 
   assert.match(consolePage, /signal:AbortSignal\.timeout\(8000\)/);
   assert.match(consolePage, /if\(!state\.auth\)return Promise\.resolve\(null\)/);
 });
+
+test("chat payload is byte-capped and sends bounded recent context", () => {
+  assert.match(chatRoute, /const maxRequestBytes = 1_200_000/);
+  assert.match(chatRoute, /Buffer\.byteLength\(rawBody, "utf8"\)/);
+  assert.match(chatRoute, /Malformed JSON request body/);
+  assert.match(consolePage, /state\.messages\.slice\(-24\)/);
+  assert.match(consolePage, /String\(m\.content\?\?''\)\.slice\(-4000\)/);
+  assert.match(consolePage, /text\.length>12000/);
+  assert.match(consolePage, /Math\.min\(60000,remaining\)/);
+  assert.match(consolePage, /documentCharacters\+=clipped\.length/);
+});
