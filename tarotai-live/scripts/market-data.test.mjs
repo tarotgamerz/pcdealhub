@@ -11,6 +11,7 @@ const documentsRoute = readFileSync(new URL("../app/api/documents/route.ts", imp
 const storeModule = readFileSync(new URL("../lib/store.ts", import.meta.url), "utf8");
 const authModule = readFileSync(new URL("../lib/auth.ts", import.meta.url), "utf8");
 const authRoute = readFileSync(new URL("../app/api/auth/route.ts", import.meta.url), "utf8");
+const stateRoute = readFileSync(new URL("../app/api/state/route.ts", import.meta.url), "utf8");
 
 test("market feeds use production public endpoints, never demo or testnet prices", () => {
   assert.match(source, /https:\/\/fapi\.binance\.com\/fapi\/v1\/klines/);
@@ -128,4 +129,13 @@ test("chat payload is byte-capped and sends bounded recent context", () => {
   assert.match(consolePage, /text\.length>12000/);
   assert.match(consolePage, /Math\.min\(60000,remaining\)/);
   assert.match(consolePage, /documentCharacters\+=clipped\.length/);
+});
+
+test("durable-state persistence uses bounded snapshots and validates request bytes", () => {
+  assert.match(consolePage, /state\.messages\.slice\(-40\)/);
+  assert.match(consolePage, /content:String\(m\.content\?\?''\)\.slice\(0,8000\)/);
+  assert.match(consolePage, /state\.tasks\.slice\(0,80\)/);
+  assert.match(stateRoute, /const maxRequestBytes = 2_400_000/);
+  assert.match(stateRoute, /Buffer\.byteLength\(rawBody, "utf8"\)/);
+  assert.match(stateRoute, /Malformed state request body/);
 });
