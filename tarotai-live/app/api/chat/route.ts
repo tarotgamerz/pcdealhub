@@ -398,7 +398,7 @@ function isPrivateHostname(hostname: string) {
   return false;
 }
 
-async function boundedFetch(input: any, init: RequestInit = {}, timeoutMs = 12_000): Promise<Response> {
+async function boundedFetch(input: any, init: RequestInit = {}, timeoutMs = 15_000): Promise<Response> {
   // Requests with an existing signal (such as the model's shorter remaining
   // deadline) keep it; all other external requests receive a hard timeout.
   const signal = init.signal ?? AbortSignal.timeout(timeoutMs);
@@ -1295,7 +1295,7 @@ export async function POST(request: Request) {
         try {
           const remainingToolMs = requestDeadline - Date.now();
           if (remainingToolMs <= 0) throw new Error("Overall agent execution deadline reached before tool execution.");
-          const toolBudgetMs = Math.min(15_000, remainingToolMs);
+          const toolBudgetMs = Math.min(32_000, remainingToolMs);
           let toolTimer: ReturnType<typeof setTimeout> | undefined;
           let output: any;
           try {
