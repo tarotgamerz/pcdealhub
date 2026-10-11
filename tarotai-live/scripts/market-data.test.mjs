@@ -175,3 +175,13 @@ test("public health checks do not disclose private environment capabilities", ()
   assert.ok(healthRoute.indexOf("if (!isAuthorized(request))") < healthRoute.indexOf("hasOpenRouterKey:"));
   assert.ok(healthRoute.indexOf("if (!isAuthorized(request))") < healthRoute.indexOf("hasExa:"));
 });
+
+test("external tool fetches and tool dispatch have bounded deadlines", () => {
+  assert.match(chatRoute, /async function boundedFetch\(input: any, init: RequestInit = \{\}, timeoutMs = 12_000\)/);
+  assert.match(chatRoute, /init\.signal \?\? AbortSignal\.timeout\(timeoutMs\)/);
+  assert.match(chatRoute, /const remainingToolMs = requestDeadline - Date\.now\(\)/);
+  assert.match(chatRoute, /Math\.min\(15_000, remainingToolMs\)/);
+  assert.match(chatRoute, /Tool execution timed out or exceeded the remaining task deadline/);
+  assert.equal((chatRoute.match(/\bfetch\(/g) || []).length, 1, "only the timeout wrapper calls native fetch directly");
+  assert.ok((chatRoute.match(/\bboundedFetch\(/g) || []).length >= 10, "external tool requests use the timeout wrapper");
+});
