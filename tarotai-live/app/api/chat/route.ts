@@ -455,12 +455,6 @@ async function runSecurityAuditUrl(args: any) {
   };
 }
 
-function cookieValue(request: Request, name: string) {
-  const raw = request.headers.get("cookie") || "";
-  const match = raw.split(";").map((part) => part.trim()).find((part) => part.startsWith(name + "="));
-  return match ? decodeURIComponent(match.slice(name.length + 1)) : null;
-}
-
 function normalizeComposioTools(raw: any) {
   const list = Array.isArray(raw) ? raw : Array.isArray(raw?.tools) ? raw.tools : [];
   return list
@@ -485,7 +479,7 @@ function normalizeComposioTools(raw: any) {
 
 async function getComposioRuntime(request: Request) {
   if (!process.env.COMPOSIO_API_KEY) return null;
-  const userId = cookieValue(request, "tarotai_user");
+  const userId = privateUserId(request);
   if (!userId) {
     throw new Error("Composio app tools require an authenticated TarotAI owner session.");
   }
