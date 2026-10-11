@@ -1108,14 +1108,30 @@ export async function POST(request: Request) {
     }
 
     const contentLength = Number(request.headers.get("content-length") || "0");
-    if (contentLength > 256_000) {
+    const maxRequestBytes = 1_200_000;
+    if (contentLength > maxRequestBytes) {
       return Response.json(
-        { error: "Request payload is too large." },
+        { error: "Request payload is too large. Keep chat history to recent messages and documents to 140,000 extracted characters." },
         { status: 413, headers: { "Cache-Control": "no-store" } }
       );
     }
 
-    const body: any = await request.json().catch(() => ({}));
+    const rawBody = await request.text();
+    if (Buffer.byteLength(rawBody, "utf8") > maxRequestBytes) {
+      return Response.json(
+        { error: "Request payload is too large. Keep chat history to recent messages and documents to 140,000 extracted characters." },
+        { status: 413, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+    let body: any;
+    try {
+      body = rawBody ? JSON.parse(rawBody) : {};
+    } catch {
+      return Response.json(
+        { error: "Malformed JSON request body." },
+        { status: 400, headers: { "Cache-Control": "no-store" } }
+      );
+    }
     const initialMessages = normalizeMessages(body?.messages);
     const documents = normalizeDocuments(body?.documents);
     if (!initialMessages.length) {
