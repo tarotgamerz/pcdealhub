@@ -1,0 +1,45 @@
+name: TarotAI CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tarotai-live/**"
+      - ".github/workflows/tarotai-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "tarotai-live/**"
+      - ".github/workflows/tarotai-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tarotai-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: tarotai-live
+    env:
+      CI: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: tarotai-live/package-lock.json
+      - name: Install dependencies and refresh the lockfile if needed
+        run: npm install --no-audit --no-fund
+      - name: Run trading and agent regression tests, dependency audit, dashboard syntax checks, and production build
+        run: npm run build
