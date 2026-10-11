@@ -1,4 +1,5 @@
 import { Redis } from "@upstash/redis";
+import { isAuthorized } from "@/lib/auth";
 
 export const redis = memoryEnabled() ? Redis.fromEnv() : null;
 
@@ -35,13 +36,9 @@ export function privateUserId(request: Request) {
 }
 
 export function authorized(request: Request) {
-  const configured = Boolean(process.env.TAROTAI_ACCESS_CODE);
-  const raw = request.headers.get("cookie") || "";
-  const session = raw
-    .split(";")
-    .map((part) => part.trim())
-    .some((part) => part === "tarotai_session=authorized");
-  return !configured || session;
+  // Use the same signed, expiring session validation as /api/auth.
+  // The previous literal-cookie check rejected valid sessions created by login.
+  return !process.env.TAROTAI_ACCESS_CODE || isAuthorized(request);
 }
 
 export function forbiddenMemoryKey(key: string) {
