@@ -104,4 +104,7 @@ test("durable owner identity comes from the verified signed session", () => {
   assert.match(storeModule, /return sessionUserId\(request\)/);
   assert.doesNotMatch(storeModule, /tarotai_user=/);
   assert.match(authRoute, /sub:"owner"/);
+  assert.match(chatRoute, /async function getComposioRuntime\(request: Request\)/);
+  assert.match(chatRoute, /const userId = privateUserId\(request\)/);
+  assert.doesNotMatch(chatRoute, /cookieValue\(request, "tarotai_user"\)/);
 });
