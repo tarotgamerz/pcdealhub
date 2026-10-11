@@ -202,6 +202,8 @@ test("core chat degrades safely when Redis rate limiting or durable memory fails
   assert.match(chatRoute, /function consumeLocalFallbackRateLimit\(userId: string, limit: number\)/);
   assert.match(chatRoute, /withOperationTimeout\(\s*consumeRateLimit\(userId, limit\)/);
   assert.match(chatRoute, /Shared Redis rate limiting was temporarily unavailable/);
+  assert.match(chatRoute, /if \(!process\.env\.UPSTASH_REDIS_REST_URL \|\| !process\.env\.UPSTASH_REDIS_REST_TOKEN\)/);
+  assert.match(chatRoute, /Shared Redis rate limiting is not configured/);
   assert.match(chatRoute, /withOperationTimeout\(\s*loadDurableMemory\(request\)/);
   assert.match(chatRoute, /Durable memory could not be loaded for this request/);
   assert.match(chatRoute, /runtimeWarnings\.join\(" "\)/);
