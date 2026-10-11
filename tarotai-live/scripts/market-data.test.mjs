@@ -84,3 +84,11 @@ test("shared state, memory, apps and audit routes fail closed without access sec
   assert.match(storeModule, /return isAuthorized\(request\)/);
   assert.doesNotMatch(storeModule, /return !process\.env\.TAROTAI_ACCESS_CODE \|\| isAuthorized/);
 });
+
+test("OpenRouter request deadline stays active until response body is consumed", () => {
+  const bodyRead = chatRoute.indexOf("raw = await upstream.text();");
+  const timerClear = chatRoute.indexOf("clearTimeout(timeout);", bodyRead);
+  assert.ok(bodyRead >= 0, "OpenRouter response body is explicitly read");
+  assert.ok(timerClear > bodyRead, "deadline cleanup follows the body read");
+  assert.match(chatRoute, /const timeout = setTimeout\(\(\) => controller\.abort\(\), 110_000\)/);
+});
