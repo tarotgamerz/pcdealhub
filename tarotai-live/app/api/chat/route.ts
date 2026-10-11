@@ -1257,6 +1257,12 @@ export async function POST(request: Request) {
     });
     const runtimeTools = composioRuntime ? [...baseRuntimeTools, ...composioRuntime.tools] : baseRuntimeTools;
     const availableToolNames = new Set(runtimeTools.map((tool: any) => tool?.function?.name).filter(Boolean));
+    const modeSystemPrompt: Record<string, string> = {
+      research: "Research Agent mode: verify factual claims through real search results before writing. Use source URLs from tool output, distinguish facts from inference, and state clearly when evidence is unavailable. Never invent citations or claim a search ran unless a search tool result proves it.",
+      code: "Code Agent mode: inspect relevant source and documentation with available tools before diagnosing. Prefer minimal safe fixes, run or identify relevant tests, distinguish a proposed change from an actually applied change, and report exact evidence. Never bypass owner write approval.",
+      work: "Work Agent mode: plan, execute, observe results, adapt, and verify. Do not stop after presenting a plan when the available tools permit further execution. Report blocked steps precisely and do not claim background work continues after this request.",
+      trading: "Trading Agent mode: analyze only using verified, timestamped market data. Distinguish live public read-only data from demo/testnet data, include uncertainty and risk, and never place or claim to place a live-money order."
+    }[requestedMode] || "";
     if (requestedMode === "research" && !availableToolNames.has("search_web")) {
       runtimeWarnings.push("Research mode has no live web-search tool available for this request. Do not claim current web research or invent sources.");
     }
@@ -1265,6 +1271,7 @@ export async function POST(request: Request) {
     }
     const messages: any[] = [
       { role: "system", content: system },
+      ...(modeSystemPrompt ? [{ role: "system", content: modeSystemPrompt }] : []),
       ...(durableMemory.length ? [{
         role: "system",
         content:
@@ -1326,10 +1333,10 @@ export async function POST(request: Request) {
             model,
             messages,
             tools: runtimeTools,
-            tool_choice: turn === 0 && requestedMode === "research" && availableToolNames.has("search_web")
-              ? { type: "function", function: { name: "search_web" } }
-              : turn === 0 && requestedMode === "work" && availableToolNames.has("set_plan")
-                ? { type: "function", function: { name: "set_plan" } }
+            tool_choice: turn === 0 && ["research", "work"].includes(requestedMode) && availableToolNames.has("set_plan")
+              ? { type: "function", function: { name: "set_plan" } }
+              : turn === 1 && requestedMode === "research" && availableToolNames.has("search_web")
+                ? { type: "function", function: { name: "search_web" } }
                 : runtimeTools.length ? "auto" : "none",
             parallel_tool_calls: false,
             max_tokens: 4096
