@@ -195,3 +195,13 @@ test("Composio bootstrap is bounded and optional integrations do not block core 
   assert.ok(chatRoute.indexOf("const requestDeadline = Date.now() + 105_000") < chatRoute.indexOf("getComposioRuntime(request)"));
   assert.ok(chatRoute.indexOf("const requestDeadline = Date.now() + 105_000") < chatRoute.indexOf("for (let turn = 0; turn < 4; turn += 1)"));
 });
+
+test("core chat degrades safely when Redis rate limiting or durable memory fails", () => {
+  assert.match(chatRoute, /const localRateLimitBuckets = new Map/);
+  assert.match(chatRoute, /function consumeLocalFallbackRateLimit\(userId: string, limit: number\)/);
+  assert.match(chatRoute, /withOperationTimeout\(\s*consumeRateLimit\(userId, limit\)/);
+  assert.match(chatRoute, /Shared Redis rate limiting was temporarily unavailable/);
+  assert.match(chatRoute, /withOperationTimeout\(\s*loadDurableMemory\(request\)/);
+  assert.match(chatRoute, /Durable memory could not be loaded for this request/);
+  assert.match(chatRoute, /runtimeWarnings\.join\(" "\)/);
+});
