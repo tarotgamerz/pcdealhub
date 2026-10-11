@@ -191,7 +191,8 @@ test("Composio bootstrap is bounded and optional integrations do not block core 
   assert.match(chatRoute, /composioBudgetMs = Math\.max\(1, Math\.min\(12_000, requestDeadline - Date\.now\(\)\)\)/);
   assert.match(chatRoute, /Connected-app setup exceeded its 12-second startup budget/);
   assert.match(chatRoute, /continuing with core TarotAI tools/);
-  assert.match(chatRoute, /Connected-app tools failed to initialize for this request/);
+  assert.match(chatRoute, /Connected-app tools could not be initialized for this request/);
+  assert.match(chatRoute, /Some TarotAI supporting services were degraded during this request/);
   assert.ok(chatRoute.indexOf("const requestDeadline = Date.now() + 105_000") < chatRoute.indexOf("getComposioRuntime(request)"));
   assert.ok(chatRoute.indexOf("const requestDeadline = Date.now() + 105_000") < chatRoute.indexOf("for (let turn = 0; turn < 4; turn += 1)"));
 });
