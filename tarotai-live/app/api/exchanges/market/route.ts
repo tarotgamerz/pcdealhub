@@ -13,8 +13,8 @@ export async function GET(req:Request){
  const q=new URL(req.url).searchParams,venue=(q.get("venue")||"binance").toLowerCase(),symbol=(q.get("symbol")||"BTCUSDT").toUpperCase(),interval=q.get("interval")||"1m",limit=Math.min(500,Math.max(20,Math.floor(Number(q.get("limit")||100))));
  if(!intervals[venue]||!intervals[venue][interval]||!/^[A-Z0-9]{4,20}$/.test(symbol))return NextResponse.json({error:"Unsupported venue, symbol format or interval"},{status:400});
  let url:URL,normalize:(x:any)=>any;
- if(venue==="binance"){url=new URL("https://demo-fapi.binance.com/fapi/v1/klines");url.searchParams.set("symbol",symbol);url.searchParams.set("interval",intervals.binance[interval]);url.searchParams.set("limit",String(limit));normalize=(x:any)=>({time:+x[0],open:+x[1],high:+x[2],low:+x[3],close:+x[4],volume:+x[5],closeTime:+x[6]});}
- else if(venue==="bybit"){url=new URL("https://api-testnet.bybit.com/v5/market/kline");url.searchParams.set("category","linear");url.searchParams.set("symbol",symbol);url.searchParams.set("interval",intervals.bybit[interval]);url.searchParams.set("limit",String(limit));normalize=(x:any)=>({time:+x[0],open:+x[1],high:+x[2],low:+x[3],close:+x[4],volume:+x[5]});}
+ if(venue==="binance"){url=new URL("https://fapi.binance.com/fapi/v1/klines");url.searchParams.set("symbol",symbol);url.searchParams.set("interval",intervals.binance[interval]);url.searchParams.set("limit",String(limit));normalize=(x:any)=>({time:+x[0],open:+x[1],high:+x[2],low:+x[3],close:+x[4],volume:+x[5],closeTime:+x[6]});}
+ else if(venue==="bybit"){url=new URL("https://api.bybit.com/v5/market/kline");url.searchParams.set("category","linear");url.searchParams.set("symbol",symbol);url.searchParams.set("interval",intervals.bybit[interval]);url.searchParams.set("limit",String(limit));normalize=(x:any)=>({time:+x[0],open:+x[1],high:+x[2],low:+x[3],close:+x[4],volume:+x[5]});}
  else {const inst=symbol.endsWith("USDT")?symbol.slice(0,-4)+"-USDT-SWAP":symbol;url=new URL("https://www.okx.com/api/v5/market/candles");url.searchParams.set("instId",inst);url.searchParams.set("bar",intervals.okx[interval]);url.searchParams.set("limit",String(limit));normalize=(x:any)=>({time:+x[0],open:+x[1],high:+x[2],low:+x[3],close:+x[4],volume:+x[5],confirmed:x[8]==="1"});}
  try{
   const r=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(8000)}),raw=await r.json();
@@ -26,6 +26,6 @@ export async function GET(req:Request){
   const last=candles[candles.length-1],ageMs=Date.now()-last.time;
   const intervalMs:Record<string,number>={"1m":60000,"3m":180000,"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"2h":7200000,"4h":14400000,"1d":86400000};
   const stale=ageMs>intervalMs[interval]+60000;
-  return NextResponse.json({venue,symbol,interval,fetchedAt:new Date().toISOString(),lastCandleAgeMs:ageMs,dataAgeMs:0,stale,candles,readOnly:true,orderPlacement:false},{headers:{"Cache-Control":"no-store"}});
+  return NextResponse.json({venue,symbol,interval,fetchedAt:new Date().toISOString(),lastCandleAgeMs:ageMs,dataAgeMs:ageMs,marketDataMode:"live-public-read-only",stale,candles,readOnly:true,orderPlacement:false},{headers:{"Cache-Control":"no-store"}});
  }catch{return NextResponse.json({error:"Exchange market-data request timed out",venue},{status:502});}
 }
