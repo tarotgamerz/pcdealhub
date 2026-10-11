@@ -151,7 +151,7 @@ test("Multi-Agent Workspace bounds requests and distinguishes partial failure fr
 
 test("Multi-Agent Workspace bounds in-memory run history as well as stored history", () => {
   assert.match(agentPage, /function persist\(\)\{if\(history\.length>30\)history=history\.slice\(0,30\)/);
-  assert.match(agentPage, /JSON\.stringify\(history\)\)/);
+  assert.match(agentPage, /writeStoredJson\('tarotai_agent_runs_v1',history\)/);
 });
 
 test("console and agent workspace recover when browser storage is corrupt", () => {
