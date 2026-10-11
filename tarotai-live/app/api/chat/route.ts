@@ -1197,6 +1197,9 @@ export async function POST(request: Request) {
     }
     const initialMessages = normalizeMessages(body?.messages);
     const documents = normalizeDocuments(body?.documents);
+    const requestedMode = ["chat", "research", "code", "work", "trading"].includes(String(body?.mode || "chat"))
+      ? String(body?.mode || "chat")
+      : "chat";
     if (!initialMessages.length) {
       return Response.json(
         { error: "messages is required" },
@@ -1253,6 +1256,13 @@ export async function POST(request: Request) {
       return true;
     });
     const runtimeTools = composioRuntime ? [...baseRuntimeTools, ...composioRuntime.tools] : baseRuntimeTools;
+    const availableToolNames = new Set(runtimeTools.map((tool: any) => tool?.function?.name).filter(Boolean));
+    if (requestedMode === "research" && !availableToolNames.has("search_web")) {
+      runtimeWarnings.push("Research mode has no live web-search tool available for this request. Do not claim current web research or invent sources.");
+    }
+    if (requestedMode === "work" && !availableToolNames.has("set_plan")) {
+      runtimeWarnings.push("Work mode could not load the structured-plan tool. State the limitation and proceed carefully.");
+    }
     const messages: any[] = [
       { role: "system", content: system },
       ...(durableMemory.length ? [{
@@ -1316,7 +1326,11 @@ export async function POST(request: Request) {
             model,
             messages,
             tools: runtimeTools,
-            tool_choice: runtimeTools.length ? "auto" : "none",
+            tool_choice: turn === 0 && requestedMode === "research" && availableToolNames.has("search_web")
+              ? { type: "function", function: { name: "search_web" } }
+              : turn === 0 && requestedMode === "work" && availableToolNames.has("set_plan")
+                ? { type: "function", function: { name: "set_plan" } }
+                : runtimeTools.length ? "auto" : "none",
             parallel_tool_calls: false,
             max_tokens: 4096
           }),
