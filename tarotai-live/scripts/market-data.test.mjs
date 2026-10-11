@@ -279,3 +279,16 @@ test("backend receives agent mode and enforces Research search and Work planning
   assert.match(chatRoute, /type: "function", function: \{ name: "set_plan" \}/);
   assert.match(chatRoute, /Research mode has no live web-search tool available/);
 });
+
+test("demo candle API rejects malformed OHLCV records before returning them", () => {
+  assert.match(tradingMarketRoute, /\.filter\(\(k: unknown\) => Array\.isArray\(k\) && k\.length >= 9\)/);
+  assert.match(tradingMarketRoute, /\.every\(Number\.isFinite\)/);
+  assert.match(tradingMarketRoute, /c\.high >= Math\.max\(c\.open,c\.close,c\.low\)/);
+  assert.match(tradingMarketRoute, /candles\.length < 10/);
+  assert.match(tradingMarketRoute, /insufficient valid candles for reliable analysis/);
+});
+
+test("TradingView keeps absent or blank signal prices unknown, not zero", () => {
+  assert.match(tradingViewRoute, /body\.price !== undefined && body\.price !== null && String\(body\.price\)\.trim\(\) !== ""/);
+  assert.match(tradingViewRoute, /Number\.isFinite\(Number\(body\.price\)\) \? Number\(body\.price\) : null/);
+});
