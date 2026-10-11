@@ -90,5 +90,7 @@ test("OpenRouter request deadline stays active until response body is consumed",
   const timerClear = chatRoute.indexOf("clearTimeout(timeout);", bodyRead);
   assert.ok(bodyRead >= 0, "OpenRouter response body is explicitly read");
   assert.ok(timerClear > bodyRead, "deadline cleanup follows the body read");
-  assert.match(chatRoute, /const timeout = setTimeout\(\(\) => controller\.abort\(\), 110_000\)/);
+  assert.match(chatRoute, /const requestDeadline = Date\.now\(\) \+ 105_000/);
+  assert.match(chatRoute, /Math\.min\(30_000, remainingMs\)/);
+  assert.match(chatRoute, /status: timedOut \? 504 : 500/);
 });
