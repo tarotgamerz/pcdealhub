@@ -12,6 +12,7 @@ const storeModule = readFileSync(new URL("../lib/store.ts", import.meta.url), "u
 const authModule = readFileSync(new URL("../lib/auth.ts", import.meta.url), "utf8");
 const authRoute = readFileSync(new URL("../app/api/auth/route.ts", import.meta.url), "utf8");
 const stateRoute = readFileSync(new URL("../app/api/state/route.ts", import.meta.url), "utf8");
+const healthRoute = readFileSync(new URL("../app/api/health/route.ts", import.meta.url), "utf8");
 
 test("market feeds use production public endpoints, never demo or testnet prices", () => {
   assert.match(source, /https:\/\/fapi\.binance\.com\/fapi\/v1\/klines/);
@@ -165,4 +166,12 @@ test("console and agent workspace recover when browser storage is corrupt", () =
   assert.match(consolePage, /function writeStoredJson\(key,value\)/);
   assert.match(consolePage, /catch\{return false\}/);
   assert.match(agentPage, /function writeStoredJson\(key,value\)/);
+});
+
+test("public health checks do not disclose private environment capabilities", () => {
+  assert.match(healthRoute, /import \{ isAuthorized \} from "@\/lib\/auth"/);
+  assert.match(healthRoute, /if \(!isAuthorized\(request\)\)/);
+  assert.match(healthRoute, /return Response\.json\(base/);
+  assert.ok(healthRoute.indexOf("if (!isAuthorized(request))") < healthRoute.indexOf("hasOpenRouterKey:"));
+  assert.ok(healthRoute.indexOf("if (!isAuthorized(request))") < healthRoute.indexOf("hasExa:"));
 });
