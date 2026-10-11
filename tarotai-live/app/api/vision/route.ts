@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     const prompt = String(form.get("prompt") || "Describe and analyze this image in detail. Read visible text when possible.");
     if (!(item instanceof File)) return Response.json({ error: "Attach an image using the 'file' field." }, { status: 400 });
     if (!String(item.type).startsWith("image/")) return Response.json({ error: "Only image files are supported by this vision endpoint." }, { status: 415 });
-    if (item.size > 8 * 1024 * 1024) return Response.json({ error: "Image is too large. Maximum size is 8 MB." }, { status: 413 });
+    if (item.size > 4 * 1024 * 1024) return Response.json({ error: "Image is too large. Maximum size is 4 MB on the current hosting plan." }, { status: 413 });
 
     const bytes = Buffer.from(await item.arrayBuffer());
     const dataUrl = "data:" + item.type + ";base64," + bytes.toString("base64");
