@@ -69,3 +69,10 @@ test("document extraction uses the signed private session and fails closed", () 
   assert.doesNotMatch(documentsRoute, /tarotai_session=authorized/);
   assert.doesNotMatch(documentsRoute, /return !configured \|\| Boolean\(session\)/);
 });
+
+test("uploads stay below the hosting platform request-body limit", () => {
+  assert.match(documentsRoute, /const MAX_BYTES = 4 \* 1024 \* 1024/);
+  assert.match(documentsRoute, /Maximum upload size is 4 MB/);
+  assert.match(visionRoute, /item\.size > 4 \* 1024 \* 1024/);
+  assert.match(consolePage, /file\.size>4\*1024\*1024/);
+});
