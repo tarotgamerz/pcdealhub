@@ -274,10 +274,14 @@ test("all private order, paper, backtest and signal endpoints fail closed", () =
 test("backend receives agent mode and enforces Research search and Work planning", () => {
   assert.match(consolePage, /mode:currentMode\|\|'chat'/);
   assert.match(chatRoute, /const requestedMode = \["chat", "research", "code", "work", "trading"\]/);
-  assert.match(chatRoute, /requestedMode === "research" && availableToolNames\.has\("search_web"\)/);
+  assert.match(chatRoute, /turn === 0 && \["research", "work"\]\.includes\(requestedMode\) && availableToolNames\.has\("set_plan"\)/);
+  assert.match(chatRoute, /turn === 1 && requestedMode === "research" && availableToolNames\.has\("search_web"\)/);
   assert.match(chatRoute, /type: "function", function: \{ name: "search_web" \}/);
-  assert.match(chatRoute, /requestedMode === "work" && availableToolNames\.has\("set_plan"\)/);
   assert.match(chatRoute, /type: "function", function: \{ name: "set_plan" \}/);
+  assert.match(chatRoute, /Research Agent mode: verify factual claims through real search results/);
+  assert.match(chatRoute, /Code Agent mode: inspect relevant source and documentation/);
+  assert.match(chatRoute, /Work Agent mode: plan, execute, observe results, adapt, and verify/);
+  assert.match(chatRoute, /Trading Agent mode: analyze only using verified, timestamped market data/);
   assert.match(chatRoute, /Research mode has no live web-search tool available/);
 });
 
