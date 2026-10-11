@@ -336,7 +336,10 @@ async function enrichTradingHandoff(params){
     const ageSeconds=Number.isFinite(Number(data.lastCandleAgeMs))?Math.round(Number(data.lastCandleAgeMs)/1000):null;
     const context={
       status:'FETCHED',
-      source:'TarotAI read-only market-data API / '+venue,
+      source:'TarotAI live public read-only market-data API / '+venue,
+      marketDataMode:data.marketDataMode||'unknown',
+      dataAgeMs:Number.isFinite(Number(data.dataAgeMs))?Number(data.dataAgeMs):null,
+      latestCandleMayBeOpen:true,
       venue:data.venue||venue,
       symbol:data.symbol||symbol,
       interval:data.interval||interval,
@@ -356,7 +359,7 @@ async function enrichTradingHandoff(params){
     input.value=input.value.replace(/\n\n\[MARKET DATA STATUS: fetching recent read-only candles from TarotAI authenticated market-data API…\]$/,'');
     input.value+='\n\nVERIFIED MARKET DATA CONTEXT (use these values; do not fabricate missing values):\n'+JSON.stringify(context,null,2)+'\n'+warning+'\nAnalyze both directions, explain uncertainty and invalidation, and recommend no trade if the data is stale or insufficient.';
     const status=document.getElementById('runtimeStatus');
-    if(status)status.textContent=data.stale?'Trading data stale — review only':'Trading data loaded · '+venue+' '+symbol+' '+interval;
+    if(status)status.textContent=data.stale?'Trading data stale — review only':(data.marketDataMode==='live-public-read-only'?'Live read-only market data · ':'Market data loaded · ')+venue+' '+symbol+' '+interval;
   }catch(error){
     input.value=input.value.replace(/\n\n\[MARKET DATA STATUS: fetching recent read-only candles from TarotAI authenticated market-data API…\]$/,'');
     input.value+='\n\n[MARKET DATA FETCH FAILED: '+String(error?.message||error).slice(0,240)+'. No verified candles were attached. Do not invent prices; request a data refresh or use the Futures Lab market-data panel.]';
