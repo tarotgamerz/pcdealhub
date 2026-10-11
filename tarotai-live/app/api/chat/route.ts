@@ -1169,10 +1169,19 @@ export async function POST(request: Request) {
     const toolEvents: any[] = [];
     const totalUsage: any = {};
     let finalData: any = null;
+    // Keep multi-step agent work inside the function's 120-second platform budget.
+    const requestDeadline = Date.now() + 105_000;
 
     for (let turn = 0; turn < 4; turn += 1) {
+      const remainingMs = requestDeadline - Date.now();
+      if (remainingMs <= 0) {
+        return Response.json(
+          { error: "TarotAI reached its overall execution deadline before finishing. Retry with a narrower task." },
+          { status: 504, headers: { "Cache-Control": "no-store" } }
+        );
+      }
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 110_000);
+      const timeout = setTimeout(() => controller.abort(), Math.min(30_000, remainingMs));
 
       let upstream: Response;
       let raw: string;
@@ -1322,15 +1331,16 @@ export async function POST(request: Request) {
     console.error("tarotai chat error", error);
     const message = error instanceof Error ? error.message : String(error);
     const cause = error instanceof Error && error.cause ? String(error.cause) : null;
-    const detail = message.includes("aborted")
-      ? "OpenRouter request timed out. Please retry."
+    const timedOut = /abort|timed out|deadline/i.test(message);
+    const detail = timedOut
+      ? "TarotAI's bounded execution time was reached. Please retry with a narrower task."
       : cause
         ? message + " | cause: " + String(cause)
         : message;
 
     return Response.json(
       { error: detail },
-      { status: 500, headers: { "Cache-Control": "no-store" } }
+      { status: timedOut ? 504 : 500, headers: { "Cache-Control": "no-store" } }
     );
   }
 }
