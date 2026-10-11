@@ -1,19 +1,11 @@
 import { getTextExtractor } from "office-text-extractor";
+import { isAuthorized } from "../../../lib/auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const MAX_BYTES = 12 * 1024 * 1024;
 const MAX_TEXT = 120_000;
-
-function authorized(request: Request) {
-  const configured = Boolean(process.env.TAROTAI_ACCESS_CODE);
-  const session = request.headers
-    .get("cookie")
-    ?.split(";")
-    .some((v) => v.trim() === "tarotai_session=authorized");
-  return !configured || Boolean(session);
-}
 
 function cleanText(value: string) {
   return value
@@ -49,7 +41,13 @@ function officeMime(mime: string, name: string) {
 
 export async function POST(request: Request) {
   try {
-    if (!authorized(request)) {
+    if (!process.env.TAROTAI_ACCESS_CODE) {
+      return Response.json(
+        { error: "Private access is not configured. Set TAROTAI_ACCESS_CODE in the Vercel Production environment and redeploy." },
+        { status: 503, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+    if (!isAuthorized(request)) {
       return Response.json(
         { error: "Authentication required." },
         { status: 401, headers: { "Cache-Control": "no-store" } }
