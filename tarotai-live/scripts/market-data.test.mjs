@@ -6,6 +6,7 @@ const source = readFileSync(new URL("../app/api/exchanges/market/route.ts", impo
 const consolePage = readFileSync(new URL("../public/console.html", import.meta.url), "utf8");
 const agentPage = readFileSync(new URL("../public/agents.html", import.meta.url), "utf8");
 const chatRoute = readFileSync(new URL("../app/api/chat/route.ts", import.meta.url), "utf8");
+const auditScript = readFileSync(new URL("./audit-dependencies.mjs", import.meta.url), "utf8");
 const visionRoute = readFileSync(new URL("../app/api/vision/route.ts", import.meta.url), "utf8");
 const documentsRoute = readFileSync(new URL("../app/api/documents/route.ts", import.meta.url), "utf8");
 const storeModule = readFileSync(new URL("../lib/store.ts", import.meta.url), "utf8");
@@ -291,4 +292,11 @@ test("demo candle API rejects malformed OHLCV records before returning them", ()
 test("TradingView keeps absent or blank signal prices unknown, not zero", () => {
   assert.match(tradingViewRoute, /body\.price !== undefined && body\.price !== null && String\(body\.price\)\.trim\(\) !== ""/);
   assert.match(tradingViewRoute, /Number\.isFinite\(Number\(body\.price\)\) \? Number\(body\.price\) : null/);
+});
+
+test("dependency audit fails closed when unavailable or when vulnerabilities are found", () => {
+  assert.match(auditScript, /refusing to treat an unknown audit result as safe/);
+  assert.match(auditScript, /process\.exit\(1\)/);
+  assert.match(auditScript, /DEPENDENCY AUDIT FAILED/);
+  assert.match(auditScript, /process\.exitCode = 1/);
 });
