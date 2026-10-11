@@ -4,7 +4,7 @@ import { isAuthorized } from "../../../lib/auth";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const MAX_BYTES = 12 * 1024 * 1024;
+const MAX_BYTES = 4 * 1024 * 1024;
 const MAX_TEXT = 120_000;
 
 function cleanText(value: string) {
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
 
     if (item.size > MAX_BYTES) {
       return Response.json(
-        { error: "Document is too large. Maximum upload size is 12 MB." },
+        { error: "Document is too large. Maximum upload size is 4 MB." },
         { status: 413, headers: { "Cache-Control": "no-store" } }
       );
     }
