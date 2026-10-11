@@ -1,5 +1,5 @@
 import { Redis } from "@upstash/redis";
-import { isAuthorized } from "@/lib/auth";
+import { isAuthorized, sessionUserId } from "@/lib/auth";
 
 export const redis = memoryEnabled() ? Redis.fromEnv() : null;
 
@@ -27,12 +27,7 @@ export function rateKey(userId: string, bucket: string) {
 }
 
 export function privateUserId(request: Request) {
-  const raw = request.headers.get("cookie") || "";
-  const item = raw
-    .split(";")
-    .map((part) => part.trim())
-    .find((part) => part.startsWith("tarotai_user="));
-  return item ? decodeURIComponent(item.slice("tarotai_user=".length)) : null;
+  return sessionUserId(request);
 }
 
 export function authorized(request: Request) {
