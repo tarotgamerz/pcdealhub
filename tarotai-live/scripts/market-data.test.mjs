@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 const source = readFileSync(new URL("../app/api/exchanges/market/route.ts", import.meta.url), "utf8");
 const consolePage = readFileSync(new URL("../public/console.html", import.meta.url), "utf8");
 const agentPage = readFileSync(new URL("../public/agents.html", import.meta.url), "utf8");
+const chatRoute = readFileSync(new URL("../app/api/chat/route.ts", import.meta.url), "utf8");
 
 test("market feeds use production public endpoints, never demo or testnet prices", () => {
   assert.match(source, /https:\/\/fapi\.binance\.com\/fapi\/v1\/klines/);
@@ -41,4 +42,12 @@ test("all named single-agent modes have explicit behavior", () => {
   }
   assert.match(consolePage, /async function send\(\)/);
   assert.match(consolePage, /await fetch\('\/api\/chat'/);
+});
+
+test("chat endpoint fails closed without private access configuration", () => {
+  assert.match(chatRoute, /if \(!accessCodeConfigured\)/);
+  assert.match(chatRoute, /status: 503/);
+  assert.match(chatRoute, /if \(!isAuthorized\(request\)\)/);
+  assert.match(chatRoute, /status: 401/);
+  assert.ok(chatRoute.indexOf("if (!accessCodeConfigured)") < chatRoute.indexOf("if (!isAuthorized(request))"));
 });
