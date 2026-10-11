@@ -398,6 +398,13 @@ function isPrivateHostname(hostname: string) {
   return false;
 }
 
+async function boundedFetch(input: any, init: RequestInit = {}, timeoutMs = 12_000): Promise<Response> {
+  // Requests with an existing signal (such as the model's shorter remaining
+  // deadline) keep it; all other external requests receive a hard timeout.
+  const signal = init.signal ?? AbortSignal.timeout(timeoutMs);
+  return fetch(input, { ...init, signal });
+}
+
 async function runSecurityAuditUrl(args: any) {
   const rawUrl = String(args?.url ?? "").trim();
   let parsed: URL;
@@ -416,7 +423,7 @@ async function runSecurityAuditUrl(args: any) {
     throw new Error("Private or loopback hosts are not permitted.");
   }
 
-  const response = await fetch(parsed.toString(), {
+  const response = await boundedFetch(parsed.toString(), {
     method: "GET",
     redirect: "manual",
     headers: {
@@ -502,7 +509,7 @@ async function runReadWebpage(args: any) {
   if (!process.env.EXA_API_KEY) throw new Error("read_webpage is unavailable because EXA_API_KEY is not configured.");
   const maxCharacters = Math.max(1000, Math.min(12000, Number(args?.max_characters ?? 6000) || 6000));
 
-  const response = await fetch("https://api.exa.ai/contents", {
+  const response = await boundedFetch("https://api.exa.ai/contents", {
     method: "POST",
     headers: {
       Authorization: "Bearer " + process.env.EXA_API_KEY,
@@ -535,7 +542,7 @@ async function runSearchWeb(args: any) {
   if (!process.env.EXA_API_KEY) throw new Error("search_web is unavailable because EXA_API_KEY is not configured.");
   const numResults = Math.max(1, Math.min(8, Number(args?.num_results ?? 5) || 5));
 
-  const response = await fetch("https://api.exa.ai/search", {
+  const response = await boundedFetch("https://api.exa.ai/search", {
     method: "POST",
     headers: {
       Authorization: "Bearer " + process.env.EXA_API_KEY,
@@ -619,7 +626,7 @@ async function runGithubWriteFile(
     "User-Agent": "tarotai-core"
   };
 
-  const existingResponse = await fetch(base + "?ref=" + encodeURIComponent(branch), {
+  const existingResponse = await boundedFetch(base + "?ref=" + encodeURIComponent(branch), {
     headers,
     cache: "no-store"
   });
@@ -627,7 +634,7 @@ async function runGithubWriteFile(
   if (existingResponse.ok) {
     const existing = await existingResponse.json();
     if (createOnly) throw new Error("File already exists. Use github_update_file for an existing file.");
-    const response = await fetch(base, {
+    const response = await boundedFetch(base, {
       method: "PUT",
       headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -660,7 +667,7 @@ async function runGithubWriteFile(
   }
 
   if (!createOnly) throw new Error("File does not exist. Use github_create_file for a new file.");
-  const response = await fetch(base, {
+  const response = await boundedFetch(base, {
     method: "PUT",
     headers: { ...headers, "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -759,7 +766,7 @@ async function runGithubListCommits(args: any) {
   const params = new URLSearchParams({ per_page: String(perPage) });
   if (path) params.set("path", path.slice(0, 500));
 
-  const response = await fetch(
+  const response = await boundedFetch(
     "https://api.github.com/repos/" + repository + "/commits?" + params.toString(),
     {
       headers: {
@@ -795,7 +802,7 @@ async function runGithubActionsRuns(args: any) {
   validateRepository(repository);
   const perPage = Math.max(1, Math.min(20, Number(args?.per_page ?? 10) || 10));
 
-  const response = await fetch(
+  const response = await boundedFetch(
     "https://api.github.com/repos/" + repository + "/actions/runs?per_page=" + perPage,
     {
       headers: {
@@ -846,7 +853,7 @@ async function runGithubReadFile(args: any) {
     : "";
   const url = "https://api.github.com/repos/" + repository + "/contents/" + encodedPath + refPart;
 
-  const response = await fetch(url, {
+  const response = await boundedFetch(url, {
     headers: {
       Accept: "application/vnd.github+json",
       "User-Agent": "tarotai-core"
@@ -876,7 +883,7 @@ async function runGithubReadFile(args: any) {
   if (data?.content && data?.encoding === "base64") {
     fileText = Buffer.from(String(data.content).replace(/\n/g, ""), "base64").toString("utf8");
   } else if (typeof data?.download_url === "string") {
-    const fileResponse = await fetch(data.download_url, {
+    const fileResponse = await boundedFetch(data.download_url, {
       headers: { "User-Agent": "tarotai-core" },
       cache: "no-store"
     });
@@ -1196,7 +1203,7 @@ export async function POST(request: Request) {
       let upstream: Response;
       let raw: string;
       try {
-        upstream = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        upstream = await boundedFetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           headers: {
             Authorization: "Bearer " + apiKey,
@@ -1286,7 +1293,21 @@ export async function POST(request: Request) {
         }
 
         try {
-          const output = await executeTool(name, args, documents, request, composioRuntime, explicitMemoryRequest);
+          const remainingToolMs = requestDeadline - Date.now();
+          if (remainingToolMs <= 0) throw new Error("Overall agent execution deadline reached before tool execution.");
+          const toolBudgetMs = Math.min(15_000, remainingToolMs);
+          let toolTimer: ReturnType<typeof setTimeout> | undefined;
+          let output: any;
+          try {
+            output = await Promise.race([
+              executeTool(name, args, documents, request, composioRuntime, explicitMemoryRequest),
+              new Promise((_, reject) => {
+                toolTimer = setTimeout(() => reject(new Error("Tool execution timed out or exceeded the remaining task deadline.")), toolBudgetMs);
+              })
+            ]);
+          } finally {
+            if (toolTimer) clearTimeout(toolTimer);
+          }
           messages.push({
             role: "tool",
             tool_call_id: String(call?.id ?? ""),
