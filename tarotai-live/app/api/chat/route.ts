@@ -1070,20 +1070,16 @@ function compactToolEvent(name: string, args: any, output: any) {
 
 export async function POST(request: Request) {
   try {
-    const accessCodeConfigured = Boolean(process.env.TAROTAI_ACCESS_CODE);
-    const sessionCookie = request.headers
-      .get("cookie")
-      ?.split(";")
-      .some((v) => v.trim() === "tarotai_session=authorized");
+  const accessCodeConfigured = Boolean(process.env.TAROTAI_ACCESS_CODE);
 
-    if (accessCodeConfigured && !sessionCookie) {
-      return Response.json(
-        { error: "Authentication required." },
-        { status: 401, headers: { "Cache-Control": "no-store" } }
-      );
-    }
+  if (accessCodeConfigured && !isAuthorized(request)) {
+    return Response.json(
+      { error: "Authentication required." },
+      { status: 401, headers: { "Cache-Control": "no-store" } }
+    );
+  }
 
-    const userId = privateUserId(request);
+  const userId = privateUserId(request);
     if (userId) {
       const limit = Math.max(5, Math.min(120, Number(process.env.TAROTAI_CHAT_RPM || 30) || 30));
       const rate = await consumeRateLimit(userId, limit);
