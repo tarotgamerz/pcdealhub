@@ -1,14 +1,7 @@
+import { isAuthorized } from "../../../lib/auth";
+
 export const runtime = "nodejs";
 export const maxDuration = 90;
-
-function authorized(request: Request) {
-  const configured = Boolean(process.env.TAROTAI_ACCESS_CODE);
-  const session = request.headers
-    .get("cookie")
-    ?.split(";")
-    .some((v) => v.trim() === "tarotai_session=authorized");
-  return !configured || Boolean(session);
-}
 
 function extractError(raw: string) {
   try {
@@ -21,7 +14,13 @@ function extractError(raw: string) {
 
 export async function POST(request: Request) {
   try {
-    if (!authorized(request)) return Response.json({ error: "Authentication required." }, { status: 401 });
+    if (!process.env.TAROTAI_ACCESS_CODE) {
+      return Response.json(
+        { error: "Private access is not configured. Set TAROTAI_ACCESS_CODE in the Vercel Production environment and redeploy." },
+        { status: 503 }
+      );
+    }
+    if (!isAuthorized(request)) return Response.json({ error: "Authentication required." }, { status: 401 });
     const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) return Response.json({ error: "OPENROUTER_API_KEY is not configured." }, { status: 503 });
 
