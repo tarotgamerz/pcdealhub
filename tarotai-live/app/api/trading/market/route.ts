@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isAuthorized } from "../../../../lib/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -7,6 +8,12 @@ export const dynamic = "force-dynamic";
 const BASE = "https://demo-fapi.binance.com";
 
 export async function GET(request: Request) {
+  if (!process.env.TAROTAI_ACCESS_CODE) {
+    return NextResponse.json({ error: "Private access is not configured" }, { status: 503, headers: { "Cache-Control": "no-store" } });
+  }
+  if (!isAuthorized(request)) {
+    return NextResponse.json({ error: "Authentication required" }, { status: 401, headers: { "Cache-Control": "no-store" } });
+  }
   const url = new URL(request.url);
   const symbol = (url.searchParams.get("symbol") || "BTCUSDT").toUpperCase();
   const interval = url.searchParams.get("interval") || "1m";
