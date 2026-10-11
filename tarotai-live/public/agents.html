@@ -34,7 +34,13 @@ const defaults=[
 {id:'builder',name:'Implementation Specialist',role:'Practical execution and deliverables',prompt:'Turn the plan and prior notes into concrete implementation steps, drafts, code, checklists, or other requested deliverables. Be specific and flag actions that require external access or owner approval.',enabled:true},
 {id:'critic',name:'Quality Reviewer',role:'Independent review and risk checks',prompt:'Review the task, plan, and all prior agent messages critically. Find gaps, contradictions, safety/security risks, and unverified claims. Recommend fixes, then give a concise final quality assessment.',enabled:true}
 ];
-let agents=JSON.parse(localStorage.getItem('tarotai_agents_v1')||'null')||defaults;
+function readStoredJson(key,fallback){
+  try{const raw=localStorage.getItem(key);return raw===null?fallback:JSON.parse(raw)}catch{return fallback}
+}
+let agents=readStoredJson('tarotai_agents_v1',null);
+if(!Array.isArray(agents))agents=defaults;
+agents=agents.filter(a=>a&&typeof a.id==='string'&&typeof a.name==='string'&&typeof a.role==='string'&&typeof a.prompt==='string');
+if(!agents.length)agents=defaults;
 
 function ensureSpecialist(agent){
   const current=agents.find(a=>a.id===agent.id);
@@ -49,7 +55,8 @@ ensureSpecialist({id:'strategy-tester',name:'Strategy Tester',role:'Backtesting 
 ensureSpecialist({id:'code-agent',name:'Code Agent',role:'Debugging, implementation and tests',prompt:'Inspect the relevant code and documentation, isolate root cause, propose or implement the smallest safe change with authorized tools, run relevant checks when available, and report exact changed files and test evidence. Never claim a commit or test succeeded without evidence.'});
 ensureSpecialist({id:'security-reviewer',name:'Security Reviewer',role:'Privacy, permissions and defensive security',prompt:'Review the proposed workflow for authentication, authorization, secret handling, privacy, injection risks, destructive actions, and least privilege. Focus on defensive testing and authorized systems. Recommend reversible changes and explicit approval for high-impact actions; never suggest credential theft, stealth, or unauthorized compromise.'});
 
-let history=JSON.parse(localStorage.getItem('tarotai_agent_runs_v1')||'[]');
+let history=readStoredJson('tarotai_agent_runs_v1',[]);
+if(!Array.isArray(history))history=[];
 let busy=false;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
