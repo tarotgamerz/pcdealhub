@@ -32,6 +32,9 @@ for (const [name, item] of found) {
     isDirect: item.isDirect,
     range: item.range,
     fixAvailable: item.fixAvailable,
+    via: item.via,
+    effects: item.effects,
+    nodes: item.nodes,
     advisories
   }));
 }
