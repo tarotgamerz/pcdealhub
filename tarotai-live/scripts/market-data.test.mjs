@@ -153,3 +153,13 @@ test("Multi-Agent Workspace bounds in-memory run history as well as stored histo
   assert.match(agentPage, /function persist\(\)\{if\(history\.length>30\)history=history\.slice\(0,30\)/);
   assert.match(agentPage, /JSON\.stringify\(history\)\)/);
 });
+
+test("console and agent workspace recover when browser storage is corrupt", () => {
+  assert.match(consolePage, /function readStoredJson\(key,fallback\)/);
+  assert.match(consolePage, /if\(!Array\.isArray\(state\.messages\)\)state\.messages=\[\]/);
+  assert.match(consolePage, /if\(!Array\.isArray\(state\.tasks\)\)state\.tasks=\[\]/);
+  assert.match(agentPage, /let agents=readStoredJson\('tarotai_agents_v1',null\)/);
+  assert.match(agentPage, /agents=agents\.filter\(a=>a&&typeof a\.id==='string'/);
+  assert.match(agentPage, /let history=readStoredJson\('tarotai_agent_runs_v1',\[\]\)/);
+  assert.match(agentPage, /if\(!Array\.isArray\(history\)\)history=\[\]/);
+});
