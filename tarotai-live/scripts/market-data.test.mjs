@@ -9,6 +9,8 @@ const chatRoute = readFileSync(new URL("../app/api/chat/route.ts", import.meta.u
 const visionRoute = readFileSync(new URL("../app/api/vision/route.ts", import.meta.url), "utf8");
 const documentsRoute = readFileSync(new URL("../app/api/documents/route.ts", import.meta.url), "utf8");
 const storeModule = readFileSync(new URL("../lib/store.ts", import.meta.url), "utf8");
+const authModule = readFileSync(new URL("../lib/auth.ts", import.meta.url), "utf8");
+const authRoute = readFileSync(new URL("../app/api/auth/route.ts", import.meta.url), "utf8");
 
 test("market feeds use production public endpoints, never demo or testnet prices", () => {
   assert.match(source, /https:\/\/fapi\.binance\.com\/fapi\/v1\/klines/);
@@ -93,4 +95,13 @@ test("OpenRouter request deadline stays active until response body is consumed",
   assert.match(chatRoute, /const requestDeadline = Date\.now\(\) \+ 105_000/);
   assert.match(chatRoute, /Math\.min\(30_000, remainingMs\)/);
   assert.match(chatRoute, /status: timedOut \? 504 : 500/);
+});
+
+test("durable owner identity comes from the verified signed session", () => {
+  assert.match(authModule, /export function sessionUserId\(request: Request\)/);
+  assert.match(authModule, /function readSession\(request: Request\)/);
+  assert.match(authModule, /timingSafeEqual\(actualBytes, expectedBytes\)/);
+  assert.match(storeModule, /return sessionUserId\(request\)/);
+  assert.doesNotMatch(storeModule, /tarotai_user=/);
+  assert.match(authRoute, /sub:"owner"/);
 });
