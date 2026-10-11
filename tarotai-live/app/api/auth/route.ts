@@ -11,7 +11,7 @@ export async function POST(req:Request){
  const expected=secret();if(!expected)return NextResponse.json({error:"Private access is not configured. Set TAROTAI_ACCESS_CODE and redeploy."},{status:503});
  const supplied=typeof body?.code==="string"?body.code:"",a=Buffer.from(supplied),b=Buffer.from(expected);
  if(a.length!==b.length||!timingSafeEqual(a,b))return NextResponse.json({error:"Access denied"},{status:401});
- const payload=Buffer.from(JSON.stringify({exp:Date.now()+8*60*60*1000,nonce:randomUUID()})).toString("base64url");
+ const payload=Buffer.from(JSON.stringify({sub:"owner",exp:Date.now()+8*60*60*1000,nonce:randomUUID()})).toString("base64url");
  const response=NextResponse.json({authenticated:true,expiresInSeconds:28800});
  response.cookies.set(COOKIE,payload+"."+sign(payload),{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:28800});
  return response;
