@@ -114,7 +114,9 @@ test("durable owner identity comes from the verified signed session", () => {
 
 test("durable state writes are queued with snapshots and an abort deadline", () => {
   assert.match(consolePage, /let stateWriteQueue=Promise\.resolve\(\)/);
-  assert.match(consolePage, /const body=JSON\.stringify\(\{messages:state\.messages,tasks:state\.tasks\}\)/);
+  assert.match(consolePage, /const messages=state\.messages\.slice\(-40\)\.map\(m=>\(\{/);
+  assert.match(consolePage, /const tasks=state\.tasks\.slice\(0,80\)\.map\(t=>\(\{/);
+  assert.match(consolePage, /const body=JSON\.stringify\(\{messages,tasks\}\)/);
   assert.match(consolePage, /stateWriteQueue=stateWriteQueue\.catch\(\(\)=>null\)\.then\(\(\)=>fetch\('\/api\/state'/);
   assert.match(consolePage, /signal:AbortSignal\.timeout\(8000\)/);
   assert.match(consolePage, /if\(!state\.auth\)return Promise\.resolve\(null\)/);
