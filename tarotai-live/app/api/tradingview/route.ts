@@ -68,7 +68,7 @@ export async function POST(request: Request) {
     };
     // Deduplication and queue insertion are one atomic Redis operation. Marking
     // the alert only after insertion prevents a failed queue write from losing it.
-    const result = await redis.eval<number>(
+    const result = await redis.eval(
       "if redis.call('EXISTS', KEYS[1]) == 1 then return 0 end " +
       "redis.call('LPUSH', KEYS[2], ARGV[1]) " +
       "redis.call('LTRIM', KEYS[2], 0, 199) " +
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
       "return 1",
       ["tarotai:tradingview:dedupe:" + dedupeId, "tarotai:tradingview:signals"],
       [JSON.stringify(event)]
-    );
+    ) as number;
     if (Number(result) !== 1) {
       return NextResponse.json({ accepted: true, duplicate: true, status: "DUPLICATE_IGNORED", id: dedupeId, message: "Duplicate alert ignored; no order was placed." }, { status: 200 });
     }
