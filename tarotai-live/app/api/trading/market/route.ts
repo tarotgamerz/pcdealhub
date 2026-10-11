@@ -17,7 +17,10 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const symbol = (url.searchParams.get("symbol") || "BTCUSDT").toUpperCase();
   const interval = url.searchParams.get("interval") || "1m";
-  const limit = Math.min(500, Math.max(20, Number(url.searchParams.get("limit") || 100)));
+  const requestedLimit = Number(url.searchParams.get("limit") || 100);
+  const limit = Number.isFinite(requestedLimit)
+    ? Math.min(500, Math.max(20, Math.floor(requestedLimit)))
+    : 100;
   if (!/^[A-Z0-9]{4,20}$/.test(symbol)) {
     return NextResponse.json({ error: "Invalid symbol" }, { status: 400 });
   }
