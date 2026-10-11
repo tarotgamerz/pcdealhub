@@ -36,9 +36,9 @@ export function privateUserId(request: Request) {
 }
 
 export function authorized(request: Request) {
-  // Use the same signed, expiring session validation as /api/auth.
-  // The previous literal-cookie check rejected valid sessions created by login.
-  return !process.env.TAROTAI_ACCESS_CODE || isAuthorized(request);
+  // Fail closed consistently across every route sharing this guard.
+  if (!process.env.TAROTAI_ACCESS_CODE) return false;
+  return isAuthorized(request);
 }
 
 export function forbiddenMemoryKey(key: string) {
