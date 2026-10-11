@@ -146,3 +146,8 @@ test("Multi-Agent Workspace bounds requests and distinguishes partial failure fr
   assert.match(agentPage, /Run paused after an error\. Partial results are saved in this browser\./);
   assert.match(agentPage, /Run finished successfully\. Results are saved in this browser\./);
 });
+
+test("Multi-Agent Workspace bounds in-memory run history as well as stored history", () => {
+  assert.match(agentPage, /function persist\(\)\{if\(history\.length>30\)history=history\.slice\(0,30\)/);
+  assert.match(agentPage, /JSON\.stringify\(history\)\)/);
+});
