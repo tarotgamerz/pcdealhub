@@ -211,6 +211,7 @@ async function uploadDocument(e){
   const file=e.target.files?.[0];
   e.target.value='';
   if(!file||state.busy)return;
+  if(file.size>4*1024*1024){alert('Each document or image must be 4 MB or smaller on the current hosting plan.');return;}
   if(state.documents.length>=4){alert('Maximum 4 documents per task.');return;}
   state.activity.unshift('Extracting document: '+file.name);
   if(window.refreshTarotaiDocuments)window.refreshTarotaiDocuments();
