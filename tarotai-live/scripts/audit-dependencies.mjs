@@ -12,8 +12,8 @@ try {
   report = JSON.parse(result.stdout || "");
 } catch {
   const detail = String(result.stderr || result.error?.message || "npm audit did not return JSON").trim();
-  console.error("Dependency audit could not be parsed:", detail.slice(0, 1200));
-  process.exit(0);
+  console.error("Dependency audit could not be parsed; refusing to treat an unknown audit result as safe:", detail.slice(0, 1200));
+  process.exit(1);
 }
 
 const counts = report.metadata?.vulnerabilities || {};
@@ -38,4 +38,9 @@ for (const [name, item] of found) {
     advisories
   }));
 }
-if (!found.length) console.log("DEPENDENCY AUDIT: no vulnerable package entries reported.");
+if (!found.length) {
+  console.log("DEPENDENCY AUDIT: no vulnerable package entries reported.");
+} else {
+  console.error("DEPENDENCY AUDIT FAILED: " + found.length + " vulnerable package entries found.");
+  process.exitCode = 1;
+}
