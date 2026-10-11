@@ -37,11 +37,24 @@ export async function GET(request: Request) {
     if (!response.ok) {
       return NextResponse.json({ error: "Binance Futures demo market-data request failed", detail: raw?.msg || "Upstream error" }, { status: 502 });
     }
-    const candles = Array.isArray(raw) ? raw.map((k: any[]) => ({
-      openTime: Number(k[0]), open: Number(k[1]), high: Number(k[2]),
-      low: Number(k[3]), close: Number(k[4]), volume: Number(k[5]),
-      closeTime: Number(k[6]), quoteVolume: Number(k[7]), trades: Number(k[8])
-    })) : [];
+    const candles = Array.isArray(raw) ? raw
+      .filter((k: unknown) => Array.isArray(k) && k.length >= 9)
+      .map((k: any[]) => ({
+        openTime: Number(k[0]), open: Number(k[1]), high: Number(k[2]),
+        low: Number(k[3]), close: Number(k[4]), volume: Number(k[5]),
+        closeTime: Number(k[6]), quoteVolume: Number(k[7]), trades: Number(k[8])
+      }))
+      .filter((c: any) =>
+        [c.openTime,c.open,c.high,c.low,c.close,c.volume,c.closeTime,c.quoteVolume,c.trades].every(Number.isFinite) &&
+        c.openTime >= 0 && c.closeTime > c.openTime &&
+        c.open > 0 && c.high > 0 && c.low > 0 && c.close > 0 &&
+        c.high >= Math.max(c.open,c.close,c.low) &&
+        c.low <= Math.min(c.open,c.close,c.high) &&
+        c.volume >= 0 && c.quoteVolume >= 0 && c.trades >= 0
+      ) : [];
+    if (candles.length < 10) {
+      return NextResponse.json({ error: "Exchange returned insufficient valid candles for reliable analysis." }, { status: 502, headers: { "Cache-Control": "no-store" } });
+    }
     return NextResponse.json({
       source: "Binance USDⓈ-M Futures demo market data",
       symbol, interval, fetchedAt: new Date().toISOString(), candles,
