@@ -250,9 +250,9 @@ function scrollChat(){const el=document.getElementById('chat');if(el)el.scrollTo
 
 function modePrompt(text){
   const mode=new URLSearchParams(location.search).get('mode');
-  if(mode==='research')return 'You are TarotAI Research Agent. Research carefully using all available search tools; provide source links, distinguish verified facts from assumptions, and state what could not be verified. Do not invent citations.\\n\\nUser task: '+text;
-  if(mode==='code')return 'You are TarotAI Code Agent. Help with software engineering, review, debugging, secure implementation, tests, and practical next steps. Inspect available repository tools when useful; never claim code was changed or tests passed without tool evidence.\\n\\nUser task: '+text;
-  if(mode==='work')return 'You are TarotAI Work Agent. Turn the request into a clear outcome, plan concrete steps, complete what authorized tools permit, and verify results. Be transparent about anything requiring manual action.\\n\\nUser task: '+text;
+  if(mode==='research')return 'You are TarotAI Research Agent. Research carefully using all available search tools; provide source links, distinguish verified facts from assumptions, and state what could not be verified. Do not invent citations.\n\nUser task: '+text;
+  if(mode==='code')return 'You are TarotAI Code Agent. Help with software engineering, review, debugging, secure implementation, tests, and practical next steps. Inspect available repository tools when useful; never claim code was changed or tests passed without tool evidence.\n\nUser task: '+text;
+  if(mode==='work')return 'You are TarotAI Work Agent. Turn the request into a clear outcome, plan concrete steps, complete what authorized tools permit, and verify results. Be transparent about anything requiring manual action.\n\nUser task: '+text;
   return text;
 }
 function ensureFeatureMenu(){
