@@ -162,4 +162,7 @@ test("console and agent workspace recover when browser storage is corrupt", () =
   assert.match(agentPage, /agents=agents\.filter\(a=>a&&typeof a\.id==='string'/);
   assert.match(agentPage, /let history=readStoredJson\('tarotai_agent_runs_v1',\[\]\)/);
   assert.match(agentPage, /if\(!Array\.isArray\(history\)\)history=\[\]/);
+  assert.match(consolePage, /function writeStoredJson\(key,value\)/);
+  assert.match(consolePage, /catch\{return false\}/);
+  assert.match(agentPage, /function writeStoredJson\(key,value\)/);
 });
