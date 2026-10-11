@@ -185,3 +185,13 @@ test("external tool fetches and tool dispatch have bounded deadlines", () => {
   assert.equal((chatRoute.match(/\bfetch\(/g) || []).length, 1, "only the timeout wrapper calls native fetch directly");
   assert.ok((chatRoute.match(/\bboundedFetch\(/g) || []).length >= 10, "external tool requests use the timeout wrapper");
 });
+
+test("Composio bootstrap is bounded and optional integrations do not block core chat", () => {
+  assert.match(chatRoute, /const requestDeadline = Date\.now\(\) \+ 105_000/);
+  assert.match(chatRoute, /composioBudgetMs = Math\.max\(1, Math\.min\(12_000, requestDeadline - Date\.now\(\)\)\)/);
+  assert.match(chatRoute, /Connected-app setup exceeded its 12-second startup budget/);
+  assert.match(chatRoute, /continuing with core TarotAI tools/);
+  assert.match(chatRoute, /Connected-app tools failed to initialize for this request/);
+  assert.ok(chatRoute.indexOf("const requestDeadline = Date.now() + 105_000") < chatRoute.indexOf("getComposioRuntime(request)"));
+  assert.ok(chatRoute.indexOf("const requestDeadline = Date.now() + 105_000") < chatRoute.indexOf("for (let turn = 0; turn < 4; turn += 1)"));
+});
