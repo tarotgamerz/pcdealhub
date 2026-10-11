@@ -37,6 +37,9 @@ const defaults=[
 function readStoredJson(key,fallback){
   try{const raw=localStorage.getItem(key);return raw===null?fallback:JSON.parse(raw)}catch{return fallback}
 }
+function writeStoredJson(key,value){
+  try{localStorage.setItem(key,JSON.stringify(value));return true}catch{return false}
+}
 let agents=readStoredJson('tarotai_agents_v1',null);
 if(!Array.isArray(agents))agents=defaults;
 agents=agents.filter(a=>a&&typeof a.id==='string'&&typeof a.name==='string'&&typeof a.role==='string'&&typeof a.prompt==='string');
@@ -68,7 +71,7 @@ $('agentMenuClose').addEventListener('click',()=>toggleAgentMenu(false));
 menuOverlay.addEventListener('click',e=>{if(e.target===menuOverlay)toggleAgentMenu(false)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleAgentMenu(false)});
 
-function persist(){if(history.length>30)history=history.slice(0,30);localStorage.setItem('tarotai_agents_v1',JSON.stringify(agents));localStorage.setItem('tarotai_agent_runs_v1',JSON.stringify(history))}
+function persist(){if(history.length>30)history=history.slice(0,30);writeStoredJson('tarotai_agents_v1',agents);writeStoredJson('tarotai_agent_runs_v1',history)}
 function renderAgents(){$('agentCount').textContent='('+agents.length+')';$('agents').innerHTML=agents.map(a=>'<div class="agent"><div class="agenttop"><b>'+esc(a.name)+'</b><span class="tag">'+esc(a.role)+'</span></div><p>'+esc(a.prompt)+'</p><div class="actions"><button class="btn" data-edit="'+esc(a.id)+'">Edit</button><button class="btn danger" data-remove="'+esc(a.id)+'">Remove</button></div></div>').join('')||'<p class="muted">Add an agent to get started.</p>';renderChecks()}
 function renderChecks(){const profile=new URLSearchParams(location.search).get('profile');const selected=profile==='work'?['work-agent']:profile==='trading'?['market-analyst','trading-analyst','risk-officer','strategy-tester']:null;$('checks').innerHTML=agents.map(a=>'<label class="check"><input type="checkbox" value="'+esc(a.id)+'" '+((selected?selected.includes(a.id):a.enabled)?'checked':'')+'><span><b>'+esc(a.name)+'</b><small>'+esc(a.role)+'</small></span></label>').join('')||'<span class="muted">No agents configured.</span>'}
 function renderFeed(){$('feed').innerHTML=history.map(run=>'<div class="entry"><div class="entryhead"><b>'+esc(run.task)+'</b><span class="muted">'+esc(new Date(run.at).toLocaleString())+'</span></div>'+run.outputs.map(o=>'<div style="border-top:1px solid var(--line);padding-top:10px;margin-top:10px"><div class="entryhead"><b>'+esc(o.agent)+'</b><span class="'+(o.error?'error':'status')+'">'+(o.error?'Failed':'Completed')+'</span></div><pre>'+esc(o.text)+'</pre></div>').join('')+'</div>').join('')}
