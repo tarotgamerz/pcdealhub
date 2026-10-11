@@ -15,6 +15,16 @@ const stateRoute = readFileSync(new URL("../app/api/state/route.ts", import.meta
 const healthRoute = readFileSync(new URL("../app/api/health/route.ts", import.meta.url), "utf8");
 const tradingMarketRoute = readFileSync(new URL("../app/api/trading/market/route.ts", import.meta.url), "utf8");
 const tradingViewRoute = readFileSync(new URL("../app/api/tradingview/route.ts", import.meta.url), "utf8");
+const binanceOrderRoute = readFileSync(new URL("../app/api/trading/testnet-order/route.ts", import.meta.url), "utf8");
+const binanceOrderStatusRoute = readFileSync(new URL("../app/api/trading/testnet-order-status/route.ts", import.meta.url), "utf8");
+const bybitOrderRoute = readFileSync(new URL("../app/api/trading/bybit-testnet-order/route.ts", import.meta.url), "utf8");
+const bybitOrderStatusRoute = readFileSync(new URL("../app/api/trading/bybit-testnet-order-status/route.ts", import.meta.url), "utf8");
+const okxOrderRoute = readFileSync(new URL("../app/api/trading/okx-demo-order/route.ts", import.meta.url), "utf8");
+const okxOrderStatusRoute = readFileSync(new URL("../app/api/trading/okx-demo-order-status/route.ts", import.meta.url), "utf8");
+const backtestRoute = readFileSync(new URL("../app/api/trading/backtest/route.ts", import.meta.url), "utf8");
+const paperRoute = readFileSync(new URL("../app/api/trading/paper/route.ts", import.meta.url), "utf8");
+const reviewRoute = readFileSync(new URL("../app/api/trading/review/route.ts", import.meta.url), "utf8");
+const tradingViewSignalsRoute = readFileSync(new URL("../app/api/tradingview/signals/route.ts", import.meta.url), "utf8");
 
 test("market feeds use production public endpoints, never demo or testnet prices", () => {
   assert.match(source, /https:\/\/fapi\.binance\.com\/fapi\/v1\/klines/);
@@ -229,4 +239,30 @@ test("TradingView webhooks cap payloads and atomically deduplicate queued signal
   assert.match(tradingViewRoute, /redis\.call\('SET', KEYS\[1\], '1', 'EX', 86400\)/);
   assert.match(tradingViewRoute, /DUPLICATE_IGNORED/);
   assert.match(tradingViewRoute, /No order was placed/);
+});
+
+test("all private order, paper, backtest and signal endpoints fail closed", () => {
+  const privateRoutes = [
+    binanceOrderRoute, binanceOrderStatusRoute,
+    bybitOrderRoute, bybitOrderStatusRoute,
+    okxOrderRoute, okxOrderStatusRoute,
+    backtestRoute, paperRoute, reviewRoute, tradingViewSignalsRoute
+  ];
+  for (const route of privateRoutes) {
+    assert.match(route, /TAROTAI_ACCESS_CODE/);
+    assert.match(route, /isAuthorized\(/);
+  }
+  assert.match(binanceOrderRoute, /confirmTestnetOrder!==true/);
+  assert.match(bybitOrderRoute, /confirmTestnetOrder!==true/);
+  assert.match(okxOrderRoute, /confirmTestnetOrder!==true/);
+  assert.match(binanceOrderRoute, /demo-fapi\.binance\.com/);
+  assert.match(binanceOrderStatusRoute, /demo-fapi\.binance\.com/);
+  assert.match(bybitOrderRoute, /api-testnet\.bybit\.com/);
+  assert.match(bybitOrderStatusRoute, /api-testnet\.bybit\.com/);
+  assert.match(okxOrderRoute, /x-simulated-trading":"1"/);
+  assert.match(okxOrderStatusRoute, /x-simulated-trading":"1"/);
+  assert.match(tradingMarketRoute, /Number\.isFinite\(requestedLimit\)/);
+  assert.match(tradingMarketRoute, /Math\.floor\(requestedLimit\)/);
+  assert.doesNotMatch(binanceOrderRoute, /https:\/\/fapi\.binance\.com/);
+  assert.doesNotMatch(bybitOrderRoute, /https:\/\/api\.bybit\.com/);
 });
