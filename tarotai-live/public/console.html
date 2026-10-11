@@ -46,7 +46,25 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 let stateWriteQueue=Promise.resolve();
 function persistServerState(){
   if(!state.auth)return Promise.resolve(null);
-  const body=JSON.stringify({messages:state.messages,tasks:state.tasks});
+  const messages=state.messages.slice(-40).map(m=>({
+    role:m.role,
+    content:String(m.content??'').slice(0,8000),
+    ...(Array.isArray(m.toolEvents)?{toolEvents:m.toolEvents.slice(0,10).map(t=>({
+      name:String(t?.name??'').slice(0,100),
+      output:{
+        type:String(t?.output?.type??'').slice(0,80),
+        ...(typeof t?.output?.status==='string'?{status:t.output.status.slice(0,80)}:{}),
+        ...(typeof t?.output?.error==='string'?{error:t.output.error.slice(0,300)}:{})
+      }
+    }))}:{})
+  }));
+  const tasks=state.tasks.slice(0,80).map(t=>({
+    title:String(t?.title??'').slice(0,500),
+    status:String(t?.status??'unknown').slice(0,40),
+    createdAt:String(t?.createdAt??'').slice(0,80),
+    ...(t?.result?{result:String(t.result).slice(0,3000)}:{})
+  }));
+  const body=JSON.stringify({messages,tasks});
   stateWriteQueue=stateWriteQueue.catch(()=>null).then(()=>fetch('/api/state',{
     method:'POST',
     headers:{'content-type':'application/json'},
@@ -56,6 +74,8 @@ function persistServerState(){
   return stateWriteQueue;
 }
 function save(){
+  if(state.messages.length>100)state.messages=state.messages.slice(-100);
+  if(state.tasks.length>100)state.tasks=state.tasks.slice(0,100);
   localStorage.setItem('tarotai-messages',JSON.stringify(state.messages));
   localStorage.setItem('tarotai-memory',JSON.stringify(state.memory));
   localStorage.setItem('tarotai-tasks',JSON.stringify(state.tasks));
