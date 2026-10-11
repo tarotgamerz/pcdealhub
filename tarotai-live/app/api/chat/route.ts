@@ -1072,7 +1072,17 @@ export async function POST(request: Request) {
   try {
   const accessCodeConfigured = Boolean(process.env.TAROTAI_ACCESS_CODE);
 
-  if (accessCodeConfigured && !isAuthorized(request)) {
+  if (!accessCodeConfigured) {
+    return Response.json(
+      {
+        error: "Private access is not configured. Set TAROTAI_ACCESS_CODE in the Vercel Production environment and redeploy.",
+        setup: "Chat execution is disabled until private owner access is configured."
+      },
+      { status: 503, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+
+  if (!isAuthorized(request)) {
     return Response.json(
       { error: "Authentication required." },
       { status: 401, headers: { "Cache-Control": "no-store" } }
