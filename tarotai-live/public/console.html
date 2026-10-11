@@ -45,6 +45,9 @@ function readStoredJson(key,fallback){
     return raw===null?fallback:JSON.parse(raw);
   }catch{return fallback}
 }
+function writeStoredJson(key,value){
+  try{localStorage.setItem(key,JSON.stringify(value));return true}catch{return false}
+}
 const state={messages:readStoredJson('tarotai-messages',[]),memory:readStoredJson('tarotai-memory',[]),tasks:readStoredJson('tarotai-tasks',[]),busy:false,auth:null,runtime:null,marketContext:null,marketContextUpdatedAt:0,active:'Command Center',plan:[],activity:[],sources:[],documents:[],writeApproved:false};
 if(!Array.isArray(state.messages))state.messages=[];
 if(!Array.isArray(state.memory))state.memory=[];
@@ -85,12 +88,12 @@ function persistServerState(){
 function save(){
   if(state.messages.length>100)state.messages=state.messages.slice(-100);
   if(state.tasks.length>100)state.tasks=state.tasks.slice(0,100);
-  localStorage.setItem('tarotai-messages',JSON.stringify(state.messages));
-  localStorage.setItem('tarotai-memory',JSON.stringify(state.memory));
-  localStorage.setItem('tarotai-tasks',JSON.stringify(state.tasks));
+  writeStoredJson('tarotai-messages',state.messages);
+  writeStoredJson('tarotai-memory',state.memory);
+  writeStoredJson('tarotai-tasks',state.tasks);
   void persistServerState();
 }
-async function loadServerState(){try{const r=await fetch('/api/state',{cache:'no-store'});if(r.ok){const d=await r.json();if(d.enabled){if(Array.isArray(d.messages))state.messages=d.messages;if(Array.isArray(d.tasks))state.tasks=d.tasks}}}catch{}try{const r=await fetch('/api/memory',{cache:'no-store'});if(r.ok){const d=await r.json();if(d.enabled&&Array.isArray(d.items))state.memory=d.items.map(x=>({key:x.key,value:x.value,updatedAt:x.updatedAt}))}}catch{}localStorage.setItem('tarotai-messages',JSON.stringify(state.messages));localStorage.setItem('tarotai-memory',JSON.stringify(state.memory));localStorage.setItem('tarotai-tasks',JSON.stringify(state.tasks))}
+async function loadServerState(){try{const r=await fetch('/api/state',{cache:'no-store'});if(r.ok){const d=await r.json();if(d.enabled){if(Array.isArray(d.messages))state.messages=d.messages;if(Array.isArray(d.tasks))state.tasks=d.tasks}}}catch{}try{const r=await fetch('/api/memory',{cache:'no-store'});if(r.ok){const d=await r.json();if(d.enabled&&Array.isArray(d.items))state.memory=d.items.map(x=>({key:x.key,value:x.value,updatedAt:x.updatedAt}))}}catch{}writeStoredJson('tarotai-messages',state.messages);writeStoredJson('tarotai-memory',state.memory);writeStoredJson('tarotai-tasks',state.tasks)}
 function renderLogin(){const setup=state.runtime&&!state.runtime.hasAccessCode;document.getElementById('root').innerHTML='<div class="login"><div class="login-card"><div class="logo">T</div><div class="eyebrow" style="margin-top:14px">PRIVATE AI COMMAND CENTER</div><h1>tarotai</h1><p>A private server-side AI runtime. Access is fail-closed until the owner access code is configured.</p>'+(setup?'<div class="error">Private access is not configured yet. Set <b>TAROTAI_ACCESS_CODE</b> in Vercel Production, then redeploy.</div>':'')+'<div id="loginmsg"></div><form onsubmit="login(event)"><input id="code" class="field" type="password" placeholder="Access code" autofocus><button class="send">Enter workspace</button></form></div></div>'}
 async function login(e){e.preventDefault();const code=document.getElementById('code').value;const r=await fetch('/api/auth',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code})});const d=await r.json();if(!r.ok){document.getElementById('loginmsg').innerHTML='<div class="error">'+esc(d.error||'Access denied')+'</div>';return}state.auth=true;await loadServerState();render();const params=new URLSearchParams(location.search);focusConsoleSection(params.get('section'));const handoffTask=params.get('task');if(handoffTask){const taskInput=document.getElementById('input');if(taskInput)taskInput.value=handoffTask.slice(0,2000);}if(params.get('auto')==='1'&&handoffTask){const taskInput=document.getElementById('input');if(taskInput&&taskInput.value.trim()&&!state.busy)await send()}}
 function toolName(n){return n.replaceAll('_',' ')}
