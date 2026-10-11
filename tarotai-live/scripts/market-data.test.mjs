@@ -233,8 +233,10 @@ test("Futures Lab market data is private and bounded to demo prices", () => {
 test("TradingView webhooks cap payloads and atomically deduplicate queued signals", () => {
   assert.match(tradingViewRoute, /const maxPayloadBytes = 16 \* 1024/);
   assert.match(tradingViewRoute, /Buffer\.byteLength\(rawBody, "utf8"\)/);
-  assert.match(tradingViewRoute, /const result = await redis\.eval\(/);
-  assert.match(tradingViewRoute, /\) as number;/);
+  assert.match(tradingViewRoute, /const result = await redis\.eval<number\[\]>\(/);
+  assert.match(tradingViewRoute, /return \{0\} end/);
+  assert.match(tradingViewRoute, /"return \{1\}"/);
+  assert.match(tradingViewRoute, /Number\(result\?\.\[0\]\) !== 1/);
   assert.match(tradingViewRoute, /redis\.call\('EXISTS', KEYS\[1\]\)/);
   assert.match(tradingViewRoute, /redis\.call\('LPUSH', KEYS\[2\], ARGV\[1\]\)/);
   assert.match(tradingViewRoute, /redis\.call\('SET', KEYS\[1\], '1', 'EX', 86400\)/);
