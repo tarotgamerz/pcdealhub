@@ -1134,16 +1134,21 @@ export async function POST(request: Request) {
   if (userId) {
     const limit = Math.max(5, Math.min(120, Number(process.env.TAROTAI_CHAT_RPM || 30) || 30));
     let rate: any;
-    try {
-      rate = await withOperationTimeout(
-        consumeRateLimit(userId, limit),
-        Math.min(3_000, Math.max(1, requestDeadline - Date.now())),
-        "Redis rate limiter"
-      );
-    } catch (error) {
-      console.error("Redis rate limiter unavailable; applying per-instance fallback:", error);
+    if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
       rate = consumeLocalFallbackRateLimit(userId, limit);
-      runtimeWarnings.push("Shared Redis rate limiting was temporarily unavailable; a per-instance safety limit was applied.");
+      runtimeWarnings.push("Shared Redis rate limiting is not configured; a per-instance safety limit was applied.");
+    } else {
+      try {
+        rate = await withOperationTimeout(
+          consumeRateLimit(userId, limit),
+          Math.min(3_000, Math.max(1, requestDeadline - Date.now())),
+          "Redis rate limiter"
+        );
+      } catch (error) {
+        console.error("Redis rate limiter unavailable; applying per-instance fallback:", error);
+        rate = consumeLocalFallbackRateLimit(userId, limit);
+        runtimeWarnings.push("Shared Redis rate limiting was temporarily unavailable; a per-instance safety limit was applied.");
+      }
     }
     if (!rate.allowed) {
       return Response.json(
