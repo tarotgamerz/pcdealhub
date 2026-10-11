@@ -110,3 +110,11 @@ test("durable owner identity comes from the verified signed session", () => {
   assert.match(chatRoute, /const userId = privateUserId\(request\)/);
   assert.doesNotMatch(chatRoute, /cookieValue\(request, "tarotai_user"\)/);
 });
+
+test("durable state writes are queued with snapshots and an abort deadline", () => {
+  assert.match(consolePage, /let stateWriteQueue=Promise\.resolve\(\)/);
+  assert.match(consolePage, /const body=JSON\.stringify\(\{messages:state\.messages,tasks:state\.tasks\}\)/);
+  assert.match(consolePage, /stateWriteQueue=stateWriteQueue\.catch\(\(\)=>null\)\.then\(\(\)=>fetch\('\/api\/state'/);
+  assert.match(consolePage, /signal:AbortSignal\.timeout\(8000\)/);
+  assert.match(consolePage, /if\(!state\.auth\)return Promise\.resolve\(null\)/);
+});
