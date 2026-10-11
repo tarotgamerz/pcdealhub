@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       symbol, action,
       timeframe: String(body.timeframe || "").slice(0, 12),
       strategy: String(body.strategy || "unspecified").slice(0, 80),
-      price: Number.isFinite(Number(body.price)) ? Number(body.price) : null,
+      price: body.price !== undefined && body.price !== null && String(body.price).trim() !== "" && Number.isFinite(Number(body.price)) ? Number(body.price) : null,
       status: "PENDING_REVIEW",
       note: "Signal queued only. No order was placed."
     };
