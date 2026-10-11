@@ -36,7 +36,22 @@ export async function POST(request: Request) {
   if (!memoryEnabled()) return Response.json({ error: "Durable state is not configured." }, { status: 503 });
   const userId = privateUserId(request);
   if (!userId) return Response.json({ error: "Private session identity missing." }, { status: 401 });
-  const state = cleanState(await request.json().catch(() => ({})));
+  const contentLength = Number(request.headers.get("content-length") || "0");
+  const maxRequestBytes = 2_400_000;
+  if (contentLength > maxRequestBytes) {
+    return Response.json({ error: "State payload is too large." }, { status: 413, headers: { "Cache-Control": "no-store" } });
+  }
+  const rawBody = await request.text();
+  if (Buffer.byteLength(rawBody, "utf8") > maxRequestBytes) {
+    return Response.json({ error: "State payload is too large." }, { status: 413, headers: { "Cache-Control": "no-store" } });
+  }
+  let body: any;
+  try {
+    body = rawBody ? JSON.parse(rawBody) : {};
+  } catch {
+    return Response.json({ error: "Malformed state request body." }, { status: 400, headers: { "Cache-Control": "no-store" } });
+  }
+  const state = cleanState(body);
   await (redis as any)!.set(stateKey(userId), state);
   return Response.json({ ok: true, updatedAt: state.updatedAt }, { headers: { "Cache-Control": "no-store" } });
 }
