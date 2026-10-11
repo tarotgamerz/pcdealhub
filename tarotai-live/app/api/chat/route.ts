@@ -1175,6 +1175,7 @@ export async function POST(request: Request) {
       const timeout = setTimeout(() => controller.abort(), 110_000);
 
       let upstream: Response;
+      let raw: string;
       try {
         upstream = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
@@ -1195,11 +1196,11 @@ export async function POST(request: Request) {
           cache: "no-store",
           signal: controller.signal
         });
+        // Keep the deadline active until the upstream response body has fully arrived.
+        raw = await upstream.text();
       } finally {
         clearTimeout(timeout);
       }
-
-      const raw = await upstream.text();
       if (!upstream.ok) {
         const detail = extractError(raw);
         console.error("OpenRouter upstream error", upstream.status, detail);
