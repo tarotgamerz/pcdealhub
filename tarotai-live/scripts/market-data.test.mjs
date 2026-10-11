@@ -13,6 +13,8 @@ const authModule = readFileSync(new URL("../lib/auth.ts", import.meta.url), "utf
 const authRoute = readFileSync(new URL("../app/api/auth/route.ts", import.meta.url), "utf8");
 const stateRoute = readFileSync(new URL("../app/api/state/route.ts", import.meta.url), "utf8");
 const healthRoute = readFileSync(new URL("../app/api/health/route.ts", import.meta.url), "utf8");
+const tradingMarketRoute = readFileSync(new URL("../app/api/trading/market/route.ts", import.meta.url), "utf8");
+const tradingViewRoute = readFileSync(new URL("../app/api/tradingview/route.ts", import.meta.url), "utf8");
 
 test("market feeds use production public endpoints, never demo or testnet prices", () => {
   assert.match(source, /https:\/\/fapi\.binance\.com\/fapi\/v1\/klines/);
@@ -207,4 +209,24 @@ test("core chat degrades safely when Redis rate limiting or durable memory fails
   assert.match(chatRoute, /withOperationTimeout\(\s*loadDurableMemory\(request\)/);
   assert.match(chatRoute, /Durable memory could not be loaded for this request/);
   assert.match(chatRoute, /runtimeWarnings\.join\(" "\)/);
+});
+
+test("Futures Lab market data is private and bounded to demo prices", () => {
+  assert.match(tradingMarketRoute, /import \{ isAuthorized \} from "\.\.\/\.\.\/\.\.\/lib\/auth"/);
+  assert.match(tradingMarketRoute, /if \(!process\.env\.TAROTAI_ACCESS_CODE\)/);
+  assert.match(tradingMarketRoute, /if \(!isAuthorized\(request\)\)/);
+  assert.match(tradingMarketRoute, /https:\/\/demo-fapi\.binance\.com/);
+  assert.match(tradingMarketRoute, /AbortSignal\.timeout\(8000\)/);
+  assert.doesNotMatch(tradingMarketRoute, /\/fapi\/v1\/order|\/order\/create/);
+});
+
+test("TradingView webhooks cap payloads and atomically deduplicate queued signals", () => {
+  assert.match(tradingViewRoute, /const maxPayloadBytes = 16 \* 1024/);
+  assert.match(tradingViewRoute, /Buffer\.byteLength\(rawBody, "utf8"\)/);
+  assert.match(tradingViewRoute, /redis\.eval<number>/);
+  assert.match(tradingViewRoute, /redis\.call\('EXISTS', KEYS\[1\]\)/);
+  assert.match(tradingViewRoute, /redis\.call\('LPUSH', KEYS\[2\], ARGV\[1\]\)/);
+  assert.match(tradingViewRoute, /redis\.call\('SET', KEYS\[1\], '1', 'EX', 86400\)/);
+  assert.match(tradingViewRoute, /DUPLICATE_IGNORED/);
+  assert.match(tradingViewRoute, /No order was placed/);
 });
