@@ -139,3 +139,10 @@ test("durable-state persistence uses bounded snapshots and validates request byt
   assert.match(stateRoute, /Buffer\.byteLength\(rawBody, "utf8"\)/);
   assert.match(stateRoute, /Malformed state request body/);
 });
+
+test("Multi-Agent Workspace bounds requests and distinguishes partial failure from success", () => {
+  assert.match(agentPage, /signal:AbortSignal\.timeout\(110000\)/);
+  assert.match(agentPage, /failed=true;run\.outputs\.push/);
+  assert.match(agentPage, /Run paused after an error\. Partial results are saved in this browser\./);
+  assert.match(agentPage, /Run finished successfully\. Results are saved in this browser\./);
+});
