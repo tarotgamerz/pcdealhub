@@ -35,6 +35,8 @@ test("market API validates candle contents and reports stale data", () => {
 test("Trading Agent and Trading Team attach fetched market context", () => {
   assert.match(consolePage, /if\(currentMode==='trading'\)/);
   assert.match(consolePage, /await enrichTradingHandoff\(marketParams\)/);
+  assert.match(consolePage, /params\.get\('auto'\)==='1'&&handoffTask/);
+  assert.doesNotMatch(consolePage, /params\.get\('mode'\)==='trading'&&params\.get\('symbol'\)\)await enrichTradingHandoff\(params\)/);
   assert.match(consolePage, /VERIFIED MARKET DATA CONTEXT/);
   assert.match(agentPage, /profile==='trading'/);
   assert.match(agentPage, /TRADING MARKET DATA CONTEXT/);
