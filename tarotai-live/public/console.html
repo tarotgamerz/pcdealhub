@@ -402,7 +402,8 @@ async function send(){
     }).filter(d=>d.text);
     const r=await fetch('/api/chat',{method:'POST',headers:reqHeaders,body:JSON.stringify({
       messages:requestMessages,
-      documents:requestDocuments
+      documents:requestDocuments,
+      mode:currentMode||'chat'
     })});
     const raw=await r.text();
     let d;
