@@ -7,6 +7,7 @@ const consolePage = readFileSync(new URL("../public/console.html", import.meta.u
 const agentPage = readFileSync(new URL("../public/agents.html", import.meta.url), "utf8");
 const chatRoute = readFileSync(new URL("../app/api/chat/route.ts", import.meta.url), "utf8");
 const visionRoute = readFileSync(new URL("../app/api/vision/route.ts", import.meta.url), "utf8");
+const documentsRoute = readFileSync(new URL("../app/api/documents/route.ts", import.meta.url), "utf8");
 
 test("market feeds use production public endpoints, never demo or testnet prices", () => {
   assert.match(source, /https:\/\/fapi\.binance\.com\/fapi\/v1\/klines/);
@@ -59,4 +60,12 @@ test("image analysis uses the signed private session and fails closed", () => {
   assert.match(visionRoute, /if \(!isAuthorized\(request\)\)/);
   assert.doesNotMatch(visionRoute, /tarotai_session=authorized/);
   assert.doesNotMatch(visionRoute, /return !configured \|\| Boolean\(session\)/);
+});
+
+test("document extraction uses the signed private session and fails closed", () => {
+  assert.match(documentsRoute, /import \{ isAuthorized \} from "\.\.\/\.\.\/\.\.\/lib\/auth"/);
+  assert.match(documentsRoute, /if \(!process\.env\.TAROTAI_ACCESS_CODE\)/);
+  assert.match(documentsRoute, /if \(!isAuthorized\(request\)\)/);
+  assert.doesNotMatch(documentsRoute, /tarotai_session=authorized/);
+  assert.doesNotMatch(documentsRoute, /return !configured \|\| Boolean\(session\)/);
 });
