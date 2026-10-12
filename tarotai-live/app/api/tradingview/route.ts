@@ -76,7 +76,7 @@ export async function POST(request: Request) {
       "return {1}",
       ["tarotai:tradingview:dedupe:" + dedupeId, "tarotai:tradingview:signals"],
       [JSON.stringify(event)] as unknown as number[]
-    );
+    ) as unknown as number[];
     if (Number(result?.[0]) !== 1) {
       return NextResponse.json({ accepted: true, duplicate: true, status: "DUPLICATE_IGNORED", id: dedupeId, message: "Duplicate alert ignored; no order was placed." }, { status: 200 });
     }
