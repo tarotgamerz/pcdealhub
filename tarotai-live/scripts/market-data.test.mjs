@@ -336,8 +336,8 @@ test("backtest transparently falls back across public exchanges when hosting res
 });
 
 
-test("backtest can collect a bounded multi-page OKX historical sample", () => {
-  assert.ok(backtestRoute.includes("/api/v5/market/history-candles"));
+test("backtest can collect a bounded multi-page OKX candle sample", () => {
+  assert.ok(backtestRoute.includes("/api/v5/market/candles"));
   assert.ok(backtestRoute.includes("const maxPages = Math.ceil(target / 300)"));
   assert.ok(backtestRoute.includes('endpoint.searchParams.set("after", after)'));
   assert.ok(backtestRoute.includes("requestedLimit > 1000"));
