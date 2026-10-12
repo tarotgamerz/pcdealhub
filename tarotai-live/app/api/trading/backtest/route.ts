@@ -15,6 +15,47 @@ type Candle = { time: number; open: number; high: number; low: number; close: nu
 async function fetchHistory(venue: string, symbol: string, interval: string, limit: number): Promise<{candles:Candle[];sourceHost:string}> {
   const stepMs = getIntervalMs(interval);
   if (!stepMs) throw new Error("Unsupported interval");
+  if (venue === "okx") {
+    const instId = symbol.endsWith("USDT") ? symbol.slice(0, -4) + "-USDT-SWAP" : symbol;
+    const target = Math.min(1000, Math.max(1, limit));
+    const collected = new Map<number, Candle>();
+    let after: string | null = null;
+    const maxPages = Math.ceil(target / 300);
+    for (let pageIndex = 0; pageIndex < maxPages && collected.size < target; pageIndex++) {
+      const pageLimit = Math.min(300, target - collected.size);
+      const endpoint = new URL("https://www.okx.com/api/v5/market/history-candles");
+      endpoint.searchParams.set("instId", instId);
+      endpoint.searchParams.set("bar", INTERVALS.okx[interval]);
+      endpoint.searchParams.set("limit", String(pageLimit));
+      if (after) endpoint.searchParams.set("after", after);
+      const response = await fetch(endpoint, { cache: "no-store", signal: AbortSignal.timeout(5000) });
+      const payload: any = await response.json().catch(() => null);
+      if (!response.ok || payload?.code !== "0" || !Array.isArray(payload?.data)) {
+        throw new Error(payload?.msg || "OKX historical-candle request failed (HTTP " + response.status + ")");
+      }
+      const page: any[][] = payload.data;
+      if (!page.length) break;
+      for (const k of page) {
+        const time = +k[0];
+        const closeTime = time + stepMs - 1;
+        if (k[8] === "1" && closeTime < Date.now() && [time,+k[1],+k[2],+k[3],+k[4]].every(Number.isFinite)) {
+          collected.set(time, { time, open:+k[1], high:+k[2], low:+k[3], close:+k[4], volume:+k[5], closeTime });
+        }
+      }
+      const timestamps = page.map(k => +k[0]).filter(Number.isFinite);
+      const oldest = timestamps.length ? Math.min(...timestamps) : NaN;
+      if (!Number.isFinite(oldest) || (after !== null && oldest >= Number(after))) break;
+      after = String(oldest);
+      if (page.length < pageLimit) break;
+    }
+    const candles = Array.from(collected.values()).sort((a,b) => a.time - b.time).slice(-target);
+    if (candles.length < 1) throw new Error("OKX returned no confirmed historical candles");
+    validateBacktestCandles(candles);
+    const last = candles[candles.length - 1];
+    if (Date.now() - (last.time + stepMs) > stepMs + 60_000) throw new Error("The most recent closed OKX candle is stale");
+    return { candles, sourceHost: "www.okx.com" };
+  }
+
   let candidates: URL[] = [];
   if (venue === "binance") {
     candidates = ["fapi.binance.com", "fapi1.binance.com", "fapi2.binance.com", "fapi3.binance.com"].map(host => {
@@ -28,11 +69,7 @@ async function fetchHistory(venue: string, symbol: string, interval: string, lim
     u.searchParams.set("interval", INTERVALS.bybit[interval]); u.searchParams.set("limit", String(limit));
     candidates = [u];
   } else {
-    const instId = symbol.endsWith("USDT") ? symbol.slice(0, -4) + "-USDT-SWAP" : symbol;
-    const u = new URL("https://www.okx.com/api/v5/market/candles");
-    u.searchParams.set("instId", instId); u.searchParams.set("bar", INTERVALS.okx[interval]);
-    u.searchParams.set("limit", String(Math.min(limit, 300)));
-    candidates = [u];
+    throw new Error("Unsupported exchange venue");
   }
 
   let lastError = "No market-data response";
@@ -86,13 +123,13 @@ export async function POST(request: Request) {
   const slow = Number(body?.slowPeriod ?? 21);
   const feeBps = Number(body?.feeBps ?? 5);
   const slippageBps = Number(body?.slippageBps ?? 2);
-  const requestedLimit = Number(body?.limit ?? 500);
+  const requestedLimit = Number(body?.limit ?? 1000);
   if (!/^[A-Z0-9]{4,20}$/.test(symbol) || !INTERVALS[venue] || !INTERVALS[venue][interval] ||
       !Number.isInteger(fast) || !Number.isInteger(slow) || fast < 2 || slow <= fast || slow > 100 ||
       !Number.isFinite(feeBps) || feeBps < 0 || feeBps > 50 ||
       !Number.isFinite(slippageBps) || slippageBps < 0 || slippageBps > 50 ||
-      !Number.isFinite(requestedLimit) || requestedLimit < 100 || requestedLimit > 500) {
-    return NextResponse.json({ error: "Invalid inputs. Use a supported venue/timeframe, 2 <= fastPeriod < slowPeriod <= 100, costs from 0–50 bps per side, and 100–500 candles." }, { status: 400 });
+      !Number.isFinite(requestedLimit) || requestedLimit < 100 || requestedLimit > 1000) {
+    return NextResponse.json({ error: "Invalid inputs. Use a supported venue/timeframe, 2 <= fastPeriod < slowPeriod <= 100, costs from 0–50 bps per side, and 100–1000 candles." }, { status: 400 });
   }
 
   let resolvedVenue = venue;
