@@ -326,3 +326,11 @@ test("live chart requires matching higher-timeframe trend for a current setup", 
   assert.match(futuresDesk, /higherTrendDown&&shortScore>=4/);
   assert.match(futuresDesk, /higher-timeframe trend/);
 });
+
+
+test("backtest transparently falls back across public exchanges when hosting restrictions block one feed", () => {
+  assert.match(backtestRoute, /const venueOrder = \[venue, \.\.\.Object\.keys\(INTERVALS\)/);
+  assert.match(backtestRoute, /resolvedVenue = candidateVenue/);
+  assert.match(backtestRoute, /requestedVenue: venue, venue: resolvedVenue/);
+  assert.match(backtestRoute, /feedErrors\.push/);
+});
