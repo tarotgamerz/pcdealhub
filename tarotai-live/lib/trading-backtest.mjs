@@ -40,6 +40,7 @@ function summarizeTrades(trades, equity, maxDrawdown, candles, startIndex, endIn
     buyHoldReturnPct = (entryFill > 0 ? (exitFill / entryFill - 1) - feeRate * (1 + exitFill / entryFill) : 0) * 100;
   }
   return {
+    equityCurve: trades.slice(-200).map(t => ({ time: t.exitTime, equity: Number(t.equityAfter.toFixed(6)) })),
     netReturnPct: Number(((equity - 1) * 100).toFixed(3)),
     buyHoldReturnPct: Number((buyHoldReturnPct ?? 0).toFixed(3)),
     closedTrades: trades.length,
@@ -88,6 +89,7 @@ export function runSmaCrossoverBacktest(candles, {
     const netReturn = grossReturn - feeRate * (1 + exitFill / entryFill);
     trades.push({ side: side === 1 ? "LONG" : "SHORT", entryTime, exitTime: time, entryPrice: entryFill, exitPrice: exitFill, netReturnPct: netReturn * 100, exitReason: reason });
     equity *= Math.max(0, 1 + netReturn);
+    trades[trades.length - 1].equityAfter = equity;
     peak = Math.max(peak, equity);
     if (peak > 0) maxDrawdown = Math.max(maxDrawdown, (peak - equity) / peak);
     side = 0; entryFill = 0; entryTime = 0;
