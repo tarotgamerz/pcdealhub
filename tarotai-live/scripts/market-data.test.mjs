@@ -334,3 +334,12 @@ test("backtest transparently falls back across public exchanges when hosting res
   assert.match(backtestRoute, /requestedVenue: venue, venue: resolvedVenue/);
   assert.match(backtestRoute, /feedErrors\.push/);
 });
+
+
+test("backtest can collect a bounded multi-page OKX historical sample", () => {
+  assert.match(backtestRoute, /market\\/history-candles/);
+  assert.match(backtestRoute, /const maxPages = Math\\.ceil\\(target \\/ 300\\)/);
+  assert.match(backtestRoute, /searchParams\\.set\\("after", after\\)/);
+  assert.match(backtestRoute, /requestedLimit > 1000/);
+  assert.match(futuresDesk, /limit:1000/);
+});
