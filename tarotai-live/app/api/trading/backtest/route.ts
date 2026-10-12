@@ -85,9 +85,6 @@ async function fetchHistory(venue: string, symbol: string, interval: string, lim
       } else if (venue === "bybit" && payload?.retCode === 0 && Array.isArray(payload?.result?.list)) {
         candles = payload.result.list.slice().reverse().map((k: any[]) => ({ time:+k[0], open:+k[1], high:+k[2], low:+k[3], close:+k[4], volume:+k[5], closeTime:+k[0] + stepMs - 1 }))
           .filter((c: Candle) => c.closeTime < Date.now());
-      } else if (venue === "okx" && payload?.code === "0" && Array.isArray(payload?.data)) {
-        candles = payload.data.slice().reverse().map((k: any[]) => ({ time:+k[0], open:+k[1], high:+k[2], low:+k[3], close:+k[4], volume:+k[5], closeTime:+k[0] + stepMs - 1, confirmed:k[8] === "1" }))
-          .filter((c: any) => c.confirmed && c.closeTime < Date.now());
       } else {
         lastError = payload?.msg || payload?.retMsg || "Unexpected candle response";
         continue;
