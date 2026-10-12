@@ -1,5 +1,6 @@
 import { redis, memoryKey, memoryEnabled, privateUserId, forbiddenMemoryKey, consumeRateLimit, appendAudit } from "@/lib/store";
 import { isAuthorized } from "@/lib/auth";
+import { TRADING_AGENT_PROMPT } from "@/lib/trading-agent";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -1269,9 +1270,11 @@ export async function POST(request: Request) {
     if (requestedMode === "work" && !availableToolNames.has("set_plan")) {
       runtimeWarnings.push("Work mode could not load the structured-plan tool. State the limitation and proceed carefully.");
     }
+    const tradingContextRequested = requestedMode === "trading" || /\b(trad(e|ing|er|ers)|crypto|bitcoin|btc|eth|futures|perpetual|chart|candlestick|entry|stop[- ]loss|take[- ]profit|backtest|strategy|market signal|long setup|short setup)\b/i.test(initialMessages.slice(-4).map((m: any) => m.content).join(" "));
     const messages: any[] = [
       { role: "system", content: system },
       ...(modeSystemPrompt ? [{ role: "system", content: modeSystemPrompt }] : []),
+      ...(tradingContextRequested ? [{ role: "system", content: TRADING_AGENT_PROMPT }] : []),
       ...(durableMemory.length ? [{
         role: "system",
         content:
