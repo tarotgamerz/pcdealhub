@@ -102,9 +102,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Not enough closed history for a useful chronological 70/30 split. Increase the candle limit or reduce the slow SMA period.", venue, symbol, candles: candles.length, minimumUsefulHistory: Math.max(60, Math.ceil((slow + 3) / 0.7)) }, { status: 422 });
     }
     const common = { fastPeriod: fast, slowPeriod: slow, feeBps, slippageBps };
-    const overall = runSmaCrossoverBacktest(candles, { ...common, startIndex: slow });
-    const train = runSmaCrossoverBacktest(candles, { ...common, startIndex: slow, endIndex: split });
-    const test = runSmaCrossoverBacktest(candles, { ...common, startIndex: split, endIndex: candles.length });
+    const overall = runSmaCrossoverBacktest(candles, { ...common, startIndex: slow } as any);
+    const train = runSmaCrossoverBacktest(candles, { ...common, startIndex: slow, endIndex: split } as any);
+    const test = runSmaCrossoverBacktest(candles, { ...common, startIndex: split, endIndex: candles.length } as any);
     const stepMs = getIntervalMs(interval)!;
     return NextResponse.json({
       mode: "RESEARCH_ONLY_NO_ORDERS",
