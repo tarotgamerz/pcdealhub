@@ -223,7 +223,7 @@ test("core chat degrades safely when Redis rate limiting or durable memory fails
 });
 
 test("Futures Lab market data is private and bounded to demo prices", () => {
-  assert.match(tradingMarketRoute, /import \{ isAuthorized \} from "\.\.\/\.\.\/\.\.\/lib\/auth"/);
+  assert.match(tradingMarketRoute, /import \{ isAuthorized \} from "\.\.\/\.\.\/\.\.\/\.\.\/lib\/auth"/);
   assert.match(tradingMarketRoute, /if \(!process\.env\.TAROTAI_ACCESS_CODE\)/);
   assert.match(tradingMarketRoute, /if \(!isAuthorized\(request\)\)/);
   assert.match(tradingMarketRoute, /https:\/\/demo-fapi\.binance\.com/);
