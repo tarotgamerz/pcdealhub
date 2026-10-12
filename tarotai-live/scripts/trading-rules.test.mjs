@@ -51,7 +51,7 @@ test("backtest rejects malformed or unordered OHLC candles",()=>{
  const candles=sampleBacktestCandles();
  assert.equal(validateBacktestCandles(candles),true);
  assert.throws(()=>validateBacktestCandles([candles[0],{...candles[1],high:0.5},candles[2]]),/Malformed OHLC/);
- assert.throws(()=>validateBacktestCandles([candles[1],candles[0]]),/strictly chronological/);
+ assert.throws(()=>validateBacktestCandles([candles[1],candles[0],candles[2]]),/strictly chronological/);
 });
 
 test("backtest rejects impossible periods and excessive cost inputs",()=>{
