@@ -95,11 +95,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid inputs. Use a supported venue/timeframe, 2 <= fastPeriod < slowPeriod <= 100, costs from 0–50 bps per side, and 100–500 candles." }, { status: 400 });
   }
 
+  let resolvedVenue = venue;
   try {
-    const { candles, sourceHost } = await fetchHistory(venue, symbol, interval, Math.floor(requestedLimit));
+    let marketHistory: { candles: Candle[]; sourceHost: string } | null = null;
+    const feedErrors: string[] = [];
+    // Hosting regions may be blocked by individual exchanges. Fall back only
+    // across read-only public candle APIs and report the actual source used.
+    const venueOrder = [venue, ...Object.keys(INTERVALS).filter(candidate => candidate !== venue)];
+    for (const candidateVenue of venueOrder) {
+      try {
+        marketHistory = await fetchHistory(candidateVenue, symbol, interval, Math.floor(requestedLimit));
+        resolvedVenue = candidateVenue;
+        break;
+      } catch (feedError) {
+        feedErrors.push(candidateVenue + ": " + (feedError instanceof Error ? feedError.message : "feed unavailable"));
+      }
+    }
+    if (!marketHistory) throw new Error(feedErrors.join(" | "));
+    const { candles, sourceHost } = marketHistory;
     const split = Math.floor(candles.length * 0.7);
     if (candles.length < Math.max(60, slow + 10) || split - slow < 3 || candles.length - split < 3) {
-      return NextResponse.json({ error: "Not enough closed history for a useful chronological 70/30 split. Increase the candle limit or reduce the slow SMA period.", venue, symbol, candles: candles.length, minimumUsefulHistory: Math.max(60, Math.ceil((slow + 3) / 0.7)) }, { status: 422 });
+      return NextResponse.json({ error: "Not enough closed history for a useful chronological 70/30 split. Increase the candle limit or reduce the slow SMA period.", requestedVenue: venue, venue: resolvedVenue, sourceHost, symbol, candles: candles.length, minimumUsefulHistory: Math.max(60, Math.ceil((slow + 3) / 0.7)) }, { status: 422 });
     }
     const common = { fastPeriod: fast, slowPeriod: slow, feeBps, slippageBps };
     const overall = runSmaCrossoverBacktest(candles, { ...common, startIndex: slow } as any);
@@ -108,8 +124,8 @@ export async function POST(request: Request) {
     const stepMs = getIntervalMs(interval)!;
     return NextResponse.json({
       mode: "RESEARCH_ONLY_NO_ORDERS",
-      source: venue === "binance" ? "Binance USDⓈ-M Futures public market history" : venue === "bybit" ? "Bybit Linear Futures public market history" : "OKX USDT-margined swaps public market history",
-      venue, sourceHost, symbol, interval, candles: candles.length, splitIndex: split,
+      source: resolvedVenue === "binance" ? "Binance USDⓈ-M Futures public market history" : resolvedVenue === "bybit" ? "Bybit Linear Futures public market history" : "OKX USDT-margined swaps public market history",
+      requestedVenue: venue, venue: resolvedVenue, sourceHost, symbol, interval, candles: candles.length, splitIndex: split,
       history: { firstClosedCandleTime: candles[0].time, lastClosedCandleTime: candles[candles.length - 1].time, lastCandleAgeMs: Date.now() - candles[candles.length - 1].time, candleIntervalMs: stepMs, unfinishedCandlesExcluded: true },
       strategy: { type: "simple moving-average crossover", fastPeriod: fast, slowPeriod: slow, signalCalculatedOn: "closed candle", executionAssumption: "next candle open" },
       assumptions: {
@@ -128,6 +144,6 @@ export async function POST(request: Request) {
       ]
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
-    return NextResponse.json({ error: "Backtest could not obtain valid, fresh closed candles", detail: error instanceof Error ? error.message : "Unknown market-data failure", venue, symbol, interval }, { status: 502 });
+    return NextResponse.json({ error: "Backtest could not obtain valid, fresh closed candles", detail: error instanceof Error ? error.message : "Unknown market-data failure", requestedVenue: venue, venue: resolvedVenue, symbol, interval }, { status: 502 });
   }
 }
