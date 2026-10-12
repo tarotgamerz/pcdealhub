@@ -17,8 +17,24 @@ export async function GET(req:Request){
  else if(venue==="bybit"){url=new URL("https://api.bybit.com/v5/market/kline");url.searchParams.set("category","linear");url.searchParams.set("symbol",symbol);url.searchParams.set("interval",intervals.bybit[interval]);url.searchParams.set("limit",String(limit));normalize=(x:any)=>({time:+x[0],open:+x[1],high:+x[2],low:+x[3],close:+x[4],volume:+x[5]});}
  else {const inst=symbol.endsWith("USDT")?symbol.slice(0,-4)+"-USDT-SWAP":symbol;url=new URL("https://www.okx.com/api/v5/market/candles");url.searchParams.set("instId",inst);url.searchParams.set("bar",intervals.okx[interval]);url.searchParams.set("limit",String(limit));normalize=(x:any)=>({time:+x[0],open:+x[1],high:+x[2],low:+x[3],close:+x[4],volume:+x[5],confirmed:x[8]==="1"});}
  try{
-  const r=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(8000)}),raw=await r.json();
-  if(!r.ok)return NextResponse.json({error:"Exchange HTTP error",venue,detail:raw?.msg||raw?.retMsg||raw?.message||"upstream error"},{status:502});
+  // Binance Futures has documented alternate API hosts. Try each in turn because
+  // regional routing or a transient edge failure can affect one host only.
+  const urls:URL[] = venue==="binance"
+    ? ["fapi.binance.com","fapi1.binance.com","fapi2.binance.com","fapi3.binance.com"].map(host=>{const u=new URL(url.toString());u.host=host;return u;})
+    : [url];
+  let raw:any=null, lastHttpStatus=0, lastDetail="upstream error", sourceHost="";
+  for(const candidate of urls){
+    try{
+      const response=await fetch(candidate,{cache:"no-store",signal:AbortSignal.timeout(4500)});
+      const payload=await response.json().catch(()=>null);
+      if(response.ok){raw=payload;sourceHost=candidate.host;break;}
+      lastHttpStatus=response.status;
+      lastDetail=payload?.msg||payload?.retMsg||payload?.message||("HTTP "+response.status);
+    }catch(error){
+      lastDetail=error instanceof Error?error.message:"exchange request failed";
+    }
+  }
+  if(raw===null)return NextResponse.json({error:"Exchange HTTP error",venue,symbol,interval,detail:lastDetail,httpStatus:lastHttpStatus||null,hostsTried:urls.map(u=>u.host),readOnly:true,orderPlacement:false},{status:502});
   let rows:any[]=venue==="binance"?(Array.isArray(raw)?raw:[]):venue==="bybit"?(raw?.retCode===0&&Array.isArray(raw?.result?.list)?raw.result.list:[]):(raw?.code==="0"&&Array.isArray(raw?.data)?raw.data:[]);
   if(venue!=="binance")rows=rows.slice().reverse();
   const candles=rows.map(normalize);
@@ -26,6 +42,6 @@ export async function GET(req:Request){
   const last=candles[candles.length-1],ageMs=Date.now()-last.time;
   const intervalMs:Record<string,number>={"1m":60000,"3m":180000,"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"2h":7200000,"4h":14400000,"1d":86400000};
   const stale=ageMs>intervalMs[interval]+60000;
-  return NextResponse.json({venue,symbol,interval,fetchedAt:new Date().toISOString(),lastCandleAgeMs:ageMs,dataAgeMs:ageMs,marketDataMode:"live-public-read-only",stale,candles,readOnly:true,orderPlacement:false},{headers:{"Cache-Control":"no-store"}});
+  return NextResponse.json({venue,symbol,interval,fetchedAt:new Date().toISOString(),sourceHost,lastCandleAgeMs:ageMs,dataAgeMs:ageMs,marketDataMode:"live-public-read-only",stale,candles,readOnly:true,orderPlacement:false},{headers:{"Cache-Control":"no-store"}});
  }catch{return NextResponse.json({error:"Exchange market-data request timed out",venue},{status:502});}
 }
