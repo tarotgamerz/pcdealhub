@@ -84,3 +84,11 @@ Never draw a trade plan from historical crossover signals as though it were a cu
 5. Binance USDⓈ-M Futures Kline/Candlestick documentation: https://developers.binance.info/en/docs/catalog/derivatives-trading-usds-margined-futures/market-data/rest-api/Kline-Candlestick-Data
 6. TradingView Pine Script strategy documentation: https://www.tradingview.com/pine-script-docs/concepts/strategies/
 7. CFTC, "Understand the Risks of Virtual Currency Trading": https://www.cftc.gov/LearnAndProtect/AdvisoriesAndArticles/understand_risks_of_virtual_currency.html
+
+
+## Additional model-selection discipline (Exa research review, 2026-10-12)
+- Treat every inspected validation window as consumed. If a strategy is changed after examining its out-of-sample result, that window has become development data; reserve a new untouched holdout for the frozen candidate.
+- Apply realistic transaction costs to both development and evaluation periods. A gross edge can disappear after fees and implementation shortfall.
+- Prefer the simplest candidate unless a more complex model shows a meaningful, repeatable improvement across chronological folds and untouched data. Complexity and repeated tuning can increase the gap between simulated and live performance.
+- Log every tested hypothesis, parameter set, dataset fingerprint, and rejection reason. Do not quietly discard losing experiments or promote the best result from a large search without accounting for multiple testing.
+- Source reviewed: “A Backtesting Protocol in the Era of Machine Learning,” available at https://people.duke.edu/~charvey/Research/Published_Papers/P138_A_backtesting_protocol.pdf. The retrieved text emphasizes that repeatedly adapting a model after observing an out-of-sample failure converts that sample into training data, and that trading costs can erase apparent statistical significance. This is a research-process warning, not evidence that a particular strategy works. The source text was reviewed via search excerpts, not a full independent replication.
