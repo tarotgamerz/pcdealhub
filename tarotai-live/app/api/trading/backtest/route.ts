@@ -1,109 +1,133 @@
 import { NextResponse } from "next/server";
 import { isAuthorized } from "../../../../lib/auth";
+import { getIntervalMs, runSmaCrossoverBacktest, validateBacktestCandles } from "../../../../lib/trading-backtest.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const BASE = "https://demo-fapi.binance.com";
-const SMA = (values: number[], end: number, period: number) => {
-  if (end + 1 < period) return null;
-  let total = 0;
-  for (let i = end - period + 1; i <= end; i++) total += values[i];
-  return total / period;
+const INTERVALS: Record<string, Record<string, string>> = {
+  binance: { "1m":"1m", "5m":"5m", "15m":"15m", "30m":"30m", "1h":"1h", "4h":"4h", "1d":"1d" },
+  bybit: { "1m":"1", "5m":"5", "15m":"15", "30m":"30", "1h":"60", "4h":"240", "1d":"D" },
+  okx: { "1m":"1m", "5m":"5m", "15m":"15m", "30m":"30m", "1h":"1H", "4h":"4H", "1d":"1D" }
 };
 
+type Candle = { time: number; open: number; high: number; low: number; close: number; volume: number; closeTime: number };
+async function fetchHistory(venue: string, symbol: string, interval: string, limit: number): Promise<{candles:Candle[];sourceHost:string}> {
+  const stepMs = getIntervalMs(interval);
+  if (!stepMs) throw new Error("Unsupported interval");
+  let candidates: URL[] = [];
+  if (venue === "binance") {
+    candidates = ["fapi.binance.com", "fapi1.binance.com", "fapi2.binance.com", "fapi3.binance.com"].map(host => {
+      const u = new URL("https://" + host + "/fapi/v1/klines");
+      u.searchParams.set("symbol", symbol); u.searchParams.set("interval", interval); u.searchParams.set("limit", String(limit));
+      return u;
+    });
+  } else if (venue === "bybit") {
+    const u = new URL("https://api.bybit.com/v5/market/kline");
+    u.searchParams.set("category", "linear"); u.searchParams.set("symbol", symbol);
+    u.searchParams.set("interval", INTERVALS.bybit[interval]); u.searchParams.set("limit", String(limit));
+    candidates = [u];
+  } else {
+    const instId = symbol.endsWith("USDT") ? symbol.slice(0, -4) + "-USDT-SWAP" : symbol;
+    const u = new URL("https://www.okx.com/api/v5/market/candles");
+    u.searchParams.set("instId", instId); u.searchParams.set("bar", INTERVALS.okx[interval]);
+    u.searchParams.set("limit", String(Math.min(limit, 300)));
+    candidates = [u];
+  }
+
+  let lastError = "No market-data response";
+  for (const endpoint of candidates) {
+    try {
+      const response = await fetch(endpoint, { cache: "no-store", signal: AbortSignal.timeout(8500) });
+      const payload: any = await response.json().catch(() => null);
+      if (!response.ok) { lastError = payload?.msg || payload?.retMsg || "HTTP " + response.status; continue; }
+      let candles: Candle[] = [];
+      if (venue === "binance" && Array.isArray(payload)) {
+        candles = payload.map((k: any[]) => ({ time:+k[0], open:+k[1], high:+k[2], low:+k[3], close:+k[4], volume:+k[5], closeTime:+k[6] }))
+          .filter(c => c.closeTime < Date.now());
+      } else if (venue === "bybit" && payload?.retCode === 0 && Array.isArray(payload?.result?.list)) {
+        candles = payload.result.list.slice().reverse().map((k: any[]) => ({ time:+k[0], open:+k[1], high:+k[2], low:+k[3], close:+k[4], volume:+k[5], closeTime:+k[0] + stepMs - 1 }))
+          .filter(c => c.closeTime < Date.now());
+      } else if (venue === "okx" && payload?.code === "0" && Array.isArray(payload?.data)) {
+        candles = payload.data.slice().reverse().map((k: any[]) => ({ time:+k[0], open:+k[1], high:+k[2], low:+k[3], close:+k[4], volume:+k[5], closeTime:+k[0] + stepMs - 1, confirmed:k[8] === "1" }))
+          .filter((c: any) => c.confirmed && c.closeTime < Date.now());
+      } else {
+        lastError = payload?.msg || payload?.retMsg || "Unexpected candle response";
+        continue;
+      }
+      if (candles.length < 1) { lastError = "The exchange returned no closed candles"; continue; }
+      validateBacktestCandles(candles);
+      const last = candles[candles.length - 1];
+      const ageAfterClose = Date.now() - (last.time + stepMs);
+      if (ageAfterClose > stepMs + 60_000) { lastError = "The most recent closed candle is stale"; continue; }
+      return { candles, sourceHost: endpoint.host };
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : "Market-data request failed";
+    }
+  }
+  throw new Error(lastError);
+}
+
 export async function POST(request: Request) {
-  // This is a private analysis endpoint; fail closed if the private app is not configured.
   if (!process.env.TAROTAI_ACCESS_CODE) {
     return NextResponse.json({ error: "Private access is not configured; set TAROTAI_ACCESS_CODE and redeploy." }, { status: 503 });
   }
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-  }
+  if (!isAuthorized(request)) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+
   let body: any;
   try { body = await request.json(); } catch {
     return NextResponse.json({ error: "Expected JSON body" }, { status: 400 });
   }
+
   const symbol = String(body?.symbol || "BTCUSDT").toUpperCase();
+  const venue = String(body?.venue || "binance").toLowerCase();
   const interval = String(body?.interval || "15m");
-  const fast = Math.floor(Number(body?.fastPeriod || 9));
-  const slow = Math.floor(Number(body?.slowPeriod || 21));
-  const feeBps = Math.min(50, Math.max(0, Number(body?.feeBps ?? 5)));
-  const slippageBps = Math.min(50, Math.max(0, Number(body?.slippageBps ?? 2)));
-  const limit = Math.min(500, Math.max(100, Math.floor(Number(body?.limit || 500))));
-  if (!/^[A-Z0-9]{4,20}$/.test(symbol) || !["1m","5m","15m","30m","1h","4h","1d"].includes(interval) ||
-      fast < 2 || slow <= fast || slow > 100 || !Number.isFinite(feeBps) || !Number.isFinite(slippageBps)) {
-    return NextResponse.json({ error: "Invalid inputs. Require fastPeriod >= 2, slowPeriod > fastPeriod and <= 100." }, { status: 400 });
+  const fast = Number(body?.fastPeriod ?? 9);
+  const slow = Number(body?.slowPeriod ?? 21);
+  const feeBps = Number(body?.feeBps ?? 5);
+  const slippageBps = Number(body?.slippageBps ?? 2);
+  const requestedLimit = Number(body?.limit ?? 500);
+  if (!/^[A-Z0-9]{4,20}$/.test(symbol) || !INTERVALS[venue] || !INTERVALS[venue][interval] ||
+      !Number.isInteger(fast) || !Number.isInteger(slow) || fast < 2 || slow <= fast || slow > 100 ||
+      !Number.isFinite(feeBps) || feeBps < 0 || feeBps > 50 ||
+      !Number.isFinite(slippageBps) || slippageBps < 0 || slippageBps > 50 ||
+      !Number.isFinite(requestedLimit) || requestedLimit < 100 || requestedLimit > 500) {
+    return NextResponse.json({ error: "Invalid inputs. Use a supported venue/timeframe, 2 <= fastPeriod < slowPeriod <= 100, costs from 0–50 bps per side, and 100–500 candles." }, { status: 400 });
   }
+
   try {
-    const endpoint = new URL("/fapi/v1/klines", BASE);
-    endpoint.searchParams.set("symbol", symbol);
-    endpoint.searchParams.set("interval", interval);
-    endpoint.searchParams.set("limit", String(limit));
-    const response = await fetch(endpoint, { cache: "no-store", signal: AbortSignal.timeout(10000) });
-    const raw = await response.json();
-    if (!response.ok || !Array.isArray(raw) || raw.length < slow + 10) {
-      return NextResponse.json({ error: "Insufficient historical candles or upstream error", detail: raw?.msg || "Need more candles" }, { status: 502 });
-    }
-    const candles = raw.map((k: any[]) => ({ time: Number(k[0]), close: Number(k[4]) }));
-    if (candles.some(c => !Number.isFinite(c.time) || !Number.isFinite(c.close) || c.close <= 0) || candles.some((c, i) => i > 0 && c.time <= candles[i - 1].time)) {
-      return NextResponse.json({ error: "Malformed or unordered market candles rejected" }, { status: 502 });
-    }
-    const closes = candles.map(c => c.close);
-    const fastMeans = candles.map((_, i) => i + 1 < fast ? NaN : closes.slice(i-fast+1, i+1).reduce((a,b)=>a+b,0)/fast);
-    const slowMeans = candles.map((_, i) => i + 1 < slow ? NaN : closes.slice(i-slow+1, i+1).reduce((a,b)=>a+b,0)/slow);
+    const { candles, sourceHost } = await fetchHistory(venue, symbol, interval, Math.floor(requestedLimit));
     const split = Math.floor(candles.length * 0.7);
-    const feeRate = feeBps / 10000, slipRate = slippageBps / 10000;
-    let position = 0, entry = 0, equity = 1, peak = 1, maxDrawdown = 0, trades = 0, wins = 0;
-    let trainReturn = 0, testReturn = 0, trainTrades = 0, testTrades = 0;
-    const equityCurve: Array<{ time: number; equity: number }> = [];
-    for (let i = slow; i < candles.length - 1; i++) {
-      const fastNow = fastMeans[i];
-      const slowNow = slowMeans[i];
-      const fastPrev = fastMeans[i - 1];
-      const slowPrev = slowMeans[i - 1];
-      const desired = fastNow > slowNow ? 1 : -1;
-      const crossed = (fastPrev <= slowPrev && fastNow > slowNow) || (fastPrev >= slowPrev && fastNow < slowNow);
-      if (crossed && position !== desired) {
-        if (position !== 0) {
-          const exitFill = candles[i].close * (1 - position * slipRate);
-          const gross = position * (exitFill / entry - 1);
-          const feeCost = feeRate * (1 + exitFill / entry);
-          const net = gross - feeCost;
-          equity *= Math.max(0.01, 1 + net);
-          trades++; if (net > 0) wins++;
-          if (i < split) { trainReturn += net; trainTrades++; } else { testReturn += net; testTrades++; }
-        }
-        position = desired;
-        entry = candles[i].close * (1 + position * slipRate);
-      }
-      peak = Math.max(peak, equity);
-      maxDrawdown = Math.max(maxDrawdown, (peak - equity) / peak);
-      equityCurve.push({ time: candles[i].time, equity: Number(equity.toFixed(6)) });
+    if (candles.length < Math.max(60, slow + 10) || split - slow < 3 || candles.length - split < 3) {
+      return NextResponse.json({ error: "Not enough closed history for a useful chronological 70/30 split. Increase the candle limit or reduce the slow SMA period.", venue, symbol, candles: candles.length, minimumUsefulHistory: Math.max(60, Math.ceil((slow + 3) / 0.7)) }, { status: 422 });
     }
-    if (position !== 0) {
-      const last = candles[candles.length - 1];
-      const exitFill = last.close * (1 - position * slipRate);
-      const gross = position * (exitFill / entry - 1);
-      const feeCost = feeRate * (1 + exitFill / entry);
-      const net = gross - feeCost;
-      equity *= Math.max(0.01, 1 + net);
-      trades++; if (net > 0) wins++;
-      if (candles.length - 1 < split) { trainReturn += net; trainTrades++; } else { testReturn += net; testTrades++; }
-      peak = Math.max(peak, equity); maxDrawdown = Math.max(maxDrawdown, (peak-equity)/peak);
-      equityCurve.push({ time: last.time, equity: Number(equity.toFixed(6)) });
-    }
-    const totalReturnPct = (equity - 1) * 100;
+    const common = { fastPeriod: fast, slowPeriod: slow, feeBps, slippageBps };
+    const overall = runSmaCrossoverBacktest(candles, { ...common, startIndex: slow });
+    const train = runSmaCrossoverBacktest(candles, { ...common, startIndex: slow, endIndex: split });
+    const test = runSmaCrossoverBacktest(candles, { ...common, startIndex: split, endIndex: candles.length });
+    const stepMs = getIntervalMs(interval)!;
     return NextResponse.json({
-      mode: "RESEARCH_ONLY_NO_ORDERS", source: "Binance USDⓈ-M Futures demo market data",
-      symbol, interval, candles: candles.length, trainCandles: split, testCandles: candles.length - split,
-      strategy: { type: "simple moving-average crossover", fastPeriod: fast, slowPeriod: slow },
-      assumptions: { feeBpsPerSide: feeBps, slippageBpsPerSide: slippageBps, fundingCostsIncluded: false, leverage: 1, positionSizing: "100% notional per signal; illustrative only" },
-      results: { totalReturnPct: Number(totalReturnPct.toFixed(3)), closedTrades: trades, winRatePct: trades ? Number((wins / trades * 100).toFixed(2)) : 0, maxDrawdownPct: Number((maxDrawdown * 100).toFixed(3)), trainApproxReturnPct: Number((trainReturn * 100).toFixed(3)), testApproxReturnPct: Number((testReturn * 100).toFixed(3)), trainTrades, testTrades },
-      equityCurve: equityCurve.slice(-200),
-      caveats: ["Educational baseline only; not an optimised strategy or trading recommendation.", "This implementation is a simple close-based toy backtest; it does not model liquidation, funding, exchange filters, market impact, or intrabar stop fills.", "The 70/30 split is chronological, but parameters must be selected using training data only and assessed on untouched out-of-sample data.", "No testnet or live order is placed."]
-    });
-  } catch {
-    return NextResponse.json({ error: "Backtest data service failed" }, { status: 502 });
+      mode: "RESEARCH_ONLY_NO_ORDERS",
+      source: venue === "binance" ? "Binance USDⓈ-M Futures public market history" : venue === "bybit" ? "Bybit Linear Futures public market history" : "OKX USDT-margined swaps public market history",
+      venue, sourceHost, symbol, interval, candles: candles.length, splitIndex: split,
+      history: { firstClosedCandleTime: candles[0].time, lastClosedCandleTime: candles[candles.length - 1].time, lastCandleAgeMs: Date.now() - candles[candles.length - 1].time, candleIntervalMs: stepMs, unfinishedCandlesExcluded: true },
+      strategy: { type: "simple moving-average crossover", fastPeriod: fast, slowPeriod: slow, signalCalculatedOn: "closed candle", executionAssumption: "next candle open" },
+      assumptions: {
+        feeBpsPerSide: feeBps, slippageBpsPerSide: slippageBps, fundingCostsIncluded: false,
+        leverage: 1, positionSizing: "100% of current simulated equity, unlevered; illustrative only",
+        costsApplied: "adverse slippage and fees on entry and exit", data: "exchange OHLC candles; closed candles only"
+      },
+      results: overall, train, test,
+      caveats: [
+        "Research baseline only. No live or testnet order is placed.",
+        "Next-bar-open fills avoid same-candle-close look-ahead, but real spreads, market impact, funding, liquidation, and exchange-specific execution are not fully simulated.",
+        "Maximum drawdown uses closed-trade equity; intratrade drawdown can be worse.",
+        "The 70/30 split is chronological. Do not tune periods on the test segment; preserve a further untouched period for final confirmation.",
+        "Treat the holdout as weak evidence when trade count is small; seek many more trades across different market regimes and symbols.",
+        "A simple SMA crossover may have no edge after costs. Past simulation results do not guarantee future returns."
+      ]
+    }, { headers: { "Cache-Control": "no-store" } });
+  } catch (error) {
+    return NextResponse.json({ error: "Backtest could not obtain valid, fresh closed candles", detail: error instanceof Error ? error.message : "Unknown market-data failure", venue, symbol, interval }, { status: 502 });
   }
 }
