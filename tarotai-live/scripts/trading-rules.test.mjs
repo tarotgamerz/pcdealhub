@@ -67,7 +67,7 @@ test("trading agent prompt requires evidence-based plugin use and protects execu
  const prompt = readFileSync(new URL("../lib/trading-agent.ts", import.meta.url), "utf8");
  assert.match(prompt, /consult the connected LONA strategy documentation first/i);
  assert.match(prompt, /If rejected, blocked, pending, or failed, disclose that no result was obtained/i);
- assert.match(prompt, /untouched out-of-sample test/i);
+ assert.match(prompt, /chronological holdout/i);
  assert.match(prompt, /Do not execute arbitrary strategy code in a dry-run\/backtest tool unless the user has explicitly approved/i);
  assert.match(prompt, /Never place live-money orders/i);
  assert.match(prompt, /Do not claim model weights were trained/i);
