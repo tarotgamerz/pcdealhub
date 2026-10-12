@@ -304,3 +304,25 @@ test("dependency audit fails closed when unavailable or when vulnerabilities are
   assert.match(auditScript, /DEPENDENCY AUDIT FAILED/);
   assert.match(auditScript, /process\.exitCode = 1/);
 });
+
+
+const backtestEngine = readFileSync(new URL("../lib/trading-backtest.mjs", import.meta.url), "utf8");
+const futuresDesk = readFileSync(new URL("../public/trading-desk.html", import.meta.url), "utf8");
+
+test("historical backtest uses closed production candles and next-bar execution", () => {
+  assert.match(backtestRoute, /fapi\.binance\.com/);
+  assert.doesNotMatch(backtestRoute, /demo-fapi\.binance\.com/);
+  assert.match(backtestRoute, /c\.closeTime < Date\.now\(\)/);
+  assert.match(backtestRoute, /runSmaCrossoverBacktest/);
+  assert.match(backtestRoute, /startIndex: split/);
+  assert.match(backtestRoute, /fundingCostsIncluded: false/);
+  assert.match(backtestEngine, /candles\[i \+ 1\]\.open/);
+  assert.match(backtestEngine, /at candle i\+1's open/);
+});
+
+test("live chart requires matching higher-timeframe trend for a current setup", () => {
+  assert.match(futuresDesk, /higherCandles/);
+  assert.match(futuresDesk, /higherTrendUp&&longScore>=4/);
+  assert.match(futuresDesk, /higherTrendDown&&shortScore>=4/);
+  assert.match(futuresDesk, /higher-timeframe trend/);
+});
