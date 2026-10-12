@@ -25,7 +25,7 @@ export async function GET(req:Request){
   let raw:any=null, lastHttpStatus=0, lastDetail="upstream error", sourceHost="";
   for(const candidate of urls){
     try{
-      const response=await fetch(candidate,{cache:"no-store",signal:AbortSignal.timeout(4500)});
+      const response=await fetch(candidate,{cache:"no-store",signal:AbortSignal.timeout(1800)});
       const payload=await response.json().catch(()=>null);
       if(response.ok){raw=payload;sourceHost=candidate.host;break;}
       lastHttpStatus=response.status;
