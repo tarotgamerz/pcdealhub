@@ -1257,7 +1257,7 @@ export async function POST(request: Request) {
     });
     const runtimeTools = composioRuntime ? [...baseRuntimeTools, ...composioRuntime.tools] : baseRuntimeTools;
     const availableToolNames = new Set(runtimeTools.map((tool: any) => tool?.function?.name).filter(Boolean));
-    const modeSystemPrompt: Record<string, string> = {
+    const modeSystemPrompt: string = {
       research: "Research Agent mode: verify factual claims through real search results before writing. Use source URLs from tool output, distinguish facts from inference, and state clearly when evidence is unavailable. Never invent citations or claim a search ran unless a search tool result proves it.",
       code: "Code Agent mode: inspect relevant source and documentation with available tools before diagnosing. Prefer minimal safe fixes, run or identify relevant tests, distinguish a proposed change from an actually applied change, and report exact evidence. Never bypass owner write approval.",
       work: "Work Agent mode: plan, execute, observe results, adapt, and verify. Do not stop after presenting a plan when the available tools permit further execution. Report blocked steps precisely and do not claim background work continues after this request.",
