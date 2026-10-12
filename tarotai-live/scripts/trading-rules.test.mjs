@@ -50,7 +50,7 @@ test("fees and adverse slippage do not improve the same SMA backtest",()=>{
 test("backtest rejects malformed or unordered OHLC candles",()=>{
  const candles=sampleBacktestCandles();
  assert.equal(validateBacktestCandles(candles),true);
- assert.throws(()=>validateBacktestCandles([{...candles[0],high:0.5}]),/Malformed OHLC/);
+ assert.throws(()=>validateBacktestCandles([candles[0],{...candles[1],high:0.5},candles[2]]),/Malformed OHLC/);
  assert.throws(()=>validateBacktestCandles([candles[1],candles[0]]),/strictly chronological/);
 });
 
