@@ -23,7 +23,7 @@ async function fetchHistory(venue: string, symbol: string, interval: string, lim
     const maxPages = Math.ceil(target / 300);
     for (let pageIndex = 0; pageIndex < maxPages && collected.size < target; pageIndex++) {
       const pageLimit = Math.min(300, target - collected.size);
-      const endpoint = new URL("https://www.okx.com/api/v5/market/history-candles");
+      const endpoint = new URL("https://www.okx.com/api/v5/market/candles");
       endpoint.searchParams.set("instId", instId);
       endpoint.searchParams.set("bar", INTERVALS.okx[interval]);
       endpoint.searchParams.set("limit", String(pageLimit));
