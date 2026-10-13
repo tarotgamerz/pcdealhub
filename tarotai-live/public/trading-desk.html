@@ -671,7 +671,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const open=liveAgentPanel.hidden;
     liveAgentPanel.hidden=!open;
     toggleLiveAgentTeam.setAttribute("aria-expanded",String(open));
-    toggleLiveAgentTeam.textContent=open?"Hide 7-agent analysis team":"Open 7-agent analysis team";
+    toggleLiveAgentTeam.textContent=open?"Hide 8-agent trading team":"Open 8-agent trading team";
     if(open)liveAgentPanel.scrollIntoView({behavior:"smooth",block:"start"});
   });
   document.querySelectorAll("[data-agent-role]").forEach(select=>select.addEventListener("change",updateLiveAgentSlotOptions));
@@ -681,10 +681,10 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   byId("clearLiveAgentTeam").addEventListener("click",()=>{
     document.querySelectorAll("[data-agent-role]").forEach(select=>select.value="");
     updateLiveAgentSlotOptions();
-    byId("liveAgentRunStatus").textContent="Slots cleared. Select all seven committee agents to continue.";
+    byId("liveAgentRunStatus").textContent="Slots cleared. Select all eight trading agents to continue.";
     const summary=byId("liveAgentConsensus");summary.className="live-agent-consensus warn";summary.replaceChildren();
     const title=document.createElement("strong");title.textContent="Team consensus: WAIT";
-    const body=document.createElement("span");body.textContent="No agents selected. Choose all seven distinct committee roles and run analysis on fresh candles.";
+    const body=document.createElement("span");body.textContent="No agents selected. Choose all eight distinct trade-lifecycle roles and run analysis on fresh candles.";
     summary.append(title,body);byId("liveAgentResults").replaceChildren();
   });
   updateLiveAgentSlotOptions();
@@ -747,7 +747,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const d=window.tarotaiLiveDecision,approval=window.tarotaiAgentCommitteeApproval,now=Date.now();
     if(!d||!["BUY / LONG","SELL / SHORT"].includes(d.action)||d.symbol!==byId("liveSymbol").value||d.interval!==byId("liveInterval").value){paperStatus("No qualified signal. HOLD / WAIT is never paper-traded.",true);return;}
     const latestClosedForApproval=closedOnly(rows,currentInterval).slice(-1)[0];
-    if(!approval||approval.symbol!==d.symbol||approval.interval!==d.interval||approval.candleTime!==Number(d.candleTime)||approval.action!==d.action||!latestClosedForApproval||Number(latestClosedForApproval.time)!==approval.candleTime){paperStatus("Paper entry blocked: run the full seven-agent committee and obtain a matching LONG/SHORT approval on this exact closed candle first.",true);return;}
+    if(!approval||approval.symbol!==d.symbol||approval.interval!==d.interval||approval.candleTime!==Number(d.candleTime)||approval.action!==d.action||!latestClosedForApproval||Number(latestClosedForApproval.time)!==approval.candleTime){paperStatus("Paper entry blocked: run the full eight-agent trading team and obtain a matching LONG/SHORT approval on this exact closed candle first.",true);return;}
     const balance=Number(byId("livePaperBalance").value),riskPct=Number(byId("livePaperRisk").value);
     if(!Number.isFinite(balance)||balance<100||balance>10000000||!Number.isFinite(riskPct)||riskPct<0.1||riskPct>1){paperStatus("Balance must be 100–10,000,000 USDT and risk 0.1%–1%.",true);return;}
     const live=rows[rows.length-1],closed=closedOnly(rows,currentInterval).slice(-1)[0];
