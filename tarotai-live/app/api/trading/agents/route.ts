@@ -194,8 +194,8 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
   const supervisorResult={role:"supervisor",name:SPECIALISTS.supervisor.name,ok:false,bias:"WAIT",veto:true,text:"Supervisor could not verify agent health: "+(e instanceof Error?e.message:"provider error"),elapsedMs:Date.now()-monitorStarted,model:"openrouter/free"};
   results.push(supervisorResult);send({type:"agent",role:"supervisor",status:"error",result:supervisorResult});
  }
- const ok=results.filter(r=>r.ok).length; const failed=results.filter(r=>!r.ok).length;
- if(!ok)return jsonError("No AI specialists returned a valid analysis. Check model/provider configuration and retry.",502,{results,model,elapsedMs:Date.now()-started});
+ const ok=results.filter(r=>r.ok).length; const failed=results.filter(r=>!r.ok).length; const specialistOk=results.filter(r=>r.role!=="supervisor"&&r.ok).length;
+ if(!specialistOk)return jsonError("No trade-lifecycle specialist returned a valid analysis. Check OpenRouter model/provider configuration and retry.",502,{results,model,elapsedMs:Date.now()-started});
  return NextResponse.json({ok:true,mode:"parallel-llm-specialists",model,elapsedMs:Date.now()-started,
   market:{venue:market.venue,host:market.host,symbol,interval,higherInterval:market.higherInterval,fetchedAt:market.fetchedAt,
    lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),lastClosedCandleAgeSeconds:Math.max(0,Math.round(market.lastClosedCandleAgeMs/1000)),higherTimeframeTrend:higherTrend.direction},
