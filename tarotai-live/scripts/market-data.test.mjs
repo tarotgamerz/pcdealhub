@@ -420,7 +420,7 @@ test("Trading Desk requests real parallel AI outputs and gates agreement on risk
   assert.match(futuresDesk,/!riskSelected/);
   assert.match(futuresDesk,/sameSnapshot/);
   assert.match(futuresDesk,/Historical analogue study/);
-  assert.match(futuresDesk,/Each selected specialist is a separate AI model call/);
+  assert.match(futuresDesk,/Exactly seven separate AI specialist calls run concurrently/);
   assert.match(historicalPatternSource,/root\.TarotAIMarketPatterns = \{ findSimilarCases \}/);
 });
 
