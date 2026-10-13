@@ -342,6 +342,10 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     paintChecks(selected,htfCheck);
     if(!htf.ready)paintChecks(selected,{pass:false,detail:htf.detail,neutral:true});
     setDecision(action,detail,entry,stop,target,rr,marker);
+
+    window.tarotaiLiveDecision={action,symbol:currentSymbol,interval:currentInterval,entry:Number.isFinite(entry)?entry:null,stop:Number.isFinite(stop)?stop:null,target:Number.isFinite(target)?target:null,rr:Number.isFinite(rr)?rr:null,candleTime:last.time,higherTrend:htf.direction,decisionAt:Date.now()};
+    const paperButton=byId("livePaperOpen");if(paperButton)paperButton.disabled=paperOpening||!["BUY / LONG","SELL / SHORT"].includes(action);
+
     status("Source: Binance USDⓈ-M Futures public market data · "+closed.length+" closed candles analyzed · latest closed candle "+new Date(last.time).toLocaleString()+" · EMA 9/21/50 · RSI "+rv[i].toFixed(1)+" · ATR "+fmt(av[i])+" · long score "+longScore+"/5 · short score "+shortScore+"/5 · HTF "+htf.direction+". Rules are deterministic and transparent; no profit guarantee.");
   }
   async function fetchJSON(url){const r=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(9000)});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.detail||j.error||("HTTP "+r.status));if(j.stale)throw new Error("Exchange data marked stale by the server");if(!Array.isArray(j.candles))throw new Error("Exchange response did not contain candles");return j;}
@@ -412,6 +416,103 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   }
   createChart();
   byId("liveRefresh").addEventListener("click",()=>refresh(true));
+
+  let paperBusy=false,paperOpening=false;
+  const paperClosedStatuses=new Set(["PAPER_CLOSE","PAPER_STOP","PAPER_TARGET"]);
+  const paperNum=v=>Number.isFinite(Number(v))?Number(v):NaN;
+  const paperFmt=v=>Number.isFinite(v)?v.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
+  function paperStatus(msg,bad=false){byId("livePaperStatus").textContent=msg;byId("livePaperStatus").style.color=bad?"var(--red)":"var(--muted)";}
+  function paperOpened(ledger){const closed=new Set(ledger.filter(t=>t.parentTradeId&&paperClosedStatuses.has(t.status)).map(t=>t.parentTradeId));return ledger.filter(t=>t.status==="PAPER_OPEN"&&!closed.has(t.id));}
+  async function paperRequest(url,options={}){
+    const r=await fetch(url,{cache:"no-store",...options});let d={};try{d=await r.json();}catch(e){d={error:"Invalid server response"};}if(!r.ok)throw new Error(d.error||d.detail||("HTTP "+r.status));return d;
+  }
+  function paperRender(ledger){
+    const opened=paperOpened(ledger),closed=ledger.filter(t=>t.parentTradeId&&paperClosedStatuses.has(t.status));
+    const net=closed.reduce((sum,t)=>sum+(Number.isFinite(paperNum(t.pnlNet))?paperNum(t.pnlNet):0),0),wins=closed.filter(t=>paperNum(t.pnlNet)>0).length;
+    byId("livePaperOpenCount").textContent=String(opened.length);byId("livePaperClosedCount").textContent=String(closed.length);
+    byId("livePaperNetPnl").textContent=(net>0?"+":"")+paperFmt(net);byId("livePaperNetPnl").style.color=net>0?"var(--green)":net<0?"var(--red)":"var(--text)";
+    byId("livePaperWinRate").textContent=closed.length?(100*wins/closed.length).toFixed(1)+"%":"—";
+    const box=byId("livePaperPositions");box.replaceChildren();
+    if(!opened.length){const empty=document.createElement("div");empty.className="muted";empty.textContent="No open paper positions yet. The agent waits for a confirmed setup.";box.append(empty);}
+    for(const t of opened){
+      const card=document.createElement("article");card.className="live-paper-position";
+      const head=document.createElement("div");head.className="head";
+      const name=document.createElement("b");name.textContent=t.symbol+" · "+(t.side==="BUY"?"LONG":"SHORT");name.style.color=t.side==="BUY"?"var(--green)":"var(--red)";
+      const tag=document.createElement("span");tag.className="tag";tag.textContent="PAPER OPEN";head.append(name,tag);card.append(head);
+      const facts=document.createElement("div");facts.className="facts";
+      const fact=(label,value)=>{const el=document.createElement("div"),l=document.createElement("small"),v=document.createElement("b");l.textContent=label;v.textContent=value;el.append(l,v);facts.append(el);};
+      fact("Entry fill",paperFmt(paperNum(t.fillPrice)));fact("Stop",paperFmt(paperNum(t.stopPrice)));fact("Target",paperFmt(paperNum(t.targetPrice)));
+      fact("Quantity",paperNum(t.quantity).toLocaleString("en-US",{maximumFractionDigits:8}));fact("Risk at stop",paperFmt(Math.abs(paperNum(t.fillPrice)-paperNum(t.stopPrice))*paperNum(t.quantity)));fact("Entry fee",paperFmt(paperNum(t.fee)));card.append(facts);
+      const close=document.createElement("button");close.className="btn";close.type="button";close.textContent="Close at verified live price";close.addEventListener("click",()=>paperClose(t,close));card.append(close);box.append(card);
+    }
+    window.tarotaiPaperLedger=ledger;
+    const d=window.tarotaiLiveDecision,qualifies=d&&["BUY / LONG","SELL / SHORT"].includes(d.action)&&d.symbol===byId("liveSymbol").value&&d.interval===byId("liveInterval").value;
+    byId("livePaperOpen").disabled=paperOpening||!qualifies||opened.some(t=>t.symbol===byId("liveSymbol").value);
+    if(opened.some(t=>t.symbol===byId("liveSymbol").value))paperStatus("A paper position for this market is already open. Close it before opening another.");
+  }
+  async function paperRefresh(checkStops=true){
+    if(paperBusy)return;paperBusy=true;
+    try{
+      let d=await paperRequest("/api/trading/paper"),ledger=Array.isArray(d.ledger)?d.ledger:[];
+      if(checkStops){
+        const symbols=[...new Set(paperOpened(ledger).map(t=>t.symbol).filter(Boolean))];
+        for(const symbol of symbols){try{await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"STOP_CHECK",symbol,venue:"binance"})});}catch(e){paperStatus("Stop check failed for "+symbol+": "+e.message,true);}}
+        if(symbols.length){d=await paperRequest("/api/trading/paper");ledger=Array.isArray(d.ledger)?d.ledger:[];}
+      }
+      paperRender(ledger);
+      if(!paperOpened(ledger).length)paperStatus("Paper ledger connected · persistent storage · no real orders. "+ledger.length+" records loaded.");
+      else paperStatus("Paper ledger connected. Open positions are being checked against live 1-minute candles; stop-first handling applies if stop and target occur in the same candle.");
+    }catch(e){
+      ["livePaperOpenCount","livePaperClosedCount","livePaperNetPnl","livePaperWinRate"].forEach(id=>byId(id).textContent="—");
+      byId("livePaperPositions").textContent="Ledger unavailable. Unlock private APIs and configure Upstash Redis. No paper trade was created.";
+      byId("livePaperOpen").disabled=true;paperStatus("Paper ledger unavailable: "+e.message+". Authentication and persistent storage must work before entry.",true);
+    }finally{paperBusy=false;}
+  }
+  async function paperOpenSignal(){
+    if(paperOpening)return;
+    const d=window.tarotaiLiveDecision,now=Date.now();
+    if(!d||!["BUY / LONG","SELL / SHORT"].includes(d.action)||d.symbol!==byId("liveSymbol").value||d.interval!==byId("liveInterval").value){paperStatus("No qualified signal. HOLD / WAIT is never paper-traded.",true);return;}
+    const balance=Number(byId("livePaperBalance").value),riskPct=Number(byId("livePaperRisk").value);
+    if(!Number.isFinite(balance)||balance<100||balance>10000000||!Number.isFinite(riskPct)||riskPct<0.1||riskPct>1){paperStatus("Balance must be 100–10,000,000 USDT and risk 0.1%–1%.",true);return;}
+    const live=rows[rows.length-1],closed=closedOnly(rows,currentInterval).slice(-1)[0];
+    if(!live||!closed||now-live.time>msFor(currentInterval)*2){paperStatus("Candles are stale. Refresh analysis before paper trading.",true);return;}
+    const entry=Number(live.close),stop=Number(d.stop),long=d.action==="BUY / LONG";
+    if(!Number.isFinite(entry)||entry<=0||!Number.isFinite(stop)||(long?stop>=entry:stop<=entry)){paperStatus("Price crossed the setup's invalidation level. Signal expired; re-analyze.",true);return;}
+    const drift=Math.abs(entry-Number(d.entry))/Number(d.entry);
+    if(!Number.isFinite(drift)||drift>0.01){paperStatus("Price moved more than 1% from the signal reference. Do not chase it; refresh analysis.",true);return;}
+    const distance=Math.abs(entry-stop),riskBudget=balance*riskPct/100,quantity=Math.min(riskBudget/distance,balance/entry);
+    if(!Number.isFinite(quantity)||quantity<=0){paperStatus("Position sizing failed validation.",true);return;}
+    const target=long?entry+2*distance:entry-2*distance,side=long?"LONG":"SHORT";
+    const age=Math.max(0,now-(Number(d.candleTime)+msFor(currentInterval)));
+    paperOpening=true;byId("livePaperOpen").disabled=true;byId("livePaperOpen").textContent="Reviewing risk…";
+    try{
+      const review=await paperRequest("/api/trading/review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({entry,stop,target,side,riskPct,paperBalance:balance,dataAgeMs:Math.min(age,60000),spreadBps:0})});
+      if(review.combinedVerdict!=="PAPER_ONLY_APPROVAL")throw new Error("Independent risk review veto: "+(review.strategyAgent?.issues||review.riskAgent?.issues||[]).join("; "));
+      byId("livePaperOpen").textContent="Saving paper trade…";
+      const opened=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"OPEN",symbol:d.symbol,side:long?"BUY":"SELL",quantity,price:entry,stopPrice:stop,targetPrice:target,feeBps:Number(byId("feeBps")?.value??5),slippageBps:Number(byId("slippageBps")?.value??2),marketTime:Date.now()})});
+      paperStatus("Opened "+d.symbol+" "+side+" in persistent paper ledger · fill "+paperFmt(opened.trade?.fillPrice??entry)+" · planned risk ≤ "+paperFmt(quantity*distance)+" USDT. No exchange order was sent.");
+      log("Opened persistent paper position "+d.symbol+" "+side+". PAPER ONLY; no exchange order sent.");
+      await paperRefresh(true);
+    }catch(e){paperStatus("Paper entry rejected: "+e.message+". No live order was sent.",true);}
+    finally{paperOpening=false;byId("livePaperOpen").textContent="Open paper trade from signal";await paperRefresh(false);}
+  }
+  async function paperClose(t,button){
+    if(button.disabled)return;button.disabled=true;button.textContent="Checking price…";
+    try{
+      let price=NaN;
+      if(t.symbol===currentSymbol&&rows.length&&Date.now()-rows[rows.length-1].time<=msFor(currentInterval)*2)price=Number(rows[rows.length-1].close);
+      if(!Number.isFinite(price)||price<=0){const q=await paperRequest("/api/exchanges/market?"+new URLSearchParams({venue:"binance",symbol:t.symbol,interval:"1m",limit:"3",public:"1"}));price=Number(q.candles?.[q.candles.length-1]?.close);}
+      if(!Number.isFinite(price)||price<=0)throw new Error("No fresh live price available");
+      const result=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"CLOSE",parentTradeId:t.id,symbol:t.symbol,side:t.side==="BUY"?"SELL":"BUY",quantity:Number(t.quantity),price,feeBps:Number(t.feeBps??5),slippageBps:Number(t.slippageBps??2),marketTime:Date.now()})});
+      paperStatus("Paper position closed at simulated fill "+paperFmt(result.trade?.fillPrice??price)+". Net result includes modeled trading costs; no exchange order was sent.");
+      log("Closed paper position "+t.id+". No exchange order sent.");await paperRefresh(false);
+    }catch(e){paperStatus("Paper close failed: "+e.message,true);button.disabled=false;button.textContent="Close at verified live price";}
+  }
+  byId("livePaperOpen").addEventListener("click",paperOpenSignal);
+  byId("livePaperReload").addEventListener("click",()=>paperRefresh(true));
+  paperRefresh(true);
+  setInterval(()=>{if(document.visibilityState==="visible")paperRefresh(true);},20000);
+
   byId("liveSymbol").addEventListener("change",()=>{higherCache=[];higherCacheKey="";higherCacheAt=0;reloadAll(true);});
   byId("liveInterval").addEventListener("change",()=>{higherCache=[];higherCacheKey="";higherCacheAt=0;reloadAll(true);});
   refresh(true).then(connectSocket);
