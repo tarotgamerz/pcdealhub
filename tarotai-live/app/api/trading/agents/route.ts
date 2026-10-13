@@ -4,7 +4,7 @@ import { findSimilarCases } from "@/lib/market-patterns.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 45;
+export const maxDuration = 60;
 
 const ALLOWED_INTERVALS = ["1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "1d"] as const;
 type Interval = typeof ALLOWED_INTERVALS[number];
@@ -15,13 +15,14 @@ const HIGHER: Record<string, Interval> = {"1m":"15m","3m":"15m","5m":"1h","15m":
 const BYBIT_INTERVAL: Record<Interval,string> = {"1m":"1","3m":"3","5m":"5","15m":"15","30m":"30","1h":"60","2h":"120","4h":"240","1d":"D"};
 const OKX_INTERVAL: Record<Interval,string> = {"1m":"1m","3m":"3m","5m":"5m","15m":"15m","30m":"30m","1h":"1H","2h":"2H","4h":"4H","1d":"1D"};
 const SPECIALISTS: Record<string,{name:string;focus:string;instruction:string}> = {
- macro:{name:"Macro-Econometrician · Committee Chair",focus:"empirical macroeconomics, liquidity, central-bank policy and regime constraints",instruction:"Set the committee regime and capital ceiling. The request contains crypto OHLCV and a higher-timeframe summary, not live rates, yield curves, central-bank releases or geopolitical feeds. State those macro inputs are UNAVAILABLE; use price regime only as a provisional proxy, never claim to have observed macro data. Set gross paper exposure ceilings from fixed framework guardrails: risk-on proxy 25%, neutral 10%, risk-off proxy 5% of paper equity. These are conservative caps, not optimized sizing. LONG only if both chart and higher timeframe support a clean risk-on proxy; SHORT only for a clean risk-off proxy; otherwise WAIT."},
- alpha:{name:"Quantitative Alpha Strategist",focus:"mathematical finance, statistical arbitrage and multi-factor anomaly research",instruction:"Form a falsifiable setup using closed-candle structure, EMA/RSI/ATR and supplied historical analogues. State the trigger formula and invalidation condition in plain terms. Historical analogues are descriptive, not a calibrated win probability. Do not claim cross-asset cointegration without those data."},
- sentiment:{name:"Alternative Data & Sentiment Miner",focus:"NLP, computational social science and alternative-data signals",instruction:"Look for recent news/social/corporate or supply-chain sentiment only if actually supplied. This endpoint does not ingest headlines, satellite images, shipping manifests or social streams: explicitly mark external sentiment UNAVAILABLE and do not invent it. Use OHLCV volume/candle behavior only as a participation proxy; if that proxy is inconclusive, vote WAIT."},
- microstructure:{name:"Microstructure & Order Book Analyst",focus:"limit order books, order-flow toxicity, volume profile and execution liquidity",instruction:"Assess supplied candle ranges and volume participation as limited proxies only. Live Level-2 order book, trade-level VPIN, dark-pool prints, spread and venue depth are not supplied; mark them UNAVAILABLE and never claim direct observation. Vote direction only if candle/volume evidence is unusually clear; otherwise WAIT."},
- volatility:{name:"Volatility & Options Structurer",focus:"stochastic volatility, ATR, range expansion and derivative risk",instruction:"Use ATR expansion/compression, candle ranges and historical volatility proxies to assess disorder and stop feasibility. Implied-volatility smiles, options term structure and variance-swap quotes are not supplied; explicitly mark them UNAVAILABLE. Veto disorderly volatility or stops inside ordinary noise."},
- risk:{name:"Adversarial Risk & Portfolio Optimizer",focus:"extreme-value risk, stress scenarios, fractional Kelly and portfolio constraints",instruction:"Act as the internal skeptic. Try to falsify the proposed direction; inspect historical evidence limits, stop/target geometry, volatility, costs and failure paths. Set VETO: YES if there is no independently qualified chart setup, if the setup is weak, or if the stop/target is invalid. Never invent account equity, leverage or VaR inputs."},
- execution:{name:"Institutional Execution & Routing Agent",focus:"algorithmic execution, implementation shortfall and venue routing",instruction:"Translate only an independently qualified setup into a PAPER execution plan. The endpoint does not provide live spread, Level-2 depth, fee tier or latency, so do not claim measured implementation shortfall or choose a real venue route. Recommend cautious paper limit/TWAP-style slicing only when the chart setup and risk geometry are valid; otherwise WAIT. Never submit orders."}
+ market:{name:"Market Structure Analyst",focus:"market structure, trend, support/resistance, momentum and multi-timeframe context",instruction:"Analyze trend/range, swing highs/lows, key levels, EMA/RSI/ATR and higher-timeframe alignment. State market regime and BIAS LONG/SHORT/WAIT. Derive levels only from supplied candles."},
+ entry:{name:"Entry Setup Specialist",focus:"repeatable entry triggers and no-chase rules",instruction:"Define an exact entry trigger from closed candles and a maximum acceptable entry/drift rule. If the trigger has not closed and confirmed, BIAS WAIT. Never chase after a level is missed."},
+ exits:{name:"Stop-Loss & Take-Profit Planner",focus:"invalidation, stop placement, targets and risk/reward geometry",instruction:"Propose entry reference, stop and target only when justified by supplied candle levels and ATR. Prefer reward/risk >=2R. If levels cannot be justified, VETO YES and WAIT. Never invent prices."},
+ sizing:{name:"Position Sizing & Risk Manager",focus:"fixed cash risk, quantity sizing and account constraints",instruction:"Calculate quantity only if paper equity and risk percentage are supplied. Default risk cap 1%, hard maximum 2%; never invent balance or leverage. If equity or sizing inputs are missing, state SIZE UNAVAILABLE and BIAS WAIT. VETO if risk exceeds 2%."},
+ discipline:{name:"Execution Discipline Agent",focus:"trigger confirmation, order choice, slippage and anti-chasing rules",instruction:"Create a paper-only execution checklist for a qualified setup. Live spread, depth and fees are unavailable; mark them unavailable. Never send orders. VETO chasing or unconfirmed triggers."},
+ position:{name:"Live Position Manager",focus:"open paper-position monitoring, stop protection and exit discipline",instruction:"Manage only an open paper position included in context. Check side, entry, stop and target against closed candles; recommend HOLD, cautious stop adjustment only after meaningful favorable movement, or EXIT if invalidated. This agent runs only when requested, not continuously in the background. If no position is supplied, state NO OPEN PAPER POSITION and BIAS WAIT."},
+ journal:{name:"Trade Journal & Review Analyst",focus:"trade records, outcome review and process adherence",instruction:"Review only supplied completed paper-trade records. Identify evidence-based process patterns; never infer emotion or statistical significance from tiny samples. If no records are supplied, state JOURNAL DATA UNAVAILABLE and recommend recording entry, stop, target, setup, outcome, costs and adherence. This is not a directional vote: BIAS WAIT."},
+ supervisor:{name:"Agent Operations Supervisor",focus:"specialist completion states, evidence quality, contradictions and protocol compliance",instruction:"Audit the seven other agent results supplied in your input. Count complete/failed, flag missing fields, unsupported prices, contradictions, invalid risk geometry and fabricated data. VETO YES if any required agent failed or a material safety/data-integrity issue exists; otherwise VETO NO. This is a monitor, not a directional vote: BIAS WAIT. Never claim continuous monitoring between runs."}
 };
 const VENUE_ORDER: Venue[] = ["binance","bybit","okx"];
 
@@ -91,7 +92,7 @@ function parseBias(text:string) {const m=text.match(/^\s*(?:[-*]\s*)?(?:\*\*)?BI
 function specialistSystem(role:string) {
  const s=SPECIALISTS[role];
  return [
-  "You are "+s.name+", one independent specialist among seven agents analyzing a live cryptocurrency perpetual-futures market. Your domain is "+s.focus+".",
+  "You are "+s.name+", one specialist in TarotAI’s eight-role trade-lifecycle team. Your domain is "+s.focus+".",
   s.instruction,
   "Grounding rules:",
   "- You receive a server-fetched, timestamped snapshot of real historical exchange OHLCV candles and similar past chart situations with their subsequently observed outcomes. Use only this evidence. Do not invent live prices, candles, indicators, funding, order-book data, or examples.",
@@ -123,8 +124,8 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
  if(!/^[A-Z0-9]{4,20}$/.test(symbol))return jsonError("Invalid symbol.",400);
  if(!(ALLOWED_INTERVALS as readonly string[]).includes(interval))return jsonError("Unsupported timeframe.",400);
  if(!VENUE_ORDER.includes(preferred))return jsonError("Unsupported exchange.",400);
- if(roles.length!==7||new Set(roles).size!==7||roles.some((r:string)=>!Object.hasOwn(SPECIALISTS,r))||Object.keys(SPECIALISTS).some((r:string)=>!roles.includes(r)))return jsonError("The full seven-agent committee must be selected exactly once: macro, alpha, sentiment, microstructure, volatility, risk and execution.",400);
- const model=String(process.env.OPENROUTER_MODEL||"qwen/qwen3-next-80b-a3b-instruct:free").slice(0,160),started=Date.now();
+ if(roles.length!==8||new Set(roles).size!==8||roles.some((r:string)=>!Object.hasOwn(SPECIALISTS,r))||Object.keys(SPECIALISTS).some((r:string)=>!roles.includes(r)))return jsonError("Select all eight trade-lifecycle agents exactly once: market, entry, exits, sizing, discipline, position, journal and supervisor.",400);
+ const configuredModel=String(process.env.OPENROUTER_MODEL||"openrouter/free").slice(0,160);const model=configuredModel==="qwen/qwen3-next-80b-a3b-instruct:free"?"openrouter/free":configuredModel;const modelCandidates=[...new Set([model,"openrouter/free"])];const started=Date.now();
  send({type:"phase",phase:"market",message:"Fetching fresh closed candles and checking the higher timeframe."});
  let market:any;try{market=await fetchVerifiedMarket(symbol,interval,preferred);}catch(e){return jsonError(e instanceof Error?e.message:"Verified market data unavailable.",502,{readOnly:true,orderPlacement:false});}
  const patternStudy=findSimilarCases(market.candles,interval,{horizon:6,maxExamples:8,maxDistance:0.34}),higherTrend=trendSummary(market.higherCandles),last=market.candles[market.candles.length-1];
@@ -145,22 +146,50 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
   last24ClosedCandles:compactCandles(market.candles,24),last12HigherTimeframeCandles:compactCandles(market.higherCandles,12)
  };
  const serialized=JSON.stringify(userContext);
- const results=await Promise.all(roles.map(async (role: string)=>{
+ const results=await Promise.all(roles.filter((role:string)=>role!=="supervisor").map(async (role: string)=>{
   const agentStarted=Date.now();
   send({type:"agent",role,status:"running",name:SPECIALISTS[role].name,focus:SPECIALISTS[role].focus});
   try {
-   const response=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",cache:"no-store",signal:AbortSignal.timeout(23000),
-    headers:{"Authorization":"Bearer "+process.env.OPENROUTER_API_KEY,"Content-Type":"application/json","HTTP-Referer":"https://tarotai-core.vercel.app","X-Title":"TarotAI Live Specialist Team"},
-    body:JSON.stringify({model,messages:[{role:"system",content:specialistSystem(role)},{role:"user",content:"Independently analyze this verified closed-candle snapshot. Follow the concise 7-line report format exactly; do not repeat the prompt and do not assume other agents agree.\n\n"+serialized}],temperature:0.1,max_tokens:1200,models:["meta-llama/llama-3.3-8b-instruct:free","qwen/qwen3-235b-a22b-07-25:free"]})});
-   const text=await response.text();let data:any;try{data=JSON.parse(text);}catch{throw new Error("OpenRouter HTTP "+response.status+" returned a non-JSON response.");}
-   if(!response.ok||data?.error){const providerError=data?.error||{};const status=Number(response.status)||Number(providerError.code)||0;const code=typeof providerError.code==="string"?providerError.code:"";const kind=typeof data?.error_type==="string"?data.error_type:"";const message=String(providerError.message||data?.message||"Provider returned an unspecified error").replace(/sk-or-v1-[A-Za-z0-9_-]+/g,"[redacted key]").slice(0,280);throw new Error("OpenRouter HTTP "+status+(code?" · "+code:"")+(kind?" · "+kind:"")+": "+message);}
+   let response:any,data:any;
+   for(let attempt=0;attempt<modelCandidates.length;attempt++){
+    const candidateModel=modelCandidates[attempt];
+    response=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",cache:"no-store",signal:AbortSignal.timeout(14000),
+     headers:{"Authorization":"Bearer "+process.env.OPENROUTER_API_KEY,"Content-Type":"application/json","HTTP-Referer":"https://tarotai-core.vercel.app","X-Title":"TarotAI Live Specialist Team"},
+     body:JSON.stringify({model:candidateModel,messages:[{role:"system",content:specialistSystem(role)},{role:"user",content:"Independently analyze this verified closed-candle snapshot. Follow the concise 7-line report format exactly; do not repeat the prompt and do not assume other agents agree.\\n\\n"+serialized}],temperature:0.1,max_tokens:1200})});
+    const raw=await response.text();try{data=JSON.parse(raw);}catch{throw new Error("OpenRouter HTTP "+response.status+" returned a non-JSON response.");}
+    if(response.ok&&!data?.error)break;
+    const providerError=data?.error||{},message=String(providerError.message||data?.message||"Provider returned an unspecified error").replace(/sk-or-v1-[A-Za-z0-9_-]+/g,"[redacted key]").slice(0,280);
+    const unavailable=Number(response.status)===404&&/unavailable for free|model not found|no endpoints found|not available/i.test(message);
+    if(unavailable&&attempt<modelCandidates.length-1)continue;
+    const code=typeof providerError.code==="string"?providerError.code:"",kind=typeof data?.error_type==="string"?data.error_type:"";
+    throw new Error("OpenRouter HTTP "+response.status+(code?" · "+code:"")+(kind?" · "+kind:"")+": "+message);
+   }
    const report=data?.choices?.[0]?.message?.content;if(typeof report!=="string"||!report.trim()){const reason=data?.choices?.[0]?.finish_reason;const usage=data?.usage||{};const reasoningTokens=usage?.completion_tokens_details?.reasoning_tokens;const completionTokens=usage?.completion_tokens;const routedModel=typeof data?.model==="string"?data.model:model;throw new Error("OpenRouter returned no visible report"+(reason?" (finish_reason: "+String(reason)+")":"")+(Number.isFinite(Number(completionTokens))?"; completion tokens: "+Number(completionTokens):"")+(Number.isFinite(Number(reasoningTokens))?"; reasoning tokens: "+Number(reasoningTokens):"")+"; routed model: "+routedModel+". Output budget was increased; check provider availability or free-tier rate limits if this persists.");}
    const parsed=parseBias(report),{vetoDeclared,...parsedVote}=parsed;const result={role,name:SPECIALISTS[role].name,ok:true,...parsedVote,veto:role==="risk"&&!vetoDeclared?true:parsedVote.veto,text:report.trim().slice(0,6000),elapsedMs:Date.now()-agentStarted,model:typeof data?.model==="string"?data.model:model};
    send({type:"agent",role,status:"complete",result});
    return result;
   }catch(e){const result={role,name:SPECIALISTS[role].name,ok:false,bias:"WAIT",veto:role==="risk",text:"This specialist did not return a verified analysis: "+(e instanceof Error?e.message:"provider error"),elapsedMs:Date.now()-agentStarted,model};send({type:"agent",role,status:"error",result});return result;}
  }));
- const ok=results.filter(r=>r.ok).length;
+
+ const monitorStarted=Date.now();
+ send({type:"agent",role:"supervisor",status:"running",name:SPECIALISTS.supervisor.name,focus:SPECIALISTS.supervisor.focus});
+ try {
+  const priorReports=results.map(r=>({role:r.role,name:r.name,status:r.ok?"complete":"failed",bias:r.bias,veto:r.veto,model:r.model,elapsedMs:r.elapsedMs,report:String(r.text||"").slice(0,1400)}));
+  const monitorPrompt="Audit these seven specialist results against their role responsibilities. Do not treat the supervisor as a directional voter. Flag failures, missing required facts, unsupported certainty, contradictory direction, unverified prices, missing stop/target, missing position-size inputs, missed-entry chasing, and absent journal/open-position context. Return the standard seven-line report. Set VETO: YES if any specialist failed or any material safety/evidence issue exists; otherwise VETO: NO.\n\n"+JSON.stringify({symbol,interval,market:{venue:market.venue,host:market.host,lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),higherTrend:higherTrend.direction},agents:priorReports});
+  let monitorData:any,monitorResponse:any,monitorModel="openrouter/free";
+  monitorResponse=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",cache:"no-store",signal:AbortSignal.timeout(12000),headers:{"Authorization":"Bearer "+process.env.OPENROUTER_API_KEY,"Content-Type":"application/json","HTTP-Referer":"https://tarotai-core.vercel.app","X-Title":"TarotAI Agent Operations Supervisor"},body:JSON.stringify({model:monitorModel,messages:[{role:"system",content:specialistSystem("supervisor")},{role:"user",content:monitorPrompt}],temperature:0.1,max_tokens:1000})});
+  const monitorRaw=await monitorResponse.text();try{monitorData=JSON.parse(monitorRaw);}catch{throw new Error("Supervisor returned non-JSON provider output (HTTP "+monitorResponse.status+").");}
+  if(!monitorResponse.ok||monitorData?.error)throw new Error("Supervisor provider HTTP "+monitorResponse.status+": "+String(monitorData?.error?.message||"unknown provider error").slice(0,220));
+  const monitorText=monitorData?.choices?.[0]?.message?.content;
+  if(typeof monitorText!=="string"||!monitorText.trim())throw new Error("Supervisor returned no report.");
+  const monitorBias=parseBias(monitorText);
+  const supervisorResult={role:"supervisor",name:SPECIALISTS.supervisor.name,ok:true,bias:"WAIT",veto:monitorBias.vetoDeclared?monitorBias.veto:results.some(r=>!r.ok),text:monitorText.trim().slice(0,6000),elapsedMs:Date.now()-monitorStarted,model:typeof monitorData?.model==="string"?monitorData.model:monitorModel};
+  results.push(supervisorResult);send({type:"agent",role:"supervisor",status:"complete",result:supervisorResult});
+ } catch(e) {
+  const supervisorResult={role:"supervisor",name:SPECIALISTS.supervisor.name,ok:false,bias:"WAIT",veto:true,text:"Supervisor could not verify agent health: "+(e instanceof Error?e.message:"provider error"),elapsedMs:Date.now()-monitorStarted,model:"openrouter/free"};
+  results.push(supervisorResult);send({type:"agent",role:"supervisor",status:"error",result:supervisorResult});
+ }
+ const ok=results.filter(r=>r.ok).length; const failed=results.filter(r=>!r.ok).length;
  if(!ok)return jsonError("No AI specialists returned a valid analysis. Check model/provider configuration and retry.",502,{results,model,elapsedMs:Date.now()-started});
  return NextResponse.json({ok:true,mode:"parallel-llm-specialists",model,elapsedMs:Date.now()-started,
   market:{venue:market.venue,host:market.host,symbol,interval,higherInterval:market.higherInterval,fetchedAt:market.fetchedAt,
