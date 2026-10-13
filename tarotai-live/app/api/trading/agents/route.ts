@@ -110,7 +110,9 @@ function specialistSystem(role:string) {
   "COUNTERARGUMENT: strongest reason this setup can fail"
  ].join("\n");
 }
-export async function POST(request:Request) {
+async function executeAnalysis(request:Request, emit:(event:Record<string,unknown>)=>void=()=>{}) {
+ const send=(event:Record<string,unknown>)=>{try{emit(event)}catch{}};
+ send({type:"phase",phase:"validation",message:"Checking private access, symbol, timeframe and selected roles."});
  if(!process.env.TAROTAI_ACCESS_CODE)return jsonError("Private access is not configured.",503);
  if(!isAuthorized(request))return jsonError("Authentication required.",401);
  if(!process.env.OPENROUTER_API_KEY)return jsonError("AI specialist execution is unavailable: OPENROUTER_API_KEY is not configured for production.",503);
@@ -124,8 +126,10 @@ export async function POST(request:Request) {
  if(!VENUE_ORDER.includes(preferred))return jsonError("Unsupported exchange.",400);
  if(roles.length<3||roles.length>7||new Set(roles).size!==roles.length||roles.some((r:string)=>!Object.hasOwn(SPECIALISTS,r)))return jsonError("Select 3–7 unique, supported specialist roles.",400);
  const model=String(process.env.OPENROUTER_MODEL||"openrouter/free").slice(0,160),started=Date.now();
+ send({type:"phase",phase:"market",message:"Fetching fresh closed candles and checking the higher timeframe."});
  let market:any;try{market=await fetchVerifiedMarket(symbol,interval,preferred);}catch(e){return jsonError(e instanceof Error?e.message:"Verified market data unavailable.",502,{readOnly:true,orderPlacement:false});}
  const patternStudy=findSimilarCases(market.candles,interval,{horizon:6,maxExamples:8,maxDistance:0.34}),higherTrend=trendSummary(market.higherCandles),last=market.candles[market.candles.length-1];
+ send({type:"phase",phase:"agents",symbol,interval,message:"Market snapshot verified. Dispatching selected independent specialists concurrently.",roles:roles.map((role:string)=>({role,name:SPECIALISTS[role].name,focus:SPECIALISTS[role].focus}))});
  const userContext={
   source:"server-fetched public exchange data",exchange:market.venue,host:market.host,symbol,interval,higherInterval:market.higherInterval,
   fetchedAt:market.fetchedAt,lastClosedCandleAgeSeconds:Math.max(0,Math.round(market.lastClosedCandleAgeMs/1000)),
@@ -144,6 +148,7 @@ export async function POST(request:Request) {
  const serialized=JSON.stringify(userContext);
  const results=await Promise.all(roles.map(async (role: string)=>{
   const agentStarted=Date.now();
+  send({type:"agent",role,status:"running",name:SPECIALISTS[role].name,focus:SPECIALISTS[role].focus});
   try {
    const response=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",cache:"no-store",signal:AbortSignal.timeout(16000),
     headers:{"Authorization":"Bearer "+process.env.OPENROUTER_API_KEY,"Content-Type":"application/json","HTTP-Referer":"https://tarotai-core.vercel.app","X-Title":"TarotAI Live Specialist Team"},
@@ -151,8 +156,10 @@ export async function POST(request:Request) {
    const text=await response.text();let data:any;try{data=JSON.parse(text);}catch{throw new Error("AI provider returned invalid JSON.");}
    if(!response.ok)throw new Error(String(data?.error?.message||data?.message||"AI provider HTTP "+response.status).slice(0,400));
    const report=data?.choices?.[0]?.message?.content;if(typeof report!=="string"||!report.trim())throw new Error("AI provider returned no specialist analysis.");
-   return {role,name:SPECIALISTS[role].name,ok:true,...parseBias(report),text:report.trim().slice(0,6000),elapsedMs:Date.now()-agentStarted,model};
-  }catch(e){return {role,name:SPECIALISTS[role].name,ok:false,bias:"WAIT",veto:role==="risk",text:"This specialist did not return a verified analysis: "+(e instanceof Error?e.message:"provider error"),elapsedMs:Date.now()-agentStarted,model};}
+   const result={role,name:SPECIALISTS[role].name,ok:true,...parseBias(report),text:report.trim().slice(0,6000),elapsedMs:Date.now()-agentStarted,model};
+   send({type:"agent",role,status:"complete",result});
+   return result;
+  }catch(e){const result={role,name:SPECIALISTS[role].name,ok:false,bias:"WAIT",veto:role==="risk",text:"This specialist did not return a verified analysis: "+(e instanceof Error?e.message:"provider error"),elapsedMs:Date.now()-agentStarted,model};send({type:"agent",role,status:"error",result});return result;}
  }));
  const ok=results.filter(r=>r.ok).length;
  if(!ok)return jsonError("No AI specialists returned a valid analysis. Check model/provider configuration and retry.",502,{results,model,elapsedMs:Date.now()-started});
@@ -162,4 +169,26 @@ export async function POST(request:Request) {
   historicalAnalogueStudy:userContext.historicalAnalogueStudy,results,completedAgents:ok,requestedAgents:results.length,
   safety:{readOnly:true,orderPlacement:false,paperTradingOnly:true}
  },{headers:{"Cache-Control":"no-store"}});
+}
+
+export async function POST(request:Request) {
+ if(!request.headers.get("accept")?.includes("text/event-stream"))return executeAnalysis(request);
+ const encoder=new TextEncoder();
+ const stream=new ReadableStream<Uint8Array>({
+  start(controller) {
+   const send=(event:Record<string,unknown>)=>{try{controller.enqueue(encoder.encode("data: "+JSON.stringify(event)+"\n\n"))}catch{}};
+   void (async()=>{
+    try {
+     const response=await executeAnalysis(request,send);
+     const data=await response.clone().json().catch(()=>({error:"Invalid response from trading agent endpoint."}));
+     send({type:response.ok?"complete":"failure",status:response.status,data});
+    } catch(error) {
+     send({type:"failure",status:500,data:{error:error instanceof Error?error.message:"Trading agent execution failed."}});
+    } finally {
+     try{controller.close()}catch{}
+    }
+   })();
+  }
+ });
+ return new Response(stream,{status:200,headers:{"Content-Type":"text/event-stream; charset=utf-8","Cache-Control":"no-cache, no-transform","Connection":"keep-alive","X-Accel-Buffering":"no"}});
 }
