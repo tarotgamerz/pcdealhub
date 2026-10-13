@@ -451,8 +451,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const count=Number(study.sampleCount)||0,bias=study.sideBias||"NEUTRAL";
     panel.className="live-agent-consensus "+(count>=5&&bias!=="NEUTRAL"?"good":"warn");
     title.textContent="Historical analogue study · "+count+" matched past examples";
-    const avg=Number.isFinite(Number(study.averageReturnPct))?Number(study.averageReturnPct):Number(study.meanForwardReturnPct);
-    const positive=Number.isFinite(Number(study.positiveSharePct))?Number(study.positiveSharePct):null;
+    const avgRaw=study.averageReturnPct??study.meanForwardReturnPct,avg=avgRaw===null||avgRaw===undefined?NaN:Number(avgRaw);
+    const positive=study.positiveSharePct===null||study.positiveSharePct===undefined?null:(Number.isFinite(Number(study.positiveSharePct))?Number(study.positiveSharePct):null);
     summary.textContent=(study.current?.pattern||study.currentPattern||"Current pattern")+": "+bias+" historical bias · "+(positive===null?"no stable positive-share estimate":positive.toFixed(0)+"% of the closest cases rose over the next six candles")+" · "+(Number.isFinite(avg)?"mean observed forward return "+(avg>=0?"+":"")+avg.toFixed(3)+"%":"mean return unavailable")+". This is descriptive history, not a calibrated win probability.";
     (study.examples||study.nearestExamples||[]).forEach(example=>{
       const card=document.createElement("article");card.className="live-agent-result";
@@ -492,7 +492,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     try{
       const localStudy=window.TarotAIMarketPatterns?.findSimilarCases(closed,currentInterval,{horizon:6,maxExamples:8,maxDistance:0.34});
       if(localStudy)renderHistoricalStudy(localStudy);
-      const response=await fetch("/api/trading/agents",{method:"POST",cache:"no-store",headers:{"Content-Type":"application/json"},signal:AbortSignal.timeout(28000),
+      const response=await fetch("/api/trading/agents",{method:"POST",cache:"no-store",headers:{"Content-Type":"application/json"},signal:AbortSignal.timeout(40000),
         body:JSON.stringify({symbol:currentSymbol,interval:currentInterval,venue:marketVenue,roles:selections})});
       const data=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(data.error||"AI specialist endpoint returned HTTP "+response.status);
