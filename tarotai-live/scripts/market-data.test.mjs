@@ -354,7 +354,7 @@ test("live chart offers eight trade-lifecycle agents including a supervisor", ()
   }
   assert.match(futuresDesk, /id="liveAgentRole8"/);
   assert.match(futuresDesk, /fetch\("\/api\/trading\/agents"/);
-  assert.match(parallelAgentsRoute, /Promise\.all\(roles\.map\(async \(role: string\)=>/);
+  assert.match(parallelAgentsRoute, /Promise\.all\(roles\.filter\(\(role:string\)=>role!=="supervisor"\)\.map\(async \(role: string\)=>/);
   assert.match(futuresDesk, /new Set\(selections\)\.size!==selections\.length/);
   assert.match(futuresDesk, /Date\.now\(\)-end>msFor\(currentInterval\)\*2\+60000/);
   assert.match(futuresDesk, /Team consensus: WAIT/);
