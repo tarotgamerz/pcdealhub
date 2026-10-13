@@ -524,6 +524,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const response=await fetch("/api/trading/agents",{method:"POST",cache:"no-store",credentials:"same-origin",headers:{"Content-Type":"application/json"},signal:AbortSignal.timeout(40000),
         body:JSON.stringify({symbol:currentSymbol,interval:currentInterval,venue:marketVenue,roles:selections})});
       const data=await response.json().catch(()=>({}));
+      if(Array.isArray(data.results))renderLiveAgentResults(data.results);
+      if(data.historicalAnalogueStudy)renderHistoricalStudy(data.historicalAnalogueStudy);
       if(!response.ok)throw new Error(data.error||"AI specialist endpoint returned HTTP "+response.status);
       renderHistoricalStudy(data.historicalAnalogueStudy);
       renderLiveAgentResults(data.results||[]);
