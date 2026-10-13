@@ -353,7 +353,8 @@ test("live chart offers seven configurable specialist agents that analyze a shar
     assert.ok(futuresDesk.includes('value="'+role+'"'), "missing specialist role "+role);
   }
   assert.match(futuresDesk, /id="liveAgentRole7"/);
-  assert.match(futuresDesk, /Promise\.all\(selections\.map\(role=>Promise\.resolve\(\)\.then\(\(\)=>evaluateLiveSpecialist\(role,ctx\)\)\)\)/);
+  assert.match(futuresDesk, /fetch\("\/api\/trading\/agents"/);
+  assert.match(parallelAgentsRoute, /Promise\.all\(roles\.map\(async role=>/);
   assert.match(futuresDesk, /new Set\(selections\)\.size!==selections\.length/);
   assert.match(futuresDesk, /Date\.now\(\)-end>msFor\(currentInterval\)\*2\+60000/);
   assert.match(futuresDesk, /Team consensus: WAIT/);
