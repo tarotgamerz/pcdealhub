@@ -409,3 +409,35 @@ test("Trading Desk requests real parallel AI outputs and gates agreement on risk
   assert.match(futuresDesk,/Each selected specialist is a separate AI model call/);
   assert.match(historicalPatternSource,/root\.TarotAIMarketPatterns = \{ findSimilarCases \}/);
 });
+
+
+test("public market data API supports bounded, ordered historical candle pagination for all supported exchanges", () => {
+  assert.match(source, /const beforeRaw=q\.get\("before"\)/);
+  assert.match(source, /searchParams\.set\("endTime"/);
+  assert.match(source, /searchParams\.set\("end"/);
+  assert.match(source, /market\/history-candles/);
+  assert.match(source, /searchParams\.set\("after"/);
+  assert.match(source, /c\.time<before/);
+  assert.match(source, /stale:historyPage\?false:stale/);
+  assert.match(source, /historyPage/);
+});
+
+test("live chart retains historical candles, loads older pages on left-scroll, and preserves the viewed time range", () => {
+  assert.match(futuresDesk, /id="liveLoadOlder"/);
+  assert.match(futuresDesk, /subscribeVisibleLogicalRangeChange/);
+  assert.match(futuresDesk, /async function loadOlderHistory\(\)/);
+  assert.match(futuresDesk, /setVisibleLogicalRange\(\{from:rangeBefore\.from\+added,to:rangeBefore\.to\+added\}\)/);
+  assert.match(futuresDesk, /slice\(-5000\)/);
+  assert.match(futuresDesk, /orderedCandles\(\[\.\.\.rows,\.\.\.data\.candles\]\)/);
+  assert.match(futuresDesk, /if\(stickAtRealtime\)chart\.timeScale\(\)\.scrollToRealTime\(\)/);
+});
+
+test("multi-agent panel recovers missing or expired signed sessions without bypassing API authentication", () => {
+  assert.match(futuresDesk, /id="liveAgentAuthGate" hidden/);
+  assert.match(futuresDesk, /async function ensurePrivateSession\(\)/);
+  assert.match(futuresDesk, /fetch\("\/api\/auth",\{cache:"no-store",credentials:"same-origin"/);
+  assert.match(futuresDesk, /async function unlockAgentSession\(\)/);
+  assert.match(futuresDesk, /fetch\("\/api\/trading\/agents",\{method:"POST",cache:"no-store",credentials:"same-origin"/);
+  assert.match(parallelAgentsRoute, /if\(!isAuthorized\(request\)\)return jsonError\("Authentication required\.",401\)/);
+  assert.match(authRoute, /response\.cookies\.set\(COOKIE/);
+});
