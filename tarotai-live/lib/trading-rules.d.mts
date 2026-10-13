@@ -1,7 +1,7 @@
 export type OrderSide = "BUY" | "SELL";
 export type PositionSide = "LONG" | "SHORT";
 
-export function applySlippage(side: OrderSide, price: number, bps: number): number;
+export function applySlippage(side: string, price: number, bps: number): number;
 export function calculateFee(fillPrice: number, quantity: number, feeBps: number): number;
 export function isStale(timestamp: number, now?: number, maxAgeMs?: number): boolean;
 export function validateStops(side: PositionSide, entry: number, stop: number, target: number): boolean;
@@ -10,10 +10,10 @@ export function resolveStopTarget(
   side: PositionSide,
   stop: number,
   target: number
-): { exit: "STOP" | "TARGET" | null; price: number | null; ambiguous: boolean };
+): { exit: "STOP" | "TARGET"; price: number; ambiguous: boolean } | { exit: null; price: null; ambiguous: false };
 export function validateOrderRequest(input: {
   symbol: string;
-  side: OrderSide;
+  side: string;
   type: string;
   quantity: number;
   price?: number;
