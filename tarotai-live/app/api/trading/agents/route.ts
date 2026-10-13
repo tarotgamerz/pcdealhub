@@ -130,7 +130,7 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
  const patternStudy=findSimilarCases(market.candles,interval,{horizon:6,maxExamples:8,maxDistance:0.34}),higherTrend=trendSummary(market.higherCandles),last=market.candles[market.candles.length-1];
  send({type:"phase",phase:"agents",symbol,interval,message:"Market snapshot verified. Dispatching selected independent specialists concurrently.",roles:roles.map((role:string)=>({role,name:SPECIALISTS[role].name,focus:SPECIALISTS[role].focus}))});
  const userContext={
-  source:"server-fetched public exchange data",exchange:market.venue,host:market.host,symbol,interval,higherInterval:market.higherInterval,
+  source:"server-fetched public exchange data",availableFeeds:{closedOHLCV:true,higherTimeframeCandles:true,historicalAnalogues:true,liveMacroRates:false,centralBankCalendar:false,geopoliticalFeed:false,newsAndSocialSentiment:false,satelliteOrShippingData:false,level2OrderBook:false,tradeLevelVPIN:false,darkPoolData:false,optionsImpliedVolatilitySurface:false,liveSpreadAndVenueDepth:false},committeeGuardrails:{riskOnProxyMaxGrossExposurePct:25,neutralMaxGrossExposurePct:10,riskOffProxyMaxGrossExposurePct:5,description:"Fixed conservative paper-research caps; not optimized or a personalized allocation recommendation."},exchange:market.venue,host:market.host,symbol,interval,higherInterval:market.higherInterval,
   fetchedAt:market.fetchedAt,lastClosedCandleAgeSeconds:Math.max(0,Math.round(market.lastClosedCandleAgeMs/1000)),
   lastClosedCandle:{time:new Date(last.time).toISOString(),open:last.open,high:last.high,low:last.low,close:last.close,volume:last.volume},
   higherTimeframeSummary:higherTrend,
