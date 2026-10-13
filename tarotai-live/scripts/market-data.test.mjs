@@ -403,6 +403,9 @@ test("parallel specialist API performs distinct authenticated AI calls with inde
   assert.match(parallelAgentsRoute,/Institutional Execution & Routing Agent/);
   assert.match(parallelAgentsRoute,/level2OrderBook:false/);
   assert.match(parallelAgentsRoute,/optionsImpliedVolatilitySurface:false/);
+  assert.match(parallelAgentsRoute,/riskOnProxyMaxGrossExposurePct:25/);
+  assert.match(parallelAgentsRoute,/neutralMaxGrossExposurePct:10/);
+  assert.match(parallelAgentsRoute,/riskOffProxyMaxGrossExposurePct:5/);
    assert.match(parallelAgentsRoute,/AbortSignal\.timeout\(23000\)/);
    assert.match(parallelAgentsRoute,/qwen\/qwen3-next-80b-a3b-instruct:free/);
    assert.match(parallelAgentsRoute,/meta-llama\/llama-3\.3-8b-instruct:free/);
