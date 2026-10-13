@@ -188,7 +188,7 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
   const monitorText=monitorData?.choices?.[0]?.message?.content;
   if(typeof monitorText!=="string"||!monitorText.trim())throw new Error("Supervisor returned no report.");
   const monitorBias=parseBias(monitorText);
-  const supervisorResult={role:"supervisor",name:SPECIALISTS.supervisor.name,ok:true,bias:"WAIT",veto:monitorBias.vetoDeclared?monitorBias.veto:results.some(r=>!r.ok),text:monitorText.trim().slice(0,6000),elapsedMs:Date.now()-monitorStarted,model:typeof monitorData?.model==="string"?monitorData.model:monitorModel};
+  const supervisorResult={role:"supervisor",name:SPECIALISTS.supervisor.name,ok:true,bias:"WAIT",veto:results.some(r=>!r.ok)||(monitorBias.vetoDeclared&&monitorBias.veto),text:monitorText.trim().slice(0,6000),elapsedMs:Date.now()-monitorStarted,model:typeof monitorData?.model==="string"?monitorData.model:monitorModel};
   results.push(supervisorResult);send({type:"agent",role:"supervisor",status:"complete",result:supervisorResult});
  } catch(e) {
   const supervisorResult={role:"supervisor",name:SPECIALISTS.supervisor.name,ok:false,bias:"WAIT",veto:true,text:"Supervisor could not verify agent health: "+(e instanceof Error?e.message:"provider error"),elapsedMs:Date.now()-monitorStarted,model:"openrouter/free"};
