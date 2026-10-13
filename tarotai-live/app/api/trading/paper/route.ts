@@ -21,7 +21,7 @@ export async function POST(req:Request){
   if(action==="REPLAY"){
    const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),interval=String(b.interval||"1m"),limit=Math.min(500,Math.max(20,Math.floor(Number(b.limit)||100)));
    if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["1m","3m","5m","15m","30m","1h","2h","4h","1d"].includes(interval))return NextResponse.json({error:"Invalid symbol or interval"},{status:400});
-   const u=new URL("https://demo-fapi.binance.com/fapi/v1/klines");u.searchParams.set("symbol",symbol);u.searchParams.set("interval",interval);u.searchParams.set("limit",String(limit));
+   const u=new URL("https://fapi.binance.com/fapi/v1/klines");u.searchParams.set("symbol",symbol);u.searchParams.set("interval",interval);u.searchParams.set("limit",String(limit));
    const r=await fetch(u,{cache:"no-store",signal:AbortSignal.timeout(8000)}),raw=await r.json();
    if(!r.ok||!Array.isArray(raw)||!raw.length)return NextResponse.json({error:"Market replay request failed",detail:raw?.msg||"No candles"},{status:502});
    const candles=raw.map((k:any[])=>({time:+k[0],open:+k[1],high:+k[2],low:+k[3],close:+k[4],volume:+k[5],closeTime:+k[6]}));
@@ -36,7 +36,7 @@ export async function POST(req:Request){
    let url:URL,raw:any, candle:any, candleTime=0;
    try{
     if(venue==="binance"){
-     url=new URL("https://demo-fapi.binance.com/fapi/v1/klines");url.searchParams.set("symbol",symbol);url.searchParams.set("interval","1m");url.searchParams.set("limit","1");
+     url=new URL("https://fapi.binance.com/fapi/v1/klines");url.searchParams.set("symbol",symbol);url.searchParams.set("interval","1m");url.searchParams.set("limit","1");
      const response=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(6000)});raw=await response.json();if(!response.ok||!Array.isArray(raw)||!raw[0])throw new Error("exchange response invalid");
      const k=raw[raw.length-1];candle={open:Number(k[1]),high:Number(k[2]),low:Number(k[3]),close:Number(k[4])};candleTime=Number(k[0]);
     }else if(venue==="bybit"){
@@ -71,12 +71,13 @@ export async function POST(req:Request){
   if(isStale(marketTime))return NextResponse.json({error:"Stale or missing market timestamp; refresh market data before paper trading"},{status:409});
   let verifiedMarketPrice:number;
   try{
-   const marketUrl=new URL("https://demo-fapi.binance.com/fapi/v1/klines");marketUrl.searchParams.set("symbol",symbol);marketUrl.searchParams.set("interval","1m");marketUrl.searchParams.set("limit","2");
+   const marketUrl=new URL("https://fapi.binance.com/fapi/v1/klines");marketUrl.searchParams.set("symbol",symbol);marketUrl.searchParams.set("interval","1m");marketUrl.searchParams.set("limit","2");
    const marketResponse=await fetch(marketUrl,{cache:"no-store",signal:AbortSignal.timeout(6000)}),marketRows=await marketResponse.json();
    if(!marketResponse.ok||!Array.isArray(marketRows)||!marketRows.length)return NextResponse.json({error:"Fresh demo market price could not be verified; paper entry blocked"},{status:502});
    const latest=marketRows[marketRows.length-1],closeTime=Number(latest[6]);verifiedMarketPrice=Number(latest[4]);
    if(!Number.isFinite(closeTime)||!Number.isFinite(verifiedMarketPrice)||verifiedMarketPrice<=0||Date.now()-closeTime>120000||closeTime>Date.now()+60000)return NextResponse.json({error:"Server-side market data is stale or malformed; paper entry blocked"},{status:409});
   }catch{return NextResponse.json({error:"Market freshness verification failed; paper entry blocked"},{status:502});}
+  if(action==="OPEN"&&Math.abs(price-verifiedMarketPrice)/verifiedMarketPrice>0.01)return NextResponse.json({error:"Entry price moved more than 1% from the server-verified live price; re-analyze the chart before paper entry",requestedPrice:price,verifiedMarketPrice},{status:409});
   let parentTrade:any=null;
   if(action==="CLOSE"){
    const parentTradeId=String(b.parentTradeId||"");
@@ -90,7 +91,7 @@ export async function POST(req:Request){
   if(action==="OPEN"&&(stopPrice===null||targetPrice===null||!Number.isFinite(stopPrice)||!Number.isFinite(targetPrice)||!validateStops(side==="BUY"?"LONG":"SHORT",price,stopPrice,targetPrice)))return NextResponse.json({error:"Opening paper trade requires valid stop and target geometry"},{status:400});
   const fill=applySlippage(side,price,slipBps),fee=calculateFee(fill,qty,feeBps);
   const grossPnl=parentTrade?(parentTrade.side==="BUY"?(fill-Number(parentTrade.fillPrice))*qty:(Number(parentTrade.fillPrice)-fill)*qty):null;
-  const trade={id:crypto.randomUUID(),parentTradeId:parentTrade?.id||null,createdAt:new Date().toISOString(),symbol,side,quantity:qty,requestedPrice:price,verifiedMarketPrice,marketDataCheckedAt:new Date().toISOString(),marketSource:"Binance Futures demo 1m candles",fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),pnlGross:grossPnl===null?null:Number(grossPnl.toFixed(8)),pnlNet:grossPnl===null?null:Number((grossPnl-fee-Number(parentTrade.fee||0)).toFixed(8)),feeBps,slippageBps:slipBps,stopPrice,targetPrice,status:"PAPER_"+action,mode:"PAPER_ONLY"};
+  const trade={id:crypto.randomUUID(),parentTradeId:parentTrade?.id||null,createdAt:new Date().toISOString(),symbol,side,quantity:qty,requestedPrice:price,verifiedMarketPrice,marketDataCheckedAt:new Date().toISOString(),marketSource:"Binance USDⓈ-M Futures public 1m candles",fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),pnlGross:grossPnl===null?null:Number(grossPnl.toFixed(8)),pnlNet:grossPnl===null?null:Number((grossPnl-fee-Number(parentTrade.fee||0)).toFixed(8)),feeBps,slippageBps:slipBps,stopPrice,targetPrice,status:"PAPER_"+action,mode:"PAPER_ONLY"};
   if([trade.stopPrice,trade.targetPrice].some((x:any)=>x!==null&&(!Number.isFinite(x)||x<=0)))return NextResponse.json({error:"Stop/target must be positive numbers"},{status:400});
   await d.lpush("tarotai:paper:ledger",JSON.stringify(trade));await d.ltrim("tarotai:paper:ledger",0,999);
   return NextResponse.json({accepted:true,trade,liveTradingEnabled:false,note:"Ledger-only simulation; no exchange order sent"},{status:201});
