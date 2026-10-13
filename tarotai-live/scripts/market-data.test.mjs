@@ -394,6 +394,8 @@ test("parallel specialist API performs distinct authenticated AI calls with inde
   assert.match(parallelAgentsRoute,/findSimilarCases\(market\.candles,interval/);
   assert.match(parallelAgentsRoute,/historicalAnalogueStudy/);
   assert.match(parallelAgentsRoute,/roles\.length!==7/);
+  assert.match(parallelAgentsRoute,/vetoDeclared:!!v/);
+  assert.match(parallelAgentsRoute,/role==="risk"&&!vetoDeclared\?true:parsedVote\.veto/);
   assert.match(parallelAgentsRoute,/Macro-Econometrician/);
   assert.match(parallelAgentsRoute,/Quantitative Alpha Strategist/);
   assert.match(parallelAgentsRoute,/Alternative Data & Sentiment Miner/);
