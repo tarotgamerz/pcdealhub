@@ -224,7 +224,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   if(required.some(id=>!byId(id)))return;
   const intervalMs={"1m":60000,"3m":180000,"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"2h":7200000,"4h":14400000,"1d":86400000};
   const higherMap={"1m":"15m","5m":"1h","15m":"4h","1h":"1d","4h":"1d"};
-  let chart=null,candleSeries=null,ema9Series=null,ema21Series=null,ema50Series=null;
+  let chart=null,candleSeries=null,ema9Series=null,ema21Series=null,ema50Series=null,socketReconnectTimer=null;
   let rows=[],marketVenue="binance",feedSocket=null,pollTimer=null,resizeObserver=null;
   let currentSymbol="",currentInterval="",higherCache=[],higherCacheKey="",higherCacheAt=0,priceLines=[],busy=false,firstRender=true,lastWsCandleTime=0;
   const fmt=(n)=>Number.isFinite(n)?n.toLocaleString("en-US",{maximumFractionDigits:n>=1000?2:n>=1?4:7}):"—";
@@ -256,7 +256,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   function paintChecks(checks,htfDetail){const box=byId("liveCheckList");box.replaceChildren();for(const c of checks)box.append(checkRow(c.title,c.pass,c.detail,c.neutral));if(htfDetail)box.append(checkRow("Higher-timeframe trend",htfDetail.pass,htfDetail.detail,htfDetail.neutral));}
   function setDecision(action,detail,entry,stop,target,rr,marker){
     const el=byId("liveDecision");el.textContent=action;el.className="";el.classList.add(action.indexOf("BUY")===0?"live-action-buy":action.indexOf("SELL")===0?"live-action-sell":"live-action-hold");
-    byId("liveOverlayDecision").textContent=action;byId("liveOverlayMeta").textContent=detail;
+    byId("liveOverlayDecision").textContent=action;byId("liveOverlayMeta").textContent=detail.length>108?detail.slice(0,105)+"…":detail;
     byId("liveEntry").textContent=Number.isFinite(entry)?fmt(entry):"—";
     byId("liveStop").textContent=Number.isFinite(stop)?fmt(stop):"—";
     byId("liveTarget").textContent=Number.isFinite(target)?fmt(target):"—";
@@ -385,7 +385,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     try{
       const url="wss://fstream.binance.com/ws/"+currentSymbol.toLowerCase()+"@kline_"+currentInterval;
       feedSocket=new WebSocket(url);
-      feedSocket.onopen=()=>{setFeed("BINANCE FUTURES · LIVE STREAM","good");};
+      feedSocket.onopen=()=>{if(socketReconnectTimer)clearTimeout(socketReconnectTimer);setFeed("BINANCE FUTURES · LIVE STREAM","good");};
       feedSocket.onmessage=event=>{
         let msg;try{msg=JSON.parse(event.data);}catch(e){return;}
         const k=msg&&msg.k;if(!k||!Number.isFinite(Number(k.t)))return;
@@ -398,7 +398,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
         if(k.x&&Number(k.T)!==lastWsCandleTime){lastWsCandleTime=Number(k.T);refresh(false);}
       };
       feedSocket.onerror=()=>setFeed("WEBSOCKET UNAVAILABLE · POLLING","neutral");
-      feedSocket.onclose=()=>{if(currentSymbol&&currentInterval)setFeed("REST REFRESH · RECONNECTING","neutral");};
+      feedSocket.onclose=()=>{if(currentSymbol&&currentInterval){setFeed("REST REFRESH · RECONNECTING","neutral");if(socketReconnectTimer)clearTimeout(socketReconnectTimer);socketReconnectTimer=setTimeout(()=>{if(currentSymbol&&currentInterval&&(!feedSocket||feedSocket.readyState===WebSocket.CLOSED))connectSocket();},5000);}};
     }catch(e){setFeed("REST REFRESH MODE","neutral");}
   }
   async function reloadAll(force){await refresh(true);connectSocket();}
