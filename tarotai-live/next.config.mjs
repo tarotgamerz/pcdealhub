@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ["office-text-extractor", "@composio/core"],
+  serverExternalPackages: ["office-text-extractor", "pdf-parse", "@napi-rs/canvas", "@composio/core"],
   async headers() {
     return [
       {
