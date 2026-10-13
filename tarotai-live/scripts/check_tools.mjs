@@ -43,10 +43,10 @@ const forbidden = [
 ];
 
 const authRequired = [
-  'authenticated: session',
-  'if (!required)',
+  'authenticated:isAuthorized(req)',
+  'if(!expected)return NextResponse.json',
   'TAROTAI_ACCESS_CODE',
-  'accessCodeConfigured: Boolean(process.env.TAROTAI_ACCESS_CODE)'
+  'accessCodeConfigured:Boolean(secret())'
 ];
 const healthRequired = [
   'hasOpenRouterKey: Boolean(process.env.OPENROUTER_API_KEY)',
@@ -59,7 +59,7 @@ const missingAuth = authRequired.filter((needle) => !auth.includes(needle));
 const documentRequired = [
   'export async function POST',
   'request.formData()',
-  'MAX_BYTES = 12 * 1024 * 1024',
+  'const MAX_BYTES = 4 * 1024 * 1024',
   'getTextExtractor',
   'Authentication required'
 ];
