@@ -455,13 +455,15 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     try{
       let d=await paperRequest("/api/trading/paper"),ledger=Array.isArray(d.ledger)?d.ledger:[];
       if(checkStops){
-        const symbols=[...new Set(paperOpened(ledger).map(t=>t.symbol).filter(Boolean))];
-        for(const symbol of symbols){try{await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"STOP_CHECK",symbol,venue:"binance"})});}catch(e){paperStatus("Stop check failed for "+symbol+": "+e.message,true);}}
+        const symbols=[...new Set(paperOpened(ledger).map(t=>t.symbol).filter(Boolean))],warnings=[];
+        for(const symbol of symbols){try{const result=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"STOP_CHECK",symbol,venue:"binance"})});if(result.historyGaps?.length)warnings.push(symbol+": "+result.historyGaps.length+" position(s) predate available candle history");}catch(e){warnings.push(symbol+": stop check failed ("+e.message+")");}}
         if(symbols.length){d=await paperRequest("/api/trading/paper");ledger=Array.isArray(d.ledger)?d.ledger:[];}
+        window.tarotaiPaperWarnings=warnings;
       }
       paperRender(ledger);
-      if(!paperOpened(ledger).length)paperStatus("Paper ledger connected · persistent storage · no real orders. "+ledger.length+" records loaded.");
-      else paperStatus("Paper ledger connected. Open positions are being checked against live 1-minute candles; stop-first handling applies if stop and target occur in the same candle.");
+      if(window.tarotaiPaperWarnings?.length)paperStatus("WARNING: "+window.tarotaiPaperWarnings.join("; ")+". Verify or manually close these positions; old stops cannot be reconstructed from the available candle window.",true);
+      else if(!paperOpened(ledger).length)paperStatus("Paper ledger connected · persistent storage · no real orders. "+ledger.length+" records loaded.");
+      else paperStatus("Paper ledger connected. Open positions are checked against historical closed 1-minute candles; stop-first handling applies if stop and target occur inside the same candle.");
     }catch(e){
       ["livePaperOpenCount","livePaperClosedCount","livePaperNetPnl","livePaperWinRate"].forEach(id=>byId(id).textContent="—");
       byId("livePaperPositions").textContent="Ledger unavailable. Unlock private APIs and configure Upstash Redis. No paper trade was created.";
