@@ -16,7 +16,7 @@ export async function GET(req:Request){
  }
  const venue=(q.get("venue")||"binance").toLowerCase(),symbol=(q.get("symbol")||"BTCUSDT").toUpperCase(),interval=q.get("interval")||"1m",limit=Math.min(500,Math.max(20,Math.floor(Number(q.get("limit")||100))));
  const beforeRaw=q.get("before"),before=beforeRaw===null?null:Number(beforeRaw);
- if(beforeRaw!==null&&(!Number.isFinite(before)||before<=0))return NextResponse.json({error:"Invalid historical candle cursor"},{status:400});
+ if(beforeRaw!==null&&(before===null||!Number.isFinite(before)||before<=0))return NextResponse.json({error:"Invalid historical candle cursor"},{status:400});
  const historyPage=before!==null;
  if(!intervals[venue]||!intervals[venue][interval]||!/^[A-Z0-9]{4,20}$/.test(symbol))return NextResponse.json({error:"Unsupported venue, symbol format or interval"},{status:400});
  let url:URL,normalize:(x:any)=>any;
