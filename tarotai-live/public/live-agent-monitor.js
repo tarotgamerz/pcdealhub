@@ -84,7 +84,7 @@
     } else if (state.phase === "dispatch") {
       summary.textContent = c.running + " of " + c.total + " specialists currently running · " + c.complete + " complete · " + c.failed + " failed.";
     } else if (state.phase === "complete") {
-      summary.textContent = c.complete + "/" + c.total + " specialist reports completed · " + c.failed + " failed · " + c.blocked + " not started.";
+      summary.textContent = c.complete + "/" + c.total + " specialist reports completed · " + c.failed + " failed · " + c.blocked + " not started." + (state.lastSummary && state.lastSummary !== "Team request finished." ? " " + state.lastSummary : "");
     } else if (state.phase === "blocked") {
       summary.textContent = state.lastSummary + " No agent execution was confirmed.";
     } else {
@@ -173,8 +173,8 @@
         prev.errorText = result.ok === false ? (result.text || "Specialist request failed.") : "";
         state.agents.set(result.role, prev);
       }
-      if (event.type === "failure") {
-        const why = String(data.error || "The server could not start or complete this run.");
+      if (event.type === "failure" && results.length === 0) {
+        const why = String(data.error || "The server could not start this run.");
         for (const agent of state.agents.values()) {
           if (agent.status === "queued") {
             agent.status = "blocked";
@@ -186,6 +186,19 @@
         }
         state.phase = "blocked";
         state.lastSummary = why;
+      } else if (event.type === "failure") {
+        const why = String(data.error || "The specialist providers did not return a usable report.");
+        for (const agent of state.agents.values()) {
+          if (agent.status === "queued") {
+            agent.status = "blocked";
+            agent.errorText = why;
+          } else if (agent.status === "running") {
+            agent.status = "error";
+            agent.errorText = why;
+          }
+        }
+        state.phase = "complete";
+        state.lastSummary = "Agents ran, but this team run failed: " + why;
       } else {
         for (const agent of state.agents.values()) {
           if (agent.status === "queued") {
