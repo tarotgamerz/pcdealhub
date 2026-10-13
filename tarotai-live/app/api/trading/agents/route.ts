@@ -153,9 +153,9 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
    const response=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",cache:"no-store",signal:AbortSignal.timeout(16000),
     headers:{"Authorization":"Bearer "+process.env.OPENROUTER_API_KEY,"Content-Type":"application/json","HTTP-Referer":"https://tarotai-core.vercel.app","X-Title":"TarotAI Live Specialist Team"},
     body:JSON.stringify({model,messages:[{role:"system",content:specialistSystem(role)},{role:"user",content:"Independently analyze this verified live chart snapshot and historical analogue evidence. Return the exact labeled format requested. Do not assume entry is valid because other specialists may agree.\n\n"+serialized}],temperature:0.15,max_tokens:650})});
-   const text=await response.text();let data:any;try{data=JSON.parse(text);}catch{throw new Error("AI provider returned invalid JSON.");}
-   if(!response.ok)throw new Error(String(data?.error?.message||data?.message||"AI provider HTTP "+response.status).slice(0,400));
-   const report=data?.choices?.[0]?.message?.content;if(typeof report!=="string"||!report.trim())throw new Error("AI provider returned no specialist analysis.");
+   const text=await response.text();let data:any;try{data=JSON.parse(text);}catch{throw new Error("OpenRouter HTTP "+response.status+" returned a non-JSON response.");}
+   if(!response.ok||data?.error){const providerError=data?.error||{};const status=Number(response.status)||Number(providerError.code)||0;const code=typeof providerError.code==="string"?providerError.code:"";const kind=typeof data?.error_type==="string"?data.error_type:"";const message=String(providerError.message||data?.message||"Provider returned an unspecified error").replace(/sk-or-v1-[A-Za-z0-9_-]+/g,"[redacted key]").slice(0,280);throw new Error("OpenRouter HTTP "+status+(code?" · "+code:"")+(kind?" · "+kind:"")+": "+message);}
+   const report=data?.choices?.[0]?.message?.content;if(typeof report!=="string"||!report.trim()){const reason=data?.choices?.[0]?.finish_reason;throw new Error("OpenRouter returned no specialist text"+(reason?" (finish_reason: "+String(reason)+")":"")+". Check model compatibility and provider availability.");}
    const result={role,name:SPECIALISTS[role].name,ok:true,...parseBias(report),text:report.trim().slice(0,6000),elapsedMs:Date.now()-agentStarted,model};
    send({type:"agent",role,status:"complete",result});
    return result;
