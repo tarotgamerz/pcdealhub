@@ -87,6 +87,11 @@ export async function POST(req:Request){
    if(!Number.isFinite(closeTime)||!Number.isFinite(verifiedMarketPrice)||verifiedMarketPrice<=0||Date.now()-closeTime>120000||closeTime>Date.now()+60000)return NextResponse.json({error:"Server-side market data is stale or malformed; paper entry blocked"},{status:409});
   }catch{return NextResponse.json({error:"Market freshness verification failed; paper entry blocked"},{status:502});}
   if(action==="OPEN"&&Math.abs(price-verifiedMarketPrice)/verifiedMarketPrice>0.01)return NextResponse.json({error:"Entry price moved more than 1% from the server-verified live price; re-analyze the chart before paper entry",requestedPrice:price,verifiedMarketPrice},{status:409});
+  if(action==="OPEN"){
+   const existingRows=(await d.lrange("tarotai:paper:ledger",0,999)).map((x:any)=>typeof x==="string"?JSON.parse(x):x);
+   const closedIds=new Set(existingRows.filter((x:any)=>x.parentTradeId&&["PAPER_CLOSE","PAPER_STOP","PAPER_TARGET"].includes(x.status)).map((x:any)=>x.parentTradeId));
+   if(existingRows.some((x:any)=>x.status==="PAPER_OPEN"&&x.symbol===symbol&&!closedIds.has(x.id)))return NextResponse.json({error:"A paper position for this symbol is already open; close it before opening another"},{status:409});
+  }
   let parentTrade:any=null;
   if(action==="CLOSE"){
    const parentTradeId=String(b.parentTradeId||"");
