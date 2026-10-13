@@ -200,11 +200,12 @@
           }
         }
         state.phase = "complete";
-        const failedDetails = results.filter(result => result && result.ok === false)
-          .map(result => (result.name || result.role || "Specialist") + ": " + String(result.text || "No provider error details returned.").replace(/\\s+/g, " ").slice(0, 240))
-          .slice(0, 2);
+        const failedResults = results.filter(result => result && result.ok === false);
+        const failedDetails = failedResults
+          .slice(0, 2)
+          .map(result => (result.name || result.role || "Agent") + ": " + String(result.text || "No provider error details returned.").replace(/\\s+/g, " ").slice(0, 240));
         const modelUsed = typeof data.model === "string" ? data.model : "model not reported";
-        state.lastSummary = results.filter(result => result && result.ok !== false).length + "/" + results.length + " agent reports completed; " + failedDetails.length + " failures shown using " + modelUsed + ". " +
+        state.lastSummary = results.filter(result => result && result.ok !== false).length + "/" + results.length + " agent reports completed; " + failedResults.length + " failed using " + modelUsed + ". " +
           (failedDetails.length ? failedDetails.join(" | ") : why);
       } else {
         for (const agent of state.agents.values()) {
