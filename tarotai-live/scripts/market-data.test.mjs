@@ -349,7 +349,7 @@ test("backtest can collect a bounded multi-page OKX candle sample", () => {
 test("live chart offers seven configurable specialist agents that analyze a shared fresh snapshot in parallel", () => {
   assert.match(futuresDesk, /id="toggleLiveAgentTeam"/);
   assert.match(futuresDesk, /id="liveAgentPanel" hidden/);
-  for (const role of ["trend","structure","momentum","volatility","volume","timeframe","risk"]) {
+  for (const role of ["macro","alpha","sentiment","microstructure","volatility","risk","execution"]) {
     assert.ok(futuresDesk.includes('value="'+role+'"'), "missing specialist role "+role);
   }
   assert.match(futuresDesk, /id="liveAgentRole7"/);
@@ -393,6 +393,16 @@ test("parallel specialist API performs distinct authenticated AI calls with inde
   assert.match(parallelAgentsRoute,/fetchVerifiedMarket\(symbol,interval,preferred\)/);
   assert.match(parallelAgentsRoute,/findSimilarCases\(market\.candles,interval/);
   assert.match(parallelAgentsRoute,/historicalAnalogueStudy/);
+  assert.match(parallelAgentsRoute,/roles\.length!==7/);
+  assert.match(parallelAgentsRoute,/Macro-Econometrician/);
+  assert.match(parallelAgentsRoute,/Quantitative Alpha Strategist/);
+  assert.match(parallelAgentsRoute,/Alternative Data & Sentiment Miner/);
+  assert.match(parallelAgentsRoute,/Microstructure & Order Book Analyst/);
+  assert.match(parallelAgentsRoute,/Volatility & Options Structurer/);
+  assert.match(parallelAgentsRoute,/Adversarial Risk & Portfolio Optimizer/);
+  assert.match(parallelAgentsRoute,/Institutional Execution & Routing Agent/);
+  assert.match(parallelAgentsRoute,/level2OrderBook:false/);
+  assert.match(parallelAgentsRoute,/optionsImpliedVolatilitySurface:false/);
    assert.match(parallelAgentsRoute,/AbortSignal\.timeout\(23000\)/);
    assert.match(parallelAgentsRoute,/qwen\/qwen3-next-80b-a3b-instruct:free/);
    assert.match(parallelAgentsRoute,/meta-llama\/llama-3\.3-8b-instruct:free/);
