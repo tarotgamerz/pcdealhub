@@ -400,7 +400,7 @@ test("parallel specialist API performs distinct authenticated AI calls with inde
 test("Trading Desk requests real parallel AI outputs and gates agreement on risk and historical evidence", () => {
   assert.match(futuresDesk,/<script src="\/market-patterns\.js"><\/script>/);
   assert.match(futuresDesk,/fetch\("\/api\/trading\/agents"/);
-  assert.match(futuresDesk,/Promise\.all\(selections\.map/);
+  assert.match(parallelAgentsRoute,/Promise\.all\(roles\.map\(async role=>/);
   assert.match(futuresDesk,/historical evidence inconclusive/);
   assert.match(futuresDesk,/!riskSelected/);
   assert.match(futuresDesk,/sameSnapshot/);
