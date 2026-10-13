@@ -226,7 +226,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   if(required.some(id=>!byId(id)))return;
   const intervalMs={"1m":60000,"3m":180000,"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"2h":7200000,"4h":14400000,"1d":86400000};
   const higherMap={"1m":"15m","5m":"1h","15m":"4h","1h":"1d","4h":"1d"};
-  let chart=null,candleSeries=null,ema9Series=null,ema21Series=null,ema50Series=null,socketReconnectTimer=null;
+  let chart=null,candleSeries=null,ema9Series=null,ema21Series=null,ema50Series=null,socketReconnectTimer=null;let lastMarketUpdateAt=0;
   let rows=[],marketVenue="binance",feedSocket=null,pollTimer=null,resizeObserver=null;
   let currentSymbol="",currentInterval="",higherCache=[],higherCacheKey="",higherCacheAt=0,priceLines=[],busy=false,firstRender=true,lastWsCandleTime=0;
   const fmt=(n)=>Number.isFinite(n)?n.toLocaleString("en-US",{maximumFractionDigits:n>=1000?2:n>=1?4:7}):"—";
@@ -370,7 +370,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const sym=byId("liveSymbol").value,interval=byId("liveInterval").value;
       if(sym!==currentSymbol||interval!==currentInterval){currentSymbol=sym;currentInterval=interval;higherCache=[];higherCacheKey="";higherCacheAt=0;firstRender=true;}
       const data=await fetchJSON("/api/exchanges/market?"+new URLSearchParams({venue:"binance",symbol:currentSymbol,interval:currentInterval,limit:"250",public:"1"}));
-      rows=orderedCandles(data.candles);
+      rows=orderedCandles(data.candles);lastMarketUpdateAt=Date.now();
       if(rows.length<80)throw new Error("Only "+rows.length+" valid candles were returned; need at least 80.");
       renderRows(firstRender);
       try{await loadHigher(false);analyze();}catch(e){higherCache=[];higherCacheKey="";byId("liveHtf").textContent="UNAVAILABLE";analyze();status("Chart data loaded, but the higher-timeframe confirmation failed: "+e.message+". Signal stays HOLD until trend confirmation succeeds.");}
@@ -396,7 +396,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
         let msg;try{msg=JSON.parse(event.data);}catch(e){return;}
         const k=msg&&msg.k;if(!k||!Number.isFinite(Number(k.t)))return;
         const bar={time:Number(k.t),open:Number(k.o),high:Number(k.h),low:Number(k.l),close:Number(k.c),volume:Number(k.v),closeTime:Number(k.T)};
-        if(!validateCandle(bar))return;
+        if(!validateCandle(bar))return;lastMarketUpdateAt=Date.now();
         if(!rows.length||bar.time>rows[rows.length-1].time)rows.push(bar);
         else{const idx=rows.findIndex(x=>x.time===bar.time);if(idx>=0)rows[idx]=bar;}
         if(rows.length>300)rows=rows.slice(-300);
@@ -485,10 +485,10 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const distance=Math.abs(entry-stop),riskBudget=balance*riskPct/100,quantity=Math.min(riskBudget/distance,balance/entry);
     if(!Number.isFinite(quantity)||quantity<=0){paperStatus("Position sizing failed validation.",true);return;}
     const target=long?entry+2*distance:entry-2*distance,side=long?"LONG":"SHORT";
-    const age=Math.max(0,now-(Number(d.candleTime)+msFor(currentInterval)));
+    const age=Math.max(0,now-lastMarketUpdateAt);
     paperOpening=true;byId("livePaperOpen").disabled=true;byId("livePaperOpen").textContent="Reviewing risk…";
     try{
-      const review=await paperRequest("/api/trading/review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({entry,stop,target,side,riskPct,paperBalance:balance,dataAgeMs:Math.min(age,60000),spreadBps:0})});
+      const review=await paperRequest("/api/trading/review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({entry,stop,target,side,riskPct,paperBalance:balance,dataAgeMs:age,spreadBps:0})});
       if(review.combinedVerdict!=="PAPER_ONLY_APPROVAL")throw new Error("Independent risk review veto: "+(review.strategyAgent?.issues||review.riskAgent?.issues||[]).join("; "));
       byId("livePaperOpen").textContent="Saving paper trade…";
       const opened=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"OPEN",symbol:d.symbol,side:long?"BUY":"SELL",quantity,price:entry,stopPrice:stop,targetPrice:target,feeBps:Number(byId("feeBps")?.value??5),slippageBps:Number(byId("slippageBps")?.value??2),marketTime:Date.now()})});
