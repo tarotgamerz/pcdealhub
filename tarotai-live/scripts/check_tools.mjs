@@ -46,7 +46,7 @@ const authRequired = [
   'authenticated:isAuthorized(req)',
   'if(!expected)return NextResponse.json',
   'TAROTAI_ACCESS_CODE',
-  'accessCodeConfigured: Boolean(process.env.TAROTAI_ACCESS_CODE)'
+  'accessCodeConfigured:Boolean(secret())'
 ];
 const healthRequired = [
   'hasOpenRouterKey: Boolean(process.env.OPENROUTER_API_KEY)',
