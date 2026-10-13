@@ -358,7 +358,7 @@ test("live chart offers seven configurable specialist agents that analyze a shar
   assert.match(futuresDesk, /new Set\(selections\)\.size!==selections\.length/);
   assert.match(futuresDesk, /Date\.now\(\)-end>msFor\(currentInterval\)\*2\+60000/);
   assert.match(futuresDesk, /Team consensus: WAIT/);
-  assert.match(futuresDesk, /baseDecision\?\.action/);
+  assert.match(futuresDesk, /const baseLong=decision\.action/);
   assert.match(futuresDesk, /No real exchange orders are sent/);
 });
 
