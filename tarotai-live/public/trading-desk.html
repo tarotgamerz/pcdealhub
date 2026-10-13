@@ -565,6 +565,26 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   }
   createChart();
   byId("liveRefresh").addEventListener("click",()=>refresh(true));
+  const liveAgentPanel=byId("liveAgentPanel"),toggleLiveAgentTeam=byId("toggleLiveAgentTeam");
+  toggleLiveAgentTeam.addEventListener("click",()=>{
+    const open=liveAgentPanel.hidden;
+    liveAgentPanel.hidden=!open;
+    toggleLiveAgentTeam.setAttribute("aria-expanded",String(open));
+    toggleLiveAgentTeam.textContent=open?"Hide 7-agent analysis team":"Open 7-agent analysis team";
+    if(open)liveAgentPanel.scrollIntoView({behavior:"smooth",block:"start"});
+  });
+  document.querySelectorAll("[data-agent-role]").forEach(select=>select.addEventListener("change",updateLiveAgentSlotOptions));
+  byId("runLiveAgentTeam").addEventListener("click",runLiveAgentTeam);
+  byId("clearLiveAgentTeam").addEventListener("click",()=>{
+    document.querySelectorAll("[data-agent-role]").forEach(select=>select.value="");
+    updateLiveAgentSlotOptions();
+    byId("liveAgentRunStatus").textContent="Slots cleared. Add at least three different specialists.";
+    const summary=byId("liveAgentConsensus");summary.className="live-agent-consensus warn";summary.replaceChildren();
+    const title=document.createElement("strong");title.textContent="Team consensus: WAIT";
+    const body=document.createElement("span");body.textContent="No agents selected. Choose distinct specialists and run analysis on fresh candles.";
+    summary.append(title,body);byId("liveAgentResults").replaceChildren();
+  });
+  updateLiveAgentSlotOptions();
 
   let paperBusy=false,paperOpening=false;
   const paperClosedStatuses=new Set(["PAPER_CLOSE","PAPER_STOP","PAPER_TARGET"]);
