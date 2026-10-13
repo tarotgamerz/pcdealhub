@@ -368,6 +368,18 @@ test("live chart offers seven configurable specialist agents that analyze a shar
 
 const parallelAgentsRoute = readFileSync(new URL("../app/api/trading/agents/route.ts", import.meta.url), "utf8");
 const historicalPatternSource = readFileSync(new URL("../public/market-patterns.js", import.meta.url), "utf8");
+test("PDF extraction avoids an unconfigured pdfjs import and initializes the Node worker explicitly", () => {
+  const documentsRoute = readFileSync(new URL("../app/api/documents/route.ts", import.meta.url), "utf8");
+  const documentExtractor = readFileSync(new URL("../lib/document-extract.mjs", import.meta.url), "utf8");
+  const nextConfig = readFileSync(new URL("../next.config.mjs", import.meta.url), "utf8");
+  assert.ok(documentsRoute.includes("extractPdfText(buffer)"));
+  assert.ok(!documentsRoute.includes('import { getTextExtractor } from "office-text-extractor"'));
+  assert.ok(documentExtractor.includes('import("pdf-parse/worker")'));
+  assert.ok(documentExtractor.includes("PDFParse.setWorker(getData())"));
+  assert.ok(documentExtractor.includes("CanvasFactory"));
+  assert.ok(nextConfig.includes('"pdf-parse"') && nextConfig.includes('"@napi-rs/canvas"'));
+});
+
 
 test("historical analogue matcher uses only matured prior candles and reports observed outcomes", () => {
   const candles=[];
