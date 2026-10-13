@@ -393,7 +393,11 @@ test("parallel specialist API performs distinct authenticated AI calls with inde
   assert.match(parallelAgentsRoute,/fetchVerifiedMarket\(symbol,interval,preferred\)/);
   assert.match(parallelAgentsRoute,/findSimilarCases\(market\.candles,interval/);
   assert.match(parallelAgentsRoute,/historicalAnalogueStudy/);
-  assert.match(parallelAgentsRoute,/AbortSignal\.timeout\(16000\)/);
+   assert.match(parallelAgentsRoute,/AbortSignal\.timeout\(23000\)/);
+   assert.match(parallelAgentsRoute,/qwen\/qwen3-next-80b-a3b-instruct:free/);
+   assert.match(parallelAgentsRoute,/meta-llama\/llama-3\.3-8b-instruct:free/);
+   assert.match(parallelAgentsRoute,/qwen\/qwen3-235b-a22b-07-25:free/);
+   assert.match(parallelAgentsRoute,/max_tokens:1200/);
   assert.match(parallelAgentsRoute,/orderPlacement:false/);
   assert.doesNotMatch(parallelAgentsRoute,/fapi\.binance\.com\/fapi\/v1\/order/);
 });
