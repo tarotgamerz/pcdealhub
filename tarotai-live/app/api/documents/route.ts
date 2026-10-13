@@ -1,4 +1,4 @@
-import { getTextExtractor } from "office-text-extractor";
+import { extractOfficeText, extractPdfText } from "../../../lib/document-extract.mjs";
 import { isAuthorized } from "../../../lib/auth";
 
 export const runtime = "nodejs";
@@ -80,12 +80,11 @@ export async function POST(request: Request) {
     if (textMime(mime, name)) {
       text = buffer.toString("utf8");
     } else if (officeMime(mime, name)) {
-      const extractor = getTextExtractor();
-      text = await extractor.extractText({
-        input: buffer,
-        type: "buffer"
-      });
-      extractionMode = "office-text-extractor";
+      const isPdf = mime === "application/pdf" || name.toLowerCase().endsWith(".pdf");
+      text = isPdf
+        ? await extractPdfText(buffer)
+        : await extractOfficeText(buffer);
+      extractionMode = isPdf ? "pdf-parse-node-worker" : "office-text-extractor";
     } else {
       return Response.json(
         {
