@@ -343,3 +343,19 @@ test("backtest can collect a bounded multi-page OKX candle sample", () => {
   assert.ok(backtestRoute.includes("requestedLimit > 1000"));
   assert.ok(futuresDesk.includes("limit:1000"));
 });
+
+
+test("live chart offers seven configurable specialist agents that analyze a shared fresh snapshot in parallel", () => {
+  assert.match(futuresDesk, /id="toggleLiveAgentTeam"/);
+  assert.match(futuresDesk, /id="liveAgentPanel" hidden/);
+  for (const role of ["trend","structure","momentum","volatility","volume","timeframe","risk"]) {
+    assert.ok(futuresDesk.includes('value="'+role+'"'), "missing specialist role "+role);
+  }
+  assert.match(futuresDesk, /id="liveAgentRole7"/);
+  assert.match(futuresDesk, /Promise\.all\(selections\.map\(role=>Promise\.resolve\(\)\.then\(\(\)=>evaluateLiveSpecialist\(role,ctx\)\)\)\)/);
+  assert.match(futuresDesk, /new Set\(selections\)\.size!==selections\.length/);
+  assert.match(futuresDesk, /Date\.now\(\)-end>msFor\(currentInterval\)\*2\+60000/);
+  assert.match(futuresDesk, /Team consensus: WAIT/);
+  assert.match(futuresDesk, /baseLong\?\.action/);
+  assert.match(futuresDesk, /No real exchange orders are sent/);
+});
