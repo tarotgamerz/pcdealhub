@@ -349,10 +349,23 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     status("Source: Binance USDⓈ-M Futures public market data · "+closed.length+" closed candles analyzed · latest closed candle "+new Date(last.time).toLocaleString()+" · EMA 9/21/50 · RSI "+rv[i].toFixed(1)+" · ATR "+fmt(av[i])+" · long score "+longScore+"/5 · short score "+shortScore+"/5 · HTF "+htf.direction+". Rules are deterministic and transparent; no profit guarantee.");
   }
   async function fetchJSON(url){const r=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(9000)});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.detail||j.error||("HTTP "+r.status));if(j.stale)throw new Error("Exchange data marked stale by the server");if(!Array.isArray(j.candles))throw new Error("Exchange response did not contain candles");return j;}
+  async function fetchMarketWithFallback(symbol,interval,limit){
+    const failures=[];
+    for(const venue of ["binance","bybit","okx"]){
+      try{
+        const params=new URLSearchParams({venue,symbol,interval,limit:String(limit),public:"1"});
+        const data=await fetchJSON("/api/exchanges/market?"+params);
+        if(data.candles.length<35){failures.push(venue.toUpperCase()+": only "+data.candles.length+" candles returned");continue;}
+        data.venue=data.venue||venue;
+        return data;
+      }catch(e){failures.push(venue.toUpperCase()+": "+(e&&e.message?e.message:String(e)));}
+    }
+    throw new Error("No fresh futures feed succeeded. "+failures.join(" | "));
+  }
   async function loadHigher(force){
-    const ht=higherMap[currentInterval]||"1d",key=currentSymbol+"|"+ht;
+    const ht=higherMap[currentInterval]||"1d",key=currentSymbol+"|"+ht+"|"+marketVenue;
     if(!force&&higherCacheKey===key&&Date.now()-higherCacheAt<60000)return;
-    const data=await fetchJSON("/api/exchanges/market?"+new URLSearchParams({venue:"binance",symbol:currentSymbol,interval:ht,limit:"180",public:"1"}));
+    const data=await fetchJSON("/api/exchanges/market?"+new URLSearchParams({venue:marketVenue,symbol:currentSymbol,interval:ht,limit:"180",public:"1"}));
     higherCache=orderedCandles(data.candles);higherCacheKey=key;higherCacheAt=Date.now();
   }
   function renderRows(forceFit){
@@ -365,17 +378,21 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   }
   async function refresh(force){
     if(busy)return;busy=true;byId("liveRefresh").disabled=true;
-    if(!force)status("Refreshing latest candles from Binance Futures…");
+    if(!force)status("Refreshing fresh perpetual-futures candles…");
     try{
       const sym=byId("liveSymbol").value,interval=byId("liveInterval").value;
       if(sym!==currentSymbol||interval!==currentInterval){currentSymbol=sym;currentInterval=interval;higherCache=[];higherCacheKey="";higherCacheAt=0;firstRender=true;}
-      const data=await fetchJSON("/api/exchanges/market?"+new URLSearchParams({venue:"binance",symbol:currentSymbol,interval:currentInterval,limit:"250",public:"1"}));
+      const data=await fetchMarketWithFallback(currentSymbol,currentInterval,250);
+      const nextVenue=data.venue||"binance",venueChanged=marketVenue!==nextVenue;
+      marketVenue=nextVenue;
+      if(venueChanged)connectSocket();
       rows=orderedCandles(data.candles);lastMarketUpdateAt=Date.now();
       if(rows.length<80)throw new Error("Only "+rows.length+" valid candles were returned; need at least 80.");
       renderRows(firstRender);
       try{await loadHigher(false);analyze();}catch(e){higherCache=[];higherCacheKey="";byId("liveHtf").textContent="UNAVAILABLE";analyze();status("Chart data loaded, but the higher-timeframe confirmation failed: "+e.message+". Signal stays HOLD until trend confirmation succeeds.");}
       const last=rows[rows.length-1],age=Math.max(0,Date.now()-last.time);
-      setFeed("BINANCE FUTURES · "+(feedSocket&&feedSocket.readyState===1?"LIVE STREAM":"REST REFRESH"),feedSocket&&feedSocket.readyState===1?"good":"neutral");
+      const venueLabel=({binance:"BINANCE FUTURES",bybit:"BYBIT LINEAR FUTURES",okx:"OKX SWAP"})[marketVenue]||String(marketVenue).toUpperCase();
+      setFeed(venueLabel+" · "+(marketVenue==="binance"&&feedSocket&&feedSocket.readyState===1?"LIVE STREAM":"REST REFRESH"),marketVenue==="binance"&&feedSocket&&feedSocket.readyState===1?"good":"neutral");
       status("Source: "+(data.sourceHost||"Binance Futures")+". Last bar opened "+Math.round(age/1000)+"s ago; REST snapshot fetched "+new Date(data.fetchedAt||Date.now()).toLocaleTimeString()+". "+(feedSocket&&feedSocket.readyState===1?"WebSocket candle updates active.":"Polling fallback active (refresh every 15s).")+" No orders are sent.");
     }catch(e){
       setFeed("MARKET DATA ERROR","bad");
@@ -388,11 +405,13 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   function connectSocket(){
     if(feedSocket){try{feedSocket.close();}catch(e){}feedSocket=null;}
     if(!currentSymbol||!currentInterval)return;
+    if(marketVenue!=="binance"){setFeed((({bybit:"BYBIT",okx:"OKX"})[marketVenue]||String(marketVenue).toUpperCase())+" · REST REFRESH","neutral");return;}
     try{
       const url="wss://fstream.binance.com/ws/"+currentSymbol.toLowerCase()+"@kline_"+currentInterval;
       feedSocket=new WebSocket(url);
-      feedSocket.onopen=()=>{if(socketReconnectTimer)clearTimeout(socketReconnectTimer);setFeed("BINANCE FUTURES · LIVE STREAM","good");};
+      feedSocket.onopen=()=>{if(socketReconnectTimer)clearTimeout(socketReconnectTimer);if(marketVenue==="binance")setFeed("BINANCE FUTURES · LIVE STREAM","good");};
       feedSocket.onmessage=event=>{
+        if(marketVenue!=="binance")return;
         let msg;try{msg=JSON.parse(event.data);}catch(e){return;}
         const k=msg&&msg.k;if(!k||!Number.isFinite(Number(k.t)))return;
         const bar={time:Number(k.t),open:Number(k.o),high:Number(k.h),low:Number(k.l),close:Number(k.c),volume:Number(k.v),closeTime:Number(k.T)};
@@ -404,7 +423,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
         if(k.x&&Number(k.T)!==lastWsCandleTime){lastWsCandleTime=Number(k.T);refresh(false);}
       };
       feedSocket.onerror=()=>setFeed("WEBSOCKET UNAVAILABLE · POLLING","neutral");
-      feedSocket.onclose=()=>{if(currentSymbol&&currentInterval){setFeed("REST REFRESH · RECONNECTING","neutral");if(socketReconnectTimer)clearTimeout(socketReconnectTimer);socketReconnectTimer=setTimeout(()=>{if(currentSymbol&&currentInterval&&(!feedSocket||feedSocket.readyState===WebSocket.CLOSED))connectSocket();},5000);}};
+      feedSocket.onclose=()=>{if(marketVenue==="binance"&&currentSymbol&&currentInterval){setFeed("REST REFRESH · RECONNECTING","neutral");if(socketReconnectTimer)clearTimeout(socketReconnectTimer);socketReconnectTimer=setTimeout(()=>{if(marketVenue==="binance"&&currentSymbol&&currentInterval&&(!feedSocket||feedSocket.readyState===WebSocket.CLOSED))connectSocket();},5000);}};
     }catch(e){setFeed("REST REFRESH MODE","neutral");}
   }
   async function reloadAll(force){await refresh(true);connectSocket();}
