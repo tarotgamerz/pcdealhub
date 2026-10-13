@@ -375,7 +375,7 @@ test("PDF extraction avoids an unconfigured pdfjs import and initializes the Nod
   assert.ok(documentsRoute.includes("extractPdfText(buffer)"));
   assert.ok(!documentsRoute.includes('import { getTextExtractor } from "office-text-extractor"'));
   assert.ok(documentExtractor.includes('import("pdf-parse/worker")'));
-  assert.ok(documentExtractor.includes("PDFParse.setWorker(getData())"));
+  assert.ok(documentExtractor.includes("PDFParse.setWorker(worker.getData())"));
   assert.ok(documentExtractor.includes("CanvasFactory"));
   assert.ok(nextConfig.includes('"pdf-parse"') && nextConfig.includes('"@napi-rs/canvas"'));
 });
