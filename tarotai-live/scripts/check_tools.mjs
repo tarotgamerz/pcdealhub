@@ -10,6 +10,8 @@ const apps = readFileSync("app/api/apps/route.ts", "utf8");
 const vision = readFileSync("app/api/vision/route.ts", "utf8");
 const audit = readFileSync("app/api/audit/route.ts", "utf8");
 const packageJson = readFileSync("package.json", "utf8");
+const documentExtractor = readFileSync("lib/document-extract.mjs", "utf8");
+const nextConfig = readFileSync("next.config.mjs", "utf8");
 
 const required = [
   'name: "search_attached_documents"',
@@ -60,7 +62,8 @@ const documentRequired = [
   'export async function POST',
   'request.formData()',
   'const MAX_BYTES = 4 * 1024 * 1024',
-  'getTextExtractor',
+  'extractPdfText(buffer)',
+  'extractOfficeText(buffer)',
   'Authentication required'
 ];
 const memoryRequired = ['memoryEnabled', 'memoryKey', 'forbiddenMemoryKey', 'export async function POST'];
@@ -68,7 +71,10 @@ const stateRequired = ['stateKey', 'export async function GET', 'export async fu
 const appRequired = ['new Composio', 'session!.toolkits', 'session!.authorize'];
 const visionRequired = ['OPENROUTER_VISION_MODEL', 'image_url', 'dataUrl'];
 const auditRequired = ['auditKey', 'lrange', 'JSON.parse'];
-const dependencyRequired = ['"office-text-extractor": "4.0.0"', '"@composio/core": "0.18.1"', '"@upstash/redis": "1.39.0"'];
+const dependencyRequired = ['"office-text-extractor": "4.0.0"', '"@composio/core": "0.18.1"', '"@upstash/redis": "1.39.0"', '"pdf-parse": "2.4.5"'];
+const documentExtractorRequired = ['import("pdf-parse/worker")', 'PDFParse.setWorker(worker.getData())', 'CanvasFactory', 'office-text-extractor'];
+const missingDocumentExtractor = documentExtractorRequired.filter((needle) => !documentExtractor.includes(needle));
+const missingDocumentBundling = ['"pdf-parse"', '"@napi-rs/canvas"'].filter((needle) => !nextConfig.includes(needle));
 
 const missingHealth = healthRequired.filter((needle) => !health.includes(needle));
 const missingDocuments = documentRequired.filter((needle) => !documents.includes(needle));
@@ -80,12 +86,14 @@ const missingAudit = auditRequired.filter((needle) => !audit.includes(needle));
 const missingDependency = dependencyRequired.filter((needle) => !packageJson.includes(needle));
 const presentForbidden = forbidden.filter((needle) => route.includes(needle));
 
-if (missing.length || missingAuth.length || missingHealth.length || missingDocuments.length || missingMemory.length || missingState.length || missingApps.length || missingVision.length || missingAudit.length || missingDependency.length || presentForbidden.length) {
+if (missing.length || missingAuth.length || missingHealth.length || missingDocuments.length || missingDocumentExtractor.length || missingDocumentBundling.length || missingMemory.length || missingState.length || missingApps.length || missingVision.length || missingAudit.length || missingDependency.length || presentForbidden.length) {
   console.error("TarotAI runtime contract failed.");
   if (missing.length) console.error("Missing chat/tool contract:", missing);
   if (missingAuth.length) console.error("Missing auth contract:", missingAuth);
   if (missingHealth.length) console.error("Missing health contract:", missingHealth);
   if (missingDocuments.length) console.error("Missing document contract:", missingDocuments);
+  if (missingDocumentExtractor.length) console.error("Missing document extractor contract:", missingDocumentExtractor);
+  if (missingDocumentBundling.length) console.error("Missing document bundling config:", missingDocumentBundling);
   if (missingMemory.length) console.error("Missing memory contract:", missingMemory);
   if (missingState.length) console.error("Missing state contract:", missingState);
   if (missingApps.length) console.error("Missing apps contract:", missingApps);
