@@ -2,13 +2,14 @@
   "use strict";
   const endpoint = "/api/trading/agents";
   const roleInfo = {
-    trend: { name: "Trend & Regime", focus: "Trend persistence, EMA slope, and trend-versus-range conditions." },
-    structure: { name: "Market Structure", focus: "Closed-candle breakouts, breakdowns, sweeps, and failed breaks." },
-    momentum: { name: "Momentum & RSI", focus: "Momentum confirmation, RSI, exhaustion, and follow-through." },
-    volatility: { name: "Volatility & ATR", focus: "Volatility regime, ATR expansion, and stop feasibility." },
-    volume: { name: "Volume & Participation", focus: "Relative volume, candle-close location, and participation quality." },
-    timeframe: { name: "Higher-Timeframe Analyst", focus: "Higher-timeframe direction versus the entry timeframe." },
-    risk: { name: "Risk & Red-Team Veto", focus: "Failure scenarios, stop/target geometry, and risk/reward." }
+    market: { name: "Market Structure Analyst", focus: "Trend, range, swing levels, and higher-timeframe alignment." },
+    entry: { name: "Entry Setup Specialist", focus: "Confirmed triggers, invalidation, and no-chase rules." },
+    exits: { name: "Stop-Loss & Take-Profit Planner", focus: "Stop placement, targets, and reward-to-risk geometry." },
+    sizing: { name: "Position Sizing & Risk Manager", focus: "Paper equity, stop distance, and fixed risk limits." },
+    discipline: { name: "Execution Discipline Agent", focus: "Trigger confirmation, modeled costs, and paper execution discipline." },
+    position: { name: "Live Position Manager", focus: "Reviews supplied open paper positions during this run." },
+    journal: { name: "Trade Journal & Review Analyst", focus: "Reviews supplied completed paper-trade records." },
+    supervisor: { name: "Agent Operations Supervisor", focus: "Audits all seven specialist reports and their health." }
   };
   const originalFetch = window.fetch.bind(window);
   const state = { phase: "idle", roles: [], agents: new Map(), lastSummary: "No team run yet." };
@@ -30,7 +31,7 @@
   const liveCount = node("span", "live-agent-livecount", "IDLE");
   liveCount.id = "liveAgentLiveCount";
   head.append(heading, liveCount);
-  const summary = node("div", "live-multi-hint", "No team run yet. Select at least three specialists and run the team.");
+  const summary = node("div", "live-multi-hint", "No team run yet. Select all eight agents and run the team.");
   summary.id = "liveAgentMonitorSummary";
   summary.setAttribute("aria-live", "polite");
   const progress = node("div", "live-agent-progress");
@@ -84,7 +85,7 @@
     } else if (state.phase === "dispatch") {
       summary.textContent = c.running + " of " + c.total + " specialists currently running · " + c.complete + " complete · " + c.failed + " failed.";
     } else if (state.phase === "complete") {
-      summary.textContent = c.complete + "/" + c.total + " specialist reports completed · " + c.failed + " failed · " + c.blocked + " not started." + (state.lastSummary && state.lastSummary !== "Team request finished." ? " " + state.lastSummary : "");
+      summary.textContent = c.complete + "/" + c.total + " agent reports completed · " + c.failed + " failed · " + c.blocked + " not started." + (state.lastSummary && state.lastSummary !== "Team request finished." ? " " + state.lastSummary : "");
     } else if (state.phase === "blocked") {
       summary.textContent = state.lastSummary + " No agent execution was confirmed.";
     } else {
@@ -203,7 +204,7 @@
           .map(result => (result.name || result.role || "Specialist") + ": " + String(result.text || "No provider error details returned.").replace(/\\s+/g, " ").slice(0, 240))
           .slice(0, 2);
         const modelUsed = typeof data.model === "string" ? data.model : "model not reported";
-        state.lastSummary = "All " + results.length + " specialist requests failed using " + modelUsed + ". " +
+        state.lastSummary = results.filter(result => result && result.ok !== false).length + "/" + results.length + " agent reports completed; " + failedDetails.length + " failures shown using " + modelUsed + ". " +
           (failedDetails.length ? failedDetails.join(" | ") : why);
       } else {
         for (const agent of state.agents.values()) {
