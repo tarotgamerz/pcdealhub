@@ -33,39 +33,46 @@ export async function POST(req:Request){
   if(action==="STOP_CHECK"){
    const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),venue=String(b.venue||"binance").toLowerCase();
    if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["binance","bybit","okx"].includes(venue))return NextResponse.json({error:"Unsupported symbol or venue"},{status:400});
-   let url:URL,raw:any, candle:any, candleTime=0, candleCloseTime=0;
+   let url:URL,raw:any,closedCandles:any[]=[];
    try{
     if(venue==="binance"){
      url=new URL("https://fapi.binance.com/fapi/v1/klines");url.searchParams.set("symbol",symbol);url.searchParams.set("interval","1m");url.searchParams.set("limit","500");
-     const response=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(6000)});raw=await response.json();if(!response.ok||!Array.isArray(raw)||!raw[0])throw new Error("exchange response invalid");
-     const closedBars=raw.filter((x:any[])=>Number(x[6])<Date.now()-500).sort((a:any[],b:any[])=>Number(a[0])-Number(b[0]));if(!closedBars.length)throw new Error("no fully closed candle");const k=closedBars[closedBars.length-1];candle={open:Number(k[1]),high:Number(k[2]),low:Number(k[3]),close:Number(k[4])};candleTime=Number(k[0]);candleCloseTime=Number(k[6]);
+     const response=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(6000)});raw=await response.json();if(!response.ok||!Array.isArray(raw))throw new Error("exchange response invalid");
+     closedCandles=raw.filter((k:any[])=>Array.isArray(k)&&Number(k[6])<Date.now()-500).map((k:any[])=>({time:Number(k[0]),closeTime:Number(k[6]),candle:{open:Number(k[1]),high:Number(k[2]),low:Number(k[3]),close:Number(k[4])}})).filter((x:any)=>[x.time,x.closeTime,x.candle.open,x.candle.high,x.candle.low,x.candle.close].every(Number.isFinite)&&x.time>0&&x.closeTime>x.time&&x.candle.low>0&&x.candle.high>=Math.max(x.candle.open,x.candle.low,x.candle.close)&&x.candle.low<=Math.min(x.candle.open,x.candle.high,x.candle.close)).sort((a:any,b:any)=>a.time-b.time);
     }else if(venue==="bybit"){
      url=new URL("https://api-testnet.bybit.com/v5/market/kline");url.searchParams.set("category","linear");url.searchParams.set("symbol",symbol);url.searchParams.set("interval","1");url.searchParams.set("limit","500");
-     const response=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(6000)});raw=await response.json();if(!response.ok||raw?.retCode!==0||!raw?.result?.list?.[0])throw new Error("exchange response invalid");
-     const closedBars=raw.result.list.filter((x:any[])=>Number(x[0])+60000<Date.now()-500).sort((a:any[],b:any[])=>Number(a[0])-Number(b[0]));if(!closedBars.length)throw new Error("no fully closed candle");const k=closedBars[closedBars.length-1];candle={open:Number(k[1]),high:Number(k[2]),low:Number(k[3]),close:Number(k[4])};candleTime=Number(k[0]);candleCloseTime=candleTime+60000;
+     const response=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(6000)});raw=await response.json();if(!response.ok||raw?.retCode!==0||!Array.isArray(raw?.result?.list))throw new Error("exchange response invalid");
+     closedCandles=raw.result.list.filter((k:any[])=>Number(k[0])+60000<Date.now()-500).map((k:any[])=>({time:Number(k[0]),closeTime:Number(k[0])+60000,candle:{open:Number(k[1]),high:Number(k[2]),low:Number(k[3]),close:Number(k[4])}})).filter((x:any)=>[x.time,x.closeTime,x.candle.open,x.candle.high,x.candle.low,x.candle.close].every(Number.isFinite)&&x.time>0&&x.candle.low>0&&x.candle.high>=Math.max(x.candle.open,x.candle.low,x.candle.close)&&x.candle.low<=Math.min(x.candle.open,x.candle.high,x.candle.close)).sort((a:any,b:any)=>a.time-b.time);
     }else{
      const instId=symbol.endsWith("USDT")?symbol.slice(0,-4)+"-USDT-SWAP":symbol;
      url=new URL("https://www.okx.com/api/v5/market/candles");url.searchParams.set("instId",instId);url.searchParams.set("bar","1m");url.searchParams.set("limit","500");
-     const response=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(6000)});raw=await response.json();if(!response.ok||raw?.code!=="0"||!raw?.data?.[0])throw new Error("exchange response invalid");
-     const closedBars=raw.data.filter((x:any[])=>x[8]==="1"&&Number(x[0])+60000<Date.now()-500).sort((a:any[],b:any[])=>Number(a[0])-Number(b[0]));if(!closedBars.length)throw new Error("no fully closed candle");const k=closedBars[closedBars.length-1];candle={open:Number(k[1]),high:Number(k[2]),low:Number(k[3]),close:Number(k[4])};candleTime=Number(k[0]);candleCloseTime=candleTime+60000;
+     const response=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(6000)});raw=await response.json();if(!response.ok||raw?.code!=="0"||!Array.isArray(raw?.data))throw new Error("exchange response invalid");
+     closedCandles=raw.data.filter((k:any[])=>k[8]==="1"&&Number(k[0])+60000<Date.now()-500).map((k:any[])=>({time:Number(k[0]),closeTime:Number(k[0])+60000,candle:{open:Number(k[1]),high:Number(k[2]),low:Number(k[3]),close:Number(k[4])}})).filter((x:any)=>[x.time,x.closeTime,x.candle.open,x.candle.high,x.candle.low,x.candle.close].every(Number.isFinite)&&x.time>0&&x.candle.low>0&&x.candle.high>=Math.max(x.candle.open,x.candle.low,x.candle.close)&&x.candle.low<=Math.min(x.candle.open,x.candle.high,x.candle.close)).sort((a:any,b:any)=>a.time-b.time);
     }
-   }catch{return NextResponse.json({error:"Could not verify fresh stop-check candle from selected exchange"},{status:502});}
-   if(!candle||![candle.open,candle.high,candle.low,candle.close,candleTime].every(Number.isFinite)||candle.low<=0||candle.high<candle.low||candle.open<candle.low||candle.open>candle.high||candle.close<=0||Date.now()-candleCloseTime>120000||candleCloseTime>Date.now())return NextResponse.json({error:"Stale or malformed exchange candle rejected"},{status:409});
+   }catch{return NextResponse.json({error:"Could not fetch closed candles for paper stop evaluation"},{status:502});}
+   if(!closedCandles.length)return NextResponse.json({error:"Exchange returned no fully closed valid candle"},{status:502});
+   const latest=closedCandles[closedCandles.length-1];
+   if(Date.now()-latest.closeTime>120000||latest.closeTime>Date.now())return NextResponse.json({error:"Closed stop-check candles are stale or malformed"},{status:409});
    const rows=(await d.lrange("tarotai:paper:ledger",0,999)).map((x:any)=>typeof x==="string"?JSON.parse(x):x);
    const closed=new Set(rows.filter((x:any)=>x.parentTradeId&&["PAPER_CLOSE","PAPER_STOP","PAPER_TARGET"].includes(x.status)).map((x:any)=>x.parentTradeId));
-   const triggered:any[]=[];
+   const triggered:any[]=[],historyGaps:any[]=[];
    for(const trade of rows.filter((x:any)=>x.status==="PAPER_OPEN"&&x.symbol===symbol&&!closed.has(x.id)&&x.stopPrice&&x.targetPrice)){
-    // Only fully closed candles that began after entry are valid for stop/target evaluation.
-    if(!Number.isFinite(Date.parse(trade.createdAt))||candleTime<=Date.parse(trade.createdAt))continue;
-    const result=resolveStopTarget(candle,trade.side==="BUY"?"LONG":"SHORT",Number(trade.stopPrice),Number(trade.targetPrice));
-    if(!result.exit || result.price === null)continue;
-    const closeSide=trade.side==="BUY"?"SELL":"BUY",fill=applySlippage(closeSide,Number(result.price),Number(trade.slippageBps)),fee=calculateFee(fill,Number(trade.quantity),Number(trade.feeBps));
-    const gross=trade.side==="BUY"?(fill-Number(trade.fillPrice))*Number(trade.quantity):(Number(trade.fillPrice)-fill)*Number(trade.quantity);
-    const closedTrade={id:crypto.randomUUID(),parentTradeId:trade.id,createdAt:new Date().toISOString(),symbol,side:closeSide,quantity:trade.quantity,requestedPrice:result.price,fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),pnlGross:Number(gross.toFixed(8)),pnlNet:Number((gross-fee-Number(trade.fee||0)).toFixed(8)),feeBps:trade.feeBps,slippageBps:trade.slippageBps,status:result.exit==="STOP"?"PAPER_STOP":"PAPER_TARGET",ambiguousCandle:result.ambiguous,mode:"PAPER_ONLY",sourceVenue:venue};
-    await d.lpush("tarotai:paper:ledger",JSON.stringify(closedTrade));triggered.push(closedTrade);closed.add(trade.id);
+    const openedAt=Date.parse(trade.createdAt);
+    if(!Number.isFinite(openedAt))continue;
+    if(openedAt<closedCandles[0].time){historyGaps.push({tradeId:trade.id,createdAt:trade.createdAt,oldestAvailableCandleTime:closedCandles[0].time});continue;}
+    // Replay each fully closed candle after entry, in chronological order, so a temporary stop touch cannot be missed.
+    const eligible=closedCandles.filter((bar:any)=>bar.time>openedAt);
+    for(const bar of eligible){
+     const result=resolveStopTarget(bar.candle,trade.side==="BUY"?"LONG":"SHORT",Number(trade.stopPrice),Number(trade.targetPrice));
+     if(!result.exit||result.price===null)continue;
+     const closeSide=trade.side==="BUY"?"SELL":"BUY",fill=applySlippage(closeSide,Number(result.price),Number(trade.slippageBps)),fee=calculateFee(fill,Number(trade.quantity),Number(trade.feeBps));
+     const gross=trade.side==="BUY"?(fill-Number(trade.fillPrice))*Number(trade.quantity):(Number(trade.fillPrice)-fill)*Number(trade.quantity);
+     const closedTrade={id:crypto.randomUUID(),parentTradeId:trade.id,createdAt:new Date().toISOString(),symbol,side:closeSide,quantity:trade.quantity,requestedPrice:result.price,fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),pnlGross:Number(gross.toFixed(8)),pnlNet:Number((gross-fee-Number(trade.fee||0)).toFixed(8)),feeBps:trade.feeBps,slippageBps:trade.slippageBps,status:result.exit==="STOP"?"PAPER_STOP":"PAPER_TARGET",ambiguousCandle:result.ambiguous,sourceCandleTime:bar.time,sourceCandleCloseTime:bar.closeTime,mode:"PAPER_ONLY",sourceVenue:venue};
+     await d.lpush("tarotai:paper:ledger",JSON.stringify(closedTrade));triggered.push(closedTrade);closed.add(trade.id);break;
+    }
    }
    await d.ltrim("tarotai:paper:ledger",0,999);
-   return NextResponse.json({mode:"PAPER_ONLY",checkedSymbol:symbol,venue,sourceCandle:candle,sourceCandleTime:candleTime,sourceCandleCloseTime:candleCloseTime,sourceCandleClosed:true,triggered,liveTradingEnabled:false,stopFirstOnAmbiguousCandle:true,note:"Only a fully closed 1-minute candle whose open time is after paper entry is evaluated."});
+   return NextResponse.json({mode:"PAPER_ONLY",checkedSymbol:symbol,venue,sourceCandle:latest.candle,sourceCandleTime:latest.time,sourceCandleCloseTime:latest.closeTime,sourceCandleClosed:true,triggered,historyGaps,liveTradingEnabled:false,stopFirstOnAmbiguousCandle:true,note:"Only fully closed candles beginning after paper entry are evaluated; the first stop/target event is recorded."});
   }
   if(!["OPEN","CLOSE"].includes(action))return NextResponse.json({error:"action must be OPEN, CLOSE, REPLAY, or STOP_CHECK"},{status:400});
   const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),side=String(b.side||"").toUpperCase(),qty=Number(b.quantity),price=Number(b.price),feeBps=Number(b.feeBps??5),slipBps=Number(b.slippageBps??2),marketTime=Number(b.marketTime);
