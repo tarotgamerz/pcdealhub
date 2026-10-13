@@ -96,18 +96,17 @@ function specialistSystem(role:string) {
   "Grounding rules:",
   "- You receive a server-fetched, timestamped snapshot of real historical exchange OHLCV candles and similar past chart situations with their subsequently observed outcomes. Use only this evidence. Do not invent live prices, candles, indicators, funding, order-book data, or examples.",
   "- All candles supplied are CLOSED. Examples are nearest historical analogues from earlier candles in the SAME symbol, timeframe and sample. Forward returns are observed outcomes, not guarantees or calibrated probabilities. Small samples are weak evidence.",
-  "- Recommend WAIT when data conflict, analogue evidence is weak, or a setup is not confirmed. No forced trades; do not chase.",
-  "- Do not promise profits or invent account size/leverage. This is paper-trading research, not live execution. State uncertainty and one strong counterargument.",
-  "- Output under 160 words in exactly these labeled lines:",
+  "- Recommend WAIT if evidence conflicts, the sample is weak, or a setup is unconfirmed. Never force a trade.",
+  "- Paper-trading research only. Never promise profits or invent prices, account size, leverage, or indicators.",
+  "- Do not reveal private reasoning. Output the concise final report only, at most 90 words total.",
+  "- Use exactly these 7 short lines; each descriptive line must be one short sentence:",
   "BIAS: LONG or SHORT or WAIT",
   "VETO: YES or NO",
-  "SETUP: one short phrase",
-  "EVIDENCE: specific supplied candle/history evidence",
-  "HISTORICAL: what similar cases did and sample limitations",
+    "EVIDENCE: specific supplied candle/history evidence",
+  "HISTORICAL: observed analogue result and sample size, or say evidence is weak",
   "TRIGGER: objective condition before entry, or WAIT",
   "INVALIDATION: what proves the thesis wrong",
-  "TARGET PLAN: risk-based target idea, or not applicable; do not fabricate exact prices",
-  "COUNTERARGUMENT: strongest reason this setup can fail"
+    "COUNTERARGUMENT: strongest reason this setup can fail"
  ].join("\n");
 }
 async function executeAnalysis(request:Request, emit:(event:Record<string,unknown>)=>void=()=>{}) {
@@ -150,12 +149,12 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
   const agentStarted=Date.now();
   send({type:"agent",role,status:"running",name:SPECIALISTS[role].name,focus:SPECIALISTS[role].focus});
   try {
-   const response=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",cache:"no-store",signal:AbortSignal.timeout(16000),
+   const response=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",cache:"no-store",signal:AbortSignal.timeout(23000),
     headers:{"Authorization":"Bearer "+process.env.OPENROUTER_API_KEY,"Content-Type":"application/json","HTTP-Referer":"https://tarotai-core.vercel.app","X-Title":"TarotAI Live Specialist Team"},
-    body:JSON.stringify({model,messages:[{role:"system",content:specialistSystem(role)},{role:"user",content:"Independently analyze this verified live chart snapshot and historical analogue evidence. Return the exact labeled format requested. Do not assume entry is valid because other specialists may agree.\n\n"+serialized}],temperature:0.15,max_tokens:650})});
+    body:JSON.stringify({model,messages:[{role:"system",content:specialistSystem(role)},{role:"user",content:"Independently analyze this verified closed-candle snapshot. Follow the concise 7-line report format exactly; do not repeat the prompt and do not assume other agents agree.\n\n"+serialized}],temperature:0.1,max_tokens:1600,reasoning:{effort:"low",max_tokens:256}})});
    const text=await response.text();let data:any;try{data=JSON.parse(text);}catch{throw new Error("OpenRouter HTTP "+response.status+" returned a non-JSON response.");}
    if(!response.ok||data?.error){const providerError=data?.error||{};const status=Number(response.status)||Number(providerError.code)||0;const code=typeof providerError.code==="string"?providerError.code:"";const kind=typeof data?.error_type==="string"?data.error_type:"";const message=String(providerError.message||data?.message||"Provider returned an unspecified error").replace(/sk-or-v1-[A-Za-z0-9_-]+/g,"[redacted key]").slice(0,280);throw new Error("OpenRouter HTTP "+status+(code?" · "+code:"")+(kind?" · "+kind:"")+": "+message);}
-   const report=data?.choices?.[0]?.message?.content;if(typeof report!=="string"||!report.trim()){const reason=data?.choices?.[0]?.finish_reason;throw new Error("OpenRouter returned no specialist text"+(reason?" (finish_reason: "+String(reason)+")":"")+". Check model compatibility and provider availability.");}
+   const report=data?.choices?.[0]?.message?.content;if(typeof report!=="string"||!report.trim()){const reason=data?.choices?.[0]?.finish_reason;const usage=data?.usage||{};const reasoningTokens=usage?.completion_tokens_details?.reasoning_tokens;const completionTokens=usage?.completion_tokens;const routedModel=typeof data?.model==="string"?data.model:model;throw new Error("OpenRouter returned no visible report"+(reason?" (finish_reason: "+String(reason)+")":"")+(Number.isFinite(Number(completionTokens))?"; completion tokens: "+Number(completionTokens):"")+(Number.isFinite(Number(reasoningTokens))?"; reasoning tokens: "+Number(reasoningTokens):"")+"; routed model: "+routedModel+". Output budget was increased and reasoning capped; check provider availability if this persists.");}
    const result={role,name:SPECIALISTS[role].name,ok:true,...parseBias(report),text:report.trim().slice(0,6000),elapsedMs:Date.now()-agentStarted,model};
    send({type:"agent",role,status:"complete",result});
    return result;
