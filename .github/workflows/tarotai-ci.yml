@@ -38,7 +38,7 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: tarotai-live/package-lock.json
+          cache-dependency-path: tarotai-live/package.json
       - name: Install dependencies and refresh the lockfile if needed
         run: npm install --no-audit --no-fund
       - name: Run trading and agent regression tests, dependency audit, dashboard syntax checks, and production build
