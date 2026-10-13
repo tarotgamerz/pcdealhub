@@ -359,6 +359,9 @@ test("live chart offers seven configurable specialist agents that analyze a shar
   assert.match(futuresDesk, /Date\.now\(\)-end>msFor\(currentInterval\)\*2\+60000/);
   assert.match(futuresDesk, /Team consensus: WAIT/);
   assert.match(futuresDesk, /const baseLong=decision\.action/);
+  assert.match(futuresDesk, /window\.tarotaiAgentCommitteeApproval=committeeApproved\?/);
+  assert.match(futuresDesk, /Paper entry blocked: run the full seven-agent committee/);
+  assert.match(futuresDesk, /Select all seven distinct specialists/);
   assert.match(futuresDesk, /No real exchange orders are sent/);
 });
 
