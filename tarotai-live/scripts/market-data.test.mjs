@@ -361,7 +361,7 @@ test("live chart offers eight trade-lifecycle agents including a supervisor", ()
   assert.match(futuresDesk, /const baseLong=decision\.action/);
   assert.match(futuresDesk, /window\.tarotaiAgentCommitteeApproval=committeeApproved\?/);
   assert.match(futuresDesk, /Paper entry blocked: run the full eight-agent trading team/);
-  assert.match(futuresDesk, /Select all eight distinct agents/);
+  assert.match(futuresDesk, /Select all eight trading agents before running analysis/);
   assert.match(futuresDesk, /No real exchange orders are sent/);
 });
 
