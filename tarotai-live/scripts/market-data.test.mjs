@@ -450,7 +450,8 @@ test("Trading Desk requests real parallel AI outputs and gates agreement on risk
   assert.match(futuresDesk,/!riskSelected/);
   assert.match(futuresDesk,/sameSnapshot/);
   assert.match(futuresDesk,/Historical analogue study/);
-  assert.match(parallelAgentsRoute,/roles\.filter\(\(role:string\)=>role!=="supervisor"\)/);\n  assert.match(parallelAgentsRoute,/Agent Operations Supervisor/);
+  assert.match(parallelAgentsRoute,/roles\.filter\(\(role:string\)=>role!=="supervisor"\)/);
+  assert.match(parallelAgentsRoute,/Agent Operations Supervisor/);
   assert.match(historicalPatternSource,/root\.TarotAIMarketPatterns = \{ findSimilarCases \}/);
 });
 
