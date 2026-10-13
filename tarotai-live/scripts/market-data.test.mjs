@@ -354,7 +354,7 @@ test("live chart offers seven configurable specialist agents that analyze a shar
   }
   assert.match(futuresDesk, /id="liveAgentRole7"/);
   assert.match(futuresDesk, /fetch\("\/api\/trading\/agents"/);
-  assert.match(parallelAgentsRoute, /Promise\.all\(roles\.map\(async role=>/);
+  assert.match(parallelAgentsRoute, /Promise\.all\(roles\.map\(async \(role: string\)=>/);
   assert.match(futuresDesk, /new Set\(selections\)\.size!==selections\.length/);
   assert.match(futuresDesk, /Date\.now\(\)-end>msFor\(currentInterval\)\*2\+60000/);
   assert.match(futuresDesk, /Team consensus: WAIT/);
@@ -389,7 +389,7 @@ test("parallel specialist API performs distinct authenticated AI calls with inde
   assert.match(parallelAgentsRoute,/if\(!process\.env\.TAROTAI_ACCESS_CODE\)/);
   assert.match(parallelAgentsRoute,/if\(!isAuthorized\(request\)\)/);
   assert.match(parallelAgentsRoute,/OPENROUTER_API_KEY/);
-  assert.match(parallelAgentsRoute,/const results=await Promise\.all\(roles\.map\(async role=>/);
+  assert.match(parallelAgentsRoute,/const results=await Promise\.all\(roles\.map\(async \(role: string\)=>/);
   assert.match(parallelAgentsRoute,/fetchVerifiedMarket\(symbol,interval,preferred\)/);
   assert.match(parallelAgentsRoute,/findSimilarCases\(market\.candles,interval/);
   assert.match(parallelAgentsRoute,/historicalAnalogueStudy/);
@@ -401,7 +401,7 @@ test("parallel specialist API performs distinct authenticated AI calls with inde
 test("Trading Desk requests real parallel AI outputs and gates agreement on risk and historical evidence", () => {
   assert.match(futuresDesk,/<script src="\/market-patterns\.js"><\/script>/);
   assert.match(futuresDesk,/fetch\("\/api\/trading\/agents"/);
-  assert.match(parallelAgentsRoute,/Promise\.all\(roles\.map\(async role=>/);
+  assert.match(parallelAgentsRoute,/Promise\.all\(roles\.map\(async \(role: string\)=>/);
   assert.match(futuresDesk,/historical evidence inconclusive/);
   assert.match(futuresDesk,/!riskSelected/);
   assert.match(futuresDesk,/sameSnapshot/);
