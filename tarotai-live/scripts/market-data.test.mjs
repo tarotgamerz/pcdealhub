@@ -346,13 +346,13 @@ test("backtest can collect a bounded multi-page OKX candle sample", () => {
 });
 
 
-test("live chart offers seven configurable specialist agents that analyze a shared fresh snapshot in parallel", () => {
+test("live chart offers eight trade-lifecycle agents including a supervisor", () => {
   assert.match(futuresDesk, /id="toggleLiveAgentTeam"/);
   assert.match(futuresDesk, /id="liveAgentPanel" hidden/);
-  for (const role of ["macro","alpha","sentiment","microstructure","volatility","risk","execution"]) {
+  for (const role of ["market","entry","exits","sizing","discipline","position","journal","supervisor"]) {
     assert.ok(futuresDesk.includes('value="'+role+'"'), "missing specialist role "+role);
   }
-  assert.match(futuresDesk, /id="liveAgentRole7"/);
+  assert.match(futuresDesk, /id="liveAgentRole8"/);
   assert.match(futuresDesk, /fetch\("\/api\/trading\/agents"/);
   assert.match(parallelAgentsRoute, /Promise\.all\(roles\.map\(async \(role: string\)=>/);
   assert.match(futuresDesk, /new Set\(selections\)\.size!==selections\.length/);
@@ -360,8 +360,8 @@ test("live chart offers seven configurable specialist agents that analyze a shar
   assert.match(futuresDesk, /Team consensus: WAIT/);
   assert.match(futuresDesk, /const baseLong=decision\.action/);
   assert.match(futuresDesk, /window\.tarotaiAgentCommitteeApproval=committeeApproved\?/);
-  assert.match(futuresDesk, /Paper entry blocked: run the full seven-agent committee/);
-  assert.match(futuresDesk, /Select all seven distinct specialists/);
+  assert.match(futuresDesk, /Paper entry blocked: run the full eight-agent trading team/);
+  assert.match(futuresDesk, /Select all eight distinct agents/);
   assert.match(futuresDesk, /No real exchange orders are sent/);
 });
 
@@ -400,30 +400,30 @@ test("historical analogue matcher uses only matured prior candles and reports ob
   assert.equal(tooShort.ready,false);
 });
 
-test("parallel specialist API performs distinct authenticated AI calls with independently fetched candles", () => {
+test("retired free models fall back to OpenRouter free router and supervisor audits seven roles", () => {\n  assert.match(parallelAgentsRoute,/qwen\\/qwen3-next-80b-a3b-instruct:free/);\n  assert.match(parallelAgentsRoute,/configuredModel==="qwen\\/qwen3-next-80b-a3b-instruct:free"\?"openrouter\\/free":configuredModel/);\n  assert.match(parallelAgentsRoute,/const unavailable=Number\\(response.status\\)===404/);\n  assert.match(parallelAgentsRoute,/role:"supervisor"/);\n  assert.match(parallelAgentsRoute,/priorReports/);\n  assert.match(parallelAgentsRoute,/const paperTradeContext=/);\n  assert.match(parallelAgentsRoute,/openrouter\\/free/);\n});\n\ntest("parallel specialist API performs distinct authenticated AI calls with independently fetched candles", () => {
   assert.match(parallelAgentsRoute,/if\(!process\.env\.TAROTAI_ACCESS_CODE\)/);
   assert.match(parallelAgentsRoute,/if\(!isAuthorized\(request\)\)/);
   assert.match(parallelAgentsRoute,/OPENROUTER_API_KEY/);
-  assert.match(parallelAgentsRoute,/const results=await Promise\.all\(roles\.map\(async \(role: string\)=>/);
+  assert.match(parallelAgentsRoute,/const results=await Promise\.all\(roles\.filter\(\(role:string\)=>role!=="supervisor"\)\.map\(async \(role: string\)=>/);
   assert.match(parallelAgentsRoute,/fetchVerifiedMarket\(symbol,interval,preferred\)/);
   assert.match(parallelAgentsRoute,/findSimilarCases\(market\.candles,interval/);
   assert.match(parallelAgentsRoute,/historicalAnalogueStudy/);
-  assert.match(parallelAgentsRoute,/roles\.length!==7/);
+  assert.match(parallelAgentsRoute,/roles\.length!==8/);
   assert.match(parallelAgentsRoute,/vetoDeclared:!!v/);
-  assert.match(parallelAgentsRoute,/role==="risk"&&!vetoDeclared\?true:parsedVote\.veto/);
-  assert.match(parallelAgentsRoute,/Macro-Econometrician/);
-  assert.match(parallelAgentsRoute,/Quantitative Alpha Strategist/);
-  assert.match(parallelAgentsRoute,/Alternative Data & Sentiment Miner/);
-  assert.match(parallelAgentsRoute,/Microstructure & Order Book Analyst/);
-  assert.match(parallelAgentsRoute,/Volatility & Options Structurer/);
-  assert.match(parallelAgentsRoute,/Adversarial Risk & Portfolio Optimizer/);
-  assert.match(parallelAgentsRoute,/Institutional Execution & Routing Agent/);
+  assert.match(parallelAgentsRoute,/role==="sizing"&&!vetoDeclared\?true:parsedVote\.veto/);
+  assert.match(parallelAgentsRoute,/Market Structure Analyst/);
+  assert.match(parallelAgentsRoute,/Entry Setup Specialist/);
+  assert.match(parallelAgentsRoute,/Stop-Loss & Take-Profit Planner/);
+  assert.match(parallelAgentsRoute,/Position Sizing & Risk Manager/);
+  assert.match(parallelAgentsRoute,/Execution Discipline Agent/);
+  assert.match(parallelAgentsRoute,/Live Position Manager/);
+  assert.match(parallelAgentsRoute,/Trade Journal & Review Analyst/);
   assert.match(parallelAgentsRoute,/level2OrderBook:false/);
   assert.match(parallelAgentsRoute,/optionsImpliedVolatilitySurface:false/);
   assert.match(parallelAgentsRoute,/riskOnProxyMaxGrossExposurePct:25/);
   assert.match(parallelAgentsRoute,/neutralMaxGrossExposurePct:10/);
   assert.match(parallelAgentsRoute,/riskOffProxyMaxGrossExposurePct:5/);
-   assert.match(parallelAgentsRoute,/AbortSignal\.timeout\(23000\)/);
+   assert.match(parallelAgentsRoute,/AbortSignal\.timeout\(14000\)/);
    assert.match(parallelAgentsRoute,/qwen\/qwen3-next-80b-a3b-instruct:free/);
    assert.match(parallelAgentsRoute,/meta-llama\/llama-3\.3-8b-instruct:free/);
    assert.match(parallelAgentsRoute,/qwen\/qwen3-235b-a22b-07-25:free/);
