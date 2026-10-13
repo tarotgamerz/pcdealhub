@@ -70,6 +70,7 @@
 .live-paper-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;align-items:end;margin-top:14px}.live-paper-controls .field{margin:0}.live-paper-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:12px}.live-paper-summary strong{display:block;font-size:15px}.live-paper-positions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:10px}.live-paper-position{border:1px solid #29384a;border-radius:10px;padding:11px;background:#0a1119}.live-paper-position .head{display:flex;justify-content:space-between;gap:8px;margin-bottom:7px}.live-paper-position .facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.live-paper-position small{display:block;color:var(--muted);font-size:10px}.live-paper-position b{font-size:12px;overflow-wrap:anywhere}.live-paper-position button{margin-top:10px;width:100%}@media(max-width:700px){.live-paper-controls{grid-template-columns:1fr}.live-paper-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.live-paper-positions{grid-template-columns:1fr}}
 
 .live-multi-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:-2px 0 14px}
+.live-history-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:-2px 0 12px}.live-history-bar span{font-size:11px;color:var(--muted);line-height:1.45}.live-agent-auth-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:9px}.live-agent-auth-row input{min-width:180px;flex:1;padding:10px;border:1px solid #34475c;border-radius:8px;background:#080e16;color:var(--text)}#liveAgentAuthGate[hidden]{display:none!important}
 .live-multi-hint{font-size:11px;color:var(--muted);line-height:1.5}
 .live-agent-panel{margin:0 0 16px;border:1px solid #314356;border-radius:14px;background:linear-gradient(155deg,#101a27,#0a1119);padding:14px}
 .live-agent-panel[hidden]{display:none!important}
@@ -147,11 +148,13 @@
     <div class="field" style="margin:0"><label for="liveInterval">Chart timeframe</label><select id="liveInterval"><option value="1m">1 minute</option><option value="5m">5 minutes</option><option value="15m" selected>15 minutes</option><option value="1h">1 hour</option><option value="4h">4 hours</option></select></div>
     <button class="btn primary" id="liveRefresh" type="button">Analyze live market</button>
   </div>
+  <div class="live-history-bar"><button class="btn" id="liveLoadOlder" type="button">Load older candles</button><span id="liveHistoryStatus" aria-live="polite">The chart will load older candles when you pan to the left.</span></div>
   <div class="live-multi-actions"><button class="btn" id="toggleLiveAgentTeam" type="button" aria-expanded="false" aria-controls="liveAgentPanel">Open 7-agent analysis team</button><span class="live-multi-hint">Assign up to seven specialists to inspect the same closed candles in parallel.</span></div>
   <section class="live-agent-panel" id="liveAgentPanel" hidden aria-label="Multi-agent market analysis team">
     <div class="live-agent-panel-head"><div><h3>Live specialist team</h3><div class="sub">Choose one role per slot. Select at least three different specialists before running the team.</div></div><span class="tag">PARALLEL ANALYSIS · READ ONLY</span></div>
     <div class="live-agent-grid"><div class="live-agent-slot"><div class="live-agent-slot-head"><span class="live-agent-slot-number">SLOT 01</span><span class="live-agent-slot-state" id="liveAgentSlotState1">EMPTY</span></div><label for="liveAgentRole1">Specialist</label><select id="liveAgentRole1" class="live-agent-role" data-agent-role="1"><option value="">Empty slot — add specialist</option><option value="trend">Trend &amp; Regime</option><option value="structure">Market Structure</option><option value="momentum">Momentum &amp; RSI</option><option value="volatility">Volatility &amp; ATR</option><option value="volume">Volume &amp; Participation</option><option value="timeframe">Higher-Timeframe Analyst</option><option value="risk">Risk &amp; Red-Team Veto</option></select><p class="live-agent-slot-hint">Reads EMA alignment and trend slope.</p></div><div class="live-agent-slot"><div class="live-agent-slot-head"><span class="live-agent-slot-number">SLOT 02</span><span class="live-agent-slot-state" id="liveAgentSlotState2">EMPTY</span></div><label for="liveAgentRole2">Specialist</label><select id="liveAgentRole2" class="live-agent-role" data-agent-role="2"><option value="">Empty slot — add specialist</option><option value="trend">Trend &amp; Regime</option><option value="structure">Market Structure</option><option value="momentum">Momentum &amp; RSI</option><option value="volatility">Volatility &amp; ATR</option><option value="volume">Volume &amp; Participation</option><option value="timeframe">Higher-Timeframe Analyst</option><option value="risk">Risk &amp; Red-Team Veto</option></select><p class="live-agent-slot-hint">Checks closed-candle breakouts and range levels.</p></div><div class="live-agent-slot"><div class="live-agent-slot-head"><span class="live-agent-slot-number">SLOT 03</span><span class="live-agent-slot-state" id="liveAgentSlotState3">EMPTY</span></div><label for="liveAgentRole3">Specialist</label><select id="liveAgentRole3" class="live-agent-role" data-agent-role="3"><option value="">Empty slot — add specialist</option><option value="trend">Trend &amp; Regime</option><option value="structure">Market Structure</option><option value="momentum">Momentum &amp; RSI</option><option value="volatility">Volatility &amp; ATR</option><option value="volume">Volume &amp; Participation</option><option value="timeframe">Higher-Timeframe Analyst</option><option value="risk">Risk &amp; Red-Team Veto</option></select><p class="live-agent-slot-hint">Checks RSI, candle direction and momentum.</p></div><div class="live-agent-slot"><div class="live-agent-slot-head"><span class="live-agent-slot-number">SLOT 04</span><span class="live-agent-slot-state" id="liveAgentSlotState4">EMPTY</span></div><label for="liveAgentRole4">Specialist</label><select id="liveAgentRole4" class="live-agent-role" data-agent-role="4"><option value="">Empty slot — add specialist</option><option value="trend">Trend &amp; Regime</option><option value="structure">Market Structure</option><option value="momentum">Momentum &amp; RSI</option><option value="volatility">Volatility &amp; ATR</option><option value="volume">Volume &amp; Participation</option><option value="timeframe">Higher-Timeframe Analyst</option><option value="risk">Risk &amp; Red-Team Veto</option></select><p class="live-agent-slot-hint">Checks ATR expansion and volatility risk.</p></div><div class="live-agent-slot"><div class="live-agent-slot-head"><span class="live-agent-slot-number">SLOT 05</span><span class="live-agent-slot-state" id="liveAgentSlotState5">EMPTY</span></div><label for="liveAgentRole5">Specialist</label><select id="liveAgentRole5" class="live-agent-role" data-agent-role="5"><option value="">Empty slot — add specialist</option><option value="trend">Trend &amp; Regime</option><option value="structure">Market Structure</option><option value="momentum">Momentum &amp; RSI</option><option value="volatility">Volatility &amp; ATR</option><option value="volume">Volume &amp; Participation</option><option value="timeframe">Higher-Timeframe Analyst</option><option value="risk">Risk &amp; Red-Team Veto</option></select><p class="live-agent-slot-hint">Checks relative volume and candle close.</p></div><div class="live-agent-slot"><div class="live-agent-slot-head"><span class="live-agent-slot-number">SLOT 06</span><span class="live-agent-slot-state" id="liveAgentSlotState6">EMPTY</span></div><label for="liveAgentRole6">Specialist</label><select id="liveAgentRole6" class="live-agent-role" data-agent-role="6"><option value="">Empty slot — add specialist</option><option value="trend">Trend &amp; Regime</option><option value="structure">Market Structure</option><option value="momentum">Momentum &amp; RSI</option><option value="volatility">Volatility &amp; ATR</option><option value="volume">Volume &amp; Participation</option><option value="timeframe">Higher-Timeframe Analyst</option><option value="risk">Risk &amp; Red-Team Veto</option></select><p class="live-agent-slot-hint">Checks higher-timeframe trend alignment.</p></div><div class="live-agent-slot"><div class="live-agent-slot-head"><span class="live-agent-slot-number">SLOT 07</span><span class="live-agent-slot-state" id="liveAgentSlotState7">EMPTY</span></div><label for="liveAgentRole7">Specialist</label><select id="liveAgentRole7" class="live-agent-role" data-agent-role="7"><option value="">Empty slot — add specialist</option><option value="trend">Trend &amp; Regime</option><option value="structure">Market Structure</option><option value="momentum">Momentum &amp; RSI</option><option value="volatility">Volatility &amp; ATR</option><option value="volume">Volume &amp; Participation</option><option value="timeframe">Higher-Timeframe Analyst</option><option value="risk">Risk &amp; Red-Team Veto</option></select><p class="live-agent-slot-hint">Challenges risk/reward and fragile setups.</p></div></div>
     <div class="live-agent-runbar"><button class="btn primary" id="runLiveAgentTeam" type="button">Run selected agents simultaneously</button><button class="btn" id="clearLiveAgentTeam" type="button">Clear slots</button><span id="liveAgentRunStatus" class="live-multi-hint" aria-live="polite">No team run yet.</span></div>
+    <div id="liveAgentAuthGate" class="live-agent-consensus warn" hidden><strong>Private session required</strong><span id="liveAgentAuthMessage">Your private session may have expired. Unlock to run the AI specialists.</span><div class="live-agent-auth-row"><input id="liveAgentAccessCode" type="password" autocomplete="current-password" placeholder="TarotAI private access code" aria-label="TarotAI private access code"><button id="liveAgentAuthButton" class="btn primary" type="button">Unlock &amp; continue</button></div></div>
     <div id="liveAgentConsensus" class="live-agent-consensus warn" aria-live="polite"><strong>Team consensus: WAIT</strong><span>Add at least three different specialists, then run an analysis using the latest verified market candles.</span></div>
     <div id="livePatternStudy" class="live-agent-consensus warn" aria-live="polite"><strong id="livePatternTitle">Historical analogue study: not run</strong><span id="livePatternSummary">The team will compare this chart with earlier closed-candle patterns from the same market and timeframe, then report what price did after those examples.</span></div>
     <div id="livePatternExamples" class="live-agent-results"><div class="live-agent-result"><p>Historical examples will appear here with similarity and their observed six-candle outcomes.</p></div></div>
@@ -268,11 +271,12 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   const higherMap={"1m":"15m","5m":"1h","15m":"4h","1h":"1d","4h":"1d"};
   let chart=null,candleSeries=null,ema9Series=null,ema21Series=null,ema50Series=null,socketReconnectTimer=null;let lastMarketUpdateAt=0;
   let rows=[],marketVenue="binance",feedSocket=null,pollTimer=null,resizeObserver=null;
-  let currentSymbol="",currentInterval="",higherCache=[],higherCacheKey="",higherCacheAt=0,priceLines=[],busy=false,firstRender=true,lastWsCandleTime=0;
+  let currentSymbol="",currentInterval="",higherCache=[],higherCacheKey="",higherCacheAt=0,priceLines=[],busy=false,firstRender=true,lastWsCandleTime=0,historyBusy=false,historyExhausted=false,historyPages=0,historyLoadAllowedAt=0;
   const fmt=(n)=>Number.isFinite(n)?n.toLocaleString("en-US",{maximumFractionDigits:n>=1000?2:n>=1?4:7}):"—";
   const msFor=i=>intervalMs[i]||300000;
   const toSec=t=>Math.floor(Number(t)/1000);
   function status(text){byId("liveMarketStatus").textContent=text;}
+  function updateHistoryStatus(message){const el=byId("liveHistoryStatus"),button=byId("liveLoadOlder");if(el&&message)el.textContent=message;if(button)button.disabled=historyBusy||historyExhausted||rows.length>=4980;}
   function setFeed(label,mode){const e=byId("liveFeedPill");e.textContent=label;e.style.color=mode==="good"?"var(--green)":mode==="bad"?"var(--red)":"var(--amber)";e.style.borderColor=mode==="good"?"#2c5949":mode==="bad"?"#64323a":"#65512d";e.style.background=mode==="good"?"#0b211a":mode==="bad"?"#211014":"#211a0d";}
   function createChart(){
     if(!window.LightweightCharts||chart)return;
@@ -288,7 +292,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   function rsi(values,period){const out=Array(values.length).fill(NaN);if(values.length<=period)return out;let gain=0,loss=0;for(let i=1;i<=period;i++){const d=values[i]-values[i-1];gain+=Math.max(d,0);loss+=Math.max(-d,0);}gain/=period;loss/=period;out[period]=loss===0?100:100-100/(1+gain/loss);for(let i=period+1;i<values.length;i++){const d=values[i]-values[i-1];gain=(gain*(period-1)+Math.max(d,0))/period;loss=(loss*(period-1)+Math.max(-d,0))/period;out[i]=loss===0?100:100-100/(1+gain/loss);}return out;}
   function atr(candles,period){const tr=candles.map((c,i)=>i===0?c.high-c.low:Math.max(c.high-c.low,Math.abs(c.high-candles[i-1].close),Math.abs(c.low-candles[i-1].close)));if(tr.length<period)return tr.map(()=>NaN);const out=Array(tr.length).fill(NaN);let v=tr.slice(0,period).reduce((a,b)=>a+b,0)/period;out[period-1]=v;for(let i=period;i<tr.length;i++){v=(v*(period-1)+tr[i])/period;out[i]=v;}return out;}
   function validateCandle(c){return c&&[c.time,c.open,c.high,c.low,c.close].every(v=>Number.isFinite(Number(v)))&&c.time>0&&c.open>0&&c.close>0&&c.low>0&&c.high>=Math.max(c.open,c.close,c.low)&&c.low<=Math.min(c.open,c.close,c.high);}
-  function orderedCandles(input){const map=new Map();for(const c of input||[]){if(!validateCandle(c))continue;map.set(Number(c.time),{time:Number(c.time),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close),volume:Number(c.volume||0),closeTime:Number(c.closeTime||Number(c.time)+msFor(currentInterval)-1)});}return Array.from(map.values()).sort((a,b)=>a.time-b.time).slice(-300);}
+  function orderedCandles(input){const map=new Map();for(const c of input||[]){if(!validateCandle(c))continue;map.set(Number(c.time),{time:Number(c.time),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close),volume:Number(c.volume||0),closeTime:Number(c.closeTime||Number(c.time)+msFor(currentInterval)-1)});}return Array.from(map.values()).sort((a,b)=>a.time-b.time).slice(-5000);}
   function closedOnly(input,interval){const now=Date.now(),dur=msFor(interval);return (input||[]).filter(c=>{const end=Number.isFinite(c.closeTime)&&c.closeTime>c.time?c.closeTime:c.time+dur-1;return end<now-300;});}
   function plotCandle(c){return {time:toSec(c.time),open:c.open,high:c.high,low:c.low,close:c.close};}
   function lineData(values,ts){const out=[];for(let i=0;i<values.length;i++)if(Number.isFinite(values[i]))out.push({time:toSec(ts[i].time),value:values[i]});return out;}
@@ -474,12 +478,36 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     selects.forEach(select=>Array.from(select.options).forEach(option=>{if(option.value)option.disabled=option.value!==select.value&&used.includes(option.value);}));
     selects.forEach(select=>{const state=byId("liveAgentSlotState"+select.dataset.agentRole);if(state)state.textContent=select.value?"ADDED":"EMPTY";});
   }
+  function showAgentAuthGate(message){const gate=byId("liveAgentAuthGate");gate.hidden=false;byId("liveAgentAuthMessage").textContent=message||"Your private session has expired. Unlock to run the AI specialists.";}
+  async function ensurePrivateSession(){
+    try{
+      const response=await fetch("/api/auth",{cache:"no-store",credentials:"same-origin",signal:AbortSignal.timeout(8000)}),data=await response.json().catch(()=>({}));
+      if(response.ok&&data.authenticated===true){byId("liveAgentAuthGate").hidden=true;return true;}
+      showAgentAuthGate(data.accessCodeConfigured===false?"Private access is not configured by the server. Configure TAROTAI_ACCESS_CODE in production before running AI agents.":"The private session is missing or expired. Enter the same access code used to unlock TarotAI.");
+      byId("liveAgentAccessCode").focus();return false;
+    }catch(e){showAgentAuthGate("Could not check the private session: "+(e&&e.message?e.message:String(e))+". Check the connection and retry.");return false;}
+  }
+  async function unlockAgentSession(){
+    const button=byId("liveAgentAuthButton"),input=byId("liveAgentAccessCode"),code=input.value;
+    if(!code){byId("liveAgentAuthMessage").textContent="Enter your TarotAI private access code.";input.focus();return;}
+    button.disabled=true;button.textContent="Unlocking…";
+    try{
+      const response=await fetch("/api/auth",{method:"POST",cache:"no-store",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({code}),signal:AbortSignal.timeout(8000)}),data=await response.json().catch(()=>({}));
+      if(!response.ok||data.authenticated!==true)throw new Error(data.error||"Access code was rejected.");
+      const verify=await fetch("/api/auth",{cache:"no-store",credentials:"same-origin",signal:AbortSignal.timeout(8000)}),session=await verify.json().catch(()=>({}));
+      if(!verify.ok||session.authenticated!==true)throw new Error("The browser did not accept the private session cookie. Reload TarotAI and try again.");
+      input.value="";byId("liveAgentAuthGate").hidden=true;byId("liveAgentRunStatus").textContent="Private session unlocked. Starting the selected specialist team…";
+      void runLiveAgentTeam();
+    }catch(e){showAgentAuthGate(e&&e.message?e.message:String(e));}
+    finally{button.disabled=false;button.textContent="Unlock & continue";}
+  }
   async function runLiveAgentTeam(){
     const runButton=byId("runLiveAgentTeam"),statusEl=byId("liveAgentRunStatus"),summary=byId("liveAgentConsensus");
     const selections=Array.from(document.querySelectorAll("[data-agent-role]")).map(s=>s.value).filter(Boolean);
     if(selections.length<3){statusEl.textContent="Select at least three different specialists.";return;}
     if(new Set(selections).size!==selections.length){statusEl.textContent="Each slot must use a different specialist.";return;}
     if(!rows.length||!candleSeries){statusEl.textContent="Refresh live analysis first; market data is not ready.";return;}
+    if(!await ensurePrivateSession()){statusEl.textContent="Authentication required — unlock the private session below to continue.";return;}
     const closed=closedOnly(rows,currentInterval);
     if(closed.length<80){statusEl.textContent="Not enough closed candles. Refresh market data first.";return;}
     const i=closed.length-1,last=closed[i],prev=closed[i-1],closes=closed.map(x=>x.close),e9=ema(closes,9),e21=ema(closes,21),e50=ema(closes,50),rsiValues=rsi(closes,14),atrValues=atr(closed,14),prior=closed.slice(Math.max(0,i-20),i);
@@ -492,7 +520,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     try{
       const localStudy=window.TarotAIMarketPatterns?.findSimilarCases(closed,currentInterval,{horizon:6,maxExamples:8,maxDistance:0.34});
       if(localStudy)renderHistoricalStudy(localStudy);
-      const response=await fetch("/api/trading/agents",{method:"POST",cache:"no-store",headers:{"Content-Type":"application/json"},signal:AbortSignal.timeout(40000),
+      const response=await fetch("/api/trading/agents",{method:"POST",cache:"no-store",credentials:"same-origin",headers:{"Content-Type":"application/json"},signal:AbortSignal.timeout(40000),
         body:JSON.stringify({symbol:currentSymbol,interval:currentInterval,venue:marketVenue,roles:selections})});
       const data=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(data.error||"AI specialist endpoint returned HTTP "+response.status);
@@ -523,22 +551,39 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       }else if(longs>=needed||shorts>=needed){title="Team consensus: WAIT — agents disagree";body=longs+" LONG and "+shorts+" SHORT votes indicate cross-agent disagreement. No entry is qualified.";}
       summary.className="live-agent-consensus "+mood;summary.replaceChildren();const t=document.createElement("strong");t.textContent=title;const p=document.createElement("span");p.textContent=body;summary.append(t,p);
       statusEl.textContent="Finished "+successful.length+"/"+selections.length+" actual AI specialist calls · "+(data.model||"model unreported")+" · "+(data.elapsedMs||0)+" ms · "+(data.market?.venue||marketVenue)+" · server candles fetched "+(data.market?.fetchedAt||"unknown")+".";
-    }catch(e){statusEl.textContent="Analysis failed: "+(e&&e.message?e.message:String(e));}
+    }catch(e){const message=e&&e.message?e.message:String(e);statusEl.textContent="Analysis failed: "+message;if(/authentication required/i.test(message)){showAgentAuthGate("The server rejected this private session. Unlock again and rerun the team.");}}
     finally{runButton.disabled=false;}
   }
   async function fetchJSON(url){const r=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(9000)});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.detail||j.error||("HTTP "+r.status));if(j.stale)throw new Error("Exchange data marked stale by the server");if(!Array.isArray(j.candles))throw new Error("Exchange response did not contain candles");return j;}
-  async function fetchMarketWithFallback(symbol,interval,limit){
+  async function fetchMarketWithFallback(symbol,interval,limit,before){
     const failures=[];
     for(const venue of ["binance","bybit","okx"]){
       try{
-        const params=new URLSearchParams({venue,symbol,interval,limit:String(limit),public:"1"});
+        const params=new URLSearchParams({venue,symbol,interval,limit:String(limit),public:"1"});if(Number.isFinite(before)&&before>0)params.set("before",String(Math.floor(before)));
         const data=await fetchJSON("/api/exchanges/market?"+params);
-        if(data.candles.length<35){failures.push(venue.toUpperCase()+": only "+data.candles.length+" candles returned");continue;}
+        if(data.candles.length<(Number.isFinite(before)?1:35)){failures.push(venue.toUpperCase()+": only "+data.candles.length+" candles returned");continue;}
         data.venue=data.venue||venue;
         return data;
       }catch(e){failures.push(venue.toUpperCase()+": "+(e&&e.message?e.message:String(e)));}
     }
-    throw new Error("No fresh futures feed succeeded. "+failures.join(" | "));
+    throw new Error("No "+(Number.isFinite(before)?"historical":"fresh")+" futures feed succeeded. "+failures.join(" | "));
+  }
+  async function loadOlderHistory(){
+    if(historyBusy||historyExhausted||!rows.length||!chart)return;
+    if(rows.length>=4980){updateHistoryStatus("Chart history limit reached (5,000 candles).");return;}
+    historyBusy=true;updateHistoryStatus("Loading older "+currentSymbol+" "+currentInterval+" candles…");
+    const before=rows[0].time,rangeBefore=chart.timeScale().getVisibleLogicalRange(),oldCount=rows.length;
+    try{
+      const data=await fetchMarketWithFallback(currentSymbol,currentInterval,Math.min(500,5000-rows.length),before);
+      const batch=orderedCandles(data.candles).filter(c=>c.time<before);
+      if(!batch.length){historyExhausted=true;updateHistoryStatus("No older candles were returned by the exchanges for this market/timeframe.");return;}
+      rows=orderedCandles([...batch,...rows]);const added=rows.length-oldCount;
+      if(added<=0){historyExhausted=true;updateHistoryStatus("No additional historical candles available.");return;}
+      historyPages++;renderRows(false);
+      if(rangeBefore){chart.timeScale().setVisibleLogicalRange({from:rangeBefore.from+added,to:rangeBefore.to+added});}
+      updateHistoryStatus("Loaded "+rows.length.toLocaleString()+" candles ("+historyPages+" history page"+(historyPages===1?"":"s")+". Pan left or load more to explore older patterns.");
+    }catch(e){updateHistoryStatus("History load failed: "+(e&&e.message?e.message:String(e))+". Tap to retry.");}
+    finally{historyBusy=false;updateHistoryStatus();}
   }
   async function loadHigher(force){
     const ht=higherMap[currentInterval]||"1d",key=currentSymbol+"|"+ht+"|"+marketVenue;
@@ -548,23 +593,24 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   }
   function renderRows(forceFit){
     if(!candleSeries||!rows.length)return;
+    const rangeBefore=chart.timeScale().getVisibleLogicalRange(),stayAtRealtime=!rangeBefore||rangeBefore.to>=rows.length-8;
     candleSeries.setData(rows.map(plotCandle));
     const closes=rows.map(c=>c.close),ts=rows;
     ema9Series.setData(lineData(ema(closes,9),ts));ema21Series.setData(lineData(ema(closes,21),ts));ema50Series.setData(lineData(ema(closes,50),ts));
-    if(firstRender||forceFit){chart.timeScale().fitContent();firstRender=false;}else chart.timeScale().scrollToRealTime();
+    if(firstRender||forceFit){historyLoadAllowedAt=Date.now()+1200;chart.timeScale().fitContent();firstRender=false;}else if(stayAtRealtime)chart.timeScale().scrollToRealTime();
     analyze();
   }
   async function refresh(force){
     if(busy)return;busy=true;byId("liveRefresh").disabled=true;
     if(!force)status("Refreshing fresh perpetual-futures candles…");
     try{
-      const sym=byId("liveSymbol").value,interval=byId("liveInterval").value;
-      if(sym!==currentSymbol||interval!==currentInterval){currentSymbol=sym;currentInterval=interval;higherCache=[];higherCacheKey="";higherCacheAt=0;firstRender=true;}
+      const sym=byId("liveSymbol").value,interval=byId("liveInterval").value,changed=sym!==currentSymbol||interval!==currentInterval;
+      if(changed){currentSymbol=sym;currentInterval=interval;higherCache=[];higherCacheKey="";higherCacheAt=0;firstRender=true;rows=[];historyExhausted=false;historyPages=0;lastWsCandleTime=0;}
       const data=await fetchMarketWithFallback(currentSymbol,currentInterval,250);
       const nextVenue=data.venue||"binance",venueChanged=marketVenue!==nextVenue;
       marketVenue=nextVenue;
       if(venueChanged)connectSocket();
-      rows=orderedCandles(data.candles);lastMarketUpdateAt=Date.now();
+      rows=changed?orderedCandles(data.candles):orderedCandles([...rows,...data.candles]);lastMarketUpdateAt=Date.now();updateHistoryStatus("Loaded "+rows.length.toLocaleString()+" candles. Pan left or tap Load older candles to inspect older patterns.");
       if(rows.length<80)throw new Error("Only "+rows.length+" valid candles were returned; need at least 80.");
       renderRows(firstRender);
       try{await loadHigher(false);analyze();}catch(e){higherCache=[];higherCacheKey="";byId("liveHtf").textContent="UNAVAILABLE";analyze();status("Chart data loaded, but the higher-timeframe confirmation failed: "+e.message+". Signal stays HOLD until trend confirmation succeeds.");}
@@ -593,11 +639,11 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
         let msg;try{msg=JSON.parse(event.data);}catch(e){return;}
         const k=msg&&msg.k;if(!k||!Number.isFinite(Number(k.t)))return;
         const bar={time:Number(k.t),open:Number(k.o),high:Number(k.h),low:Number(k.l),close:Number(k.c),volume:Number(k.v),closeTime:Number(k.T)};
-        if(!validateCandle(bar))return;lastMarketUpdateAt=Date.now();
+        if(!validateCandle(bar))return;const visibleBefore=chart.timeScale().getVisibleLogicalRange(),stickAtRealtime=!visibleBefore||visibleBefore.to>=rows.length-8;lastMarketUpdateAt=Date.now();
         if(!rows.length||bar.time>rows[rows.length-1].time)rows.push(bar);
         else{const idx=rows.findIndex(x=>x.time===bar.time);if(idx>=0)rows[idx]=bar;}
-        if(rows.length>300)rows=rows.slice(-300);
-        try{candleSeries.update(plotCandle(bar));const cls=rows.map(c=>c.close);ema9Series.setData(lineData(ema(cls,9),rows));ema21Series.setData(lineData(ema(cls,21),rows));ema50Series.setData(lineData(ema(cls,50),rows));byId("livePrice").textContent=fmt(bar.close);chart.timeScale().scrollToRealTime();}catch(e){}
+        if(rows.length>5000)rows=rows.slice(-5000);
+        try{candleSeries.update(plotCandle(bar));const cls=rows.map(c=>c.close);ema9Series.setData(lineData(ema(cls,9),rows));ema21Series.setData(lineData(ema(cls,21),rows));ema50Series.setData(lineData(ema(cls,50),rows));byId("livePrice").textContent=fmt(bar.close);if(stickAtRealtime)chart.timeScale().scrollToRealTime();}catch(e){}
         if(k.x&&Number(k.T)!==lastWsCandleTime){lastWsCandleTime=Number(k.T);refresh(false);}
       };
       feedSocket.onerror=()=>setFeed("WEBSOCKET UNAVAILABLE · POLLING","neutral");
@@ -612,6 +658,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     return;
   }
   createChart();
+  chart.timeScale().subscribeVisibleLogicalRangeChange(range=>{if(!range||historyBusy||Date.now()<historyLoadAllowedAt)return;if(range.from<18)void loadOlderHistory();});
+  byId("liveLoadOlder").addEventListener("click",()=>loadOlderHistory());
   byId("liveRefresh").addEventListener("click",()=>refresh(true));
   const liveAgentPanel=byId("liveAgentPanel"),toggleLiveAgentTeam=byId("toggleLiveAgentTeam");
   toggleLiveAgentTeam.addEventListener("click",()=>{
@@ -623,6 +671,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   });
   document.querySelectorAll("[data-agent-role]").forEach(select=>select.addEventListener("change",updateLiveAgentSlotOptions));
   byId("runLiveAgentTeam").addEventListener("click",runLiveAgentTeam);
+  byId("liveAgentAuthButton").addEventListener("click",unlockAgentSession);
+  byId("liveAgentAccessCode").addEventListener("keydown",event=>{if(event.key==="Enter")unlockAgentSession();});
   byId("clearLiveAgentTeam").addEventListener("click",()=>{
     document.querySelectorAll("[data-agent-role]").forEach(select=>select.value="");
     updateLiveAgentSlotOptions();
