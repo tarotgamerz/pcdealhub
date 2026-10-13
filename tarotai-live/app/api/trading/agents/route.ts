@@ -87,7 +87,7 @@ function trendSummary(candles:Candle[]) {
  return {direction:closes[i]>e50[i]&&e20[i]>e50[i]?"BULLISH":closes[i]<e50[i]&&e20[i]<e50[i]?"BEARISH":"MIXED / NEUTRAL",lastClose:closes[i],ema20:e20[i],ema50:e50[i],lastClosedAt:new Date(candles[i].time).toISOString()};
 }
 function compactCandles(candles:Candle[],count:number) {return candles.slice(-count).map(c=>({utc:new Date(c.time).toISOString(),o:Number(c.open.toPrecision(7)),h:Number(c.high.toPrecision(7)),l:Number(c.low.toPrecision(7)),c:Number(c.close.toPrecision(7)),v:Number(c.volume.toPrecision(5))}));}
-function parseBias(text:string) {const m=text.match(/^\s*(?:[-*]\s*)?BIAS\s*:\s*(LONG|SHORT|WAIT)\b/im),v=text.match(/^\s*(?:[-*]\s*)?VETO\s*:\s*(YES|NO)\b/im);return {bias:m?.[1]?.toUpperCase()||"WAIT",veto:v?.[1]?.toUpperCase()==="YES"};}
+function parseBias(text:string) {const m=text.match(/^\s*(?:[-*]\s*)?(?:\*\*)?BIAS(?:\*\*)?\s*:\s*(LONG|SHORT|WAIT)\b/im),v=text.match(/^\s*(?:[-*]\s*)?(?:\*\*)?VETO(?:\*\*)?\s*:\s*(YES|NO)\b/im);return {bias:m?.[1]?.toUpperCase()||"WAIT",veto:v?.[1]?.toUpperCase()==="YES"};}
 function specialistSystem(role:string) {
  const s=SPECIALISTS[role];
  return [
@@ -137,7 +137,7 @@ export async function POST(request:Request) {
    positiveSharePct:patternStudy.positiveSharePct,negativeSharePct:patternStudy.negativeSharePct,
    meanForwardReturnPct:patternStudy.averageReturnPct,medianForwardReturnPct:patternStudy.medianReturnPct,
    caveat:"descriptive analogue frequency, not a calibrated win probability; fees, spread, slippage and regime shifts can change results",
-   nearestExamples:patternStudy.examples.slice(0,6).map(e=>({closedAt:new Date(e.time).toISOString(),pattern:e.pattern,similarityPct:Number(e.similarityPct.toFixed(1)),observedForwardReturnPct:Number(e.forwardReturnPct.toFixed(3)),observedOutcome:e.outcome,horizonCandles:e.horizon}))
+   currentPattern:patternStudy.current?.pattern||"unclassified",currentClose:patternStudy.current?.close??null,nearestExamples:patternStudy.examples.slice(0,6).map(e=>({closedAt:new Date(e.time).toISOString(),close:e.close,pattern:e.pattern,similarityPct:Number(e.similarityPct.toFixed(1)),observedForwardReturnPct:Number(e.forwardReturnPct.toFixed(3)),observedOutcome:e.outcome,horizonCandles:e.horizon}))
   },
   last24ClosedCandles:compactCandles(market.candles,24),last12HigherTimeframeCandles:compactCandles(market.higherCandles,12)
  };
