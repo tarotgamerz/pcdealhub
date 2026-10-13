@@ -98,7 +98,8 @@
       const main = node("div", "");
       const name = node("strong", "", agent.name);
       name.style.display = "block";
-      const focus = node("span", "", agent.focus || "Analyzing the verified market snapshot.");
+      const focusText = agent.status === "error" && agent.errorText ? "Failed: " + agent.errorText : agent.status === "blocked" && agent.errorText ? "Not started: " + agent.errorText : agent.focus || "Analyzing the verified market snapshot.";
+      const focus = node("span", "", focusText);
       main.append(name, focus);
       const stateLabel = agent.status === "running" ? "WORKING" :
         agent.status === "complete" ? ("DONE" + (agent.bias && agent.bias !== "WAIT" ? " · " + agent.bias : "")) :
