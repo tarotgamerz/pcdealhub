@@ -385,6 +385,99 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
 
     status("Source: Binance USDⓈ-M Futures public market data · "+closed.length+" closed candles analyzed · latest closed candle "+new Date(last.time).toLocaleString()+" · EMA 9/21/50 · RSI "+rv[i].toFixed(1)+" · ATR "+fmt(av[i])+" · long score "+longScore+"/5 · short score "+shortScore+"/5 · HTF "+htf.direction+". Rules are deterministic and transparent; no profit guarantee.");
   }
+  const liveAgentSpecialists={
+    trend:{name:"Trend & Regime"},structure:{name:"Market Structure"},momentum:{name:"Momentum & RSI"},
+    volatility:{name:"Volatility & ATR"},volume:{name:"Volume & Participation"},
+    timeframe:{name:"Higher-Timeframe Analyst"},risk:{name:"Risk & Red-Team Veto"}
+  };
+  function evaluateLiveSpecialist(role,ctx){
+    const {closed,last,prev,priorHigh,priorLow,ema9,ema21,ema50,rsiValues,atrValues,i,htf,baseDecision}=ctx;
+    let direction="WAIT",detail="",veto=false;
+    const c=last.close,atrNow=atrValues[i],rsiNow=rsiValues[i],rising=ema9[i]>ema9[Math.max(0,i-3)],falling=ema9[i]<ema9[Math.max(0,i-3)];
+    const up=ema9[i]>ema21[i]&&c>ema50[i]&&rising,down=ema9[i]<ema21[i]&&c<ema50[i]&&falling,atrPct=atrNow/c;
+    if(role==="trend"){
+      if(up)direction="LONG";else if(down)direction="SHORT";
+      detail="EMA 9/21/50: "+(up?"bullish alignment with rising fast EMA":down?"bearish alignment with falling fast EMA":"mixed or flattening trend")+".";
+    }else if(role==="structure"){
+      if(c>priorHigh)direction="LONG";else if(c<priorLow)direction="SHORT";
+      detail="Last closed price "+fmt(c)+" vs prior 20-bar range "+fmt(priorLow)+"–"+fmt(priorHigh)+": "+(direction==="LONG"?"confirmed upside breakout":direction==="SHORT"?"confirmed downside breakdown":"no close outside the range")+".";
+    }else if(role==="momentum"){
+      if(rsiNow>=52&&rsiNow<=68&&rising&&c>prev.close)direction="LONG";else if(rsiNow>=32&&rsiNow<=48&&falling&&c<prev.close)direction="SHORT";
+      detail="RSI "+rsiNow.toFixed(1)+"; EMA 9 "+(rising?"rising":falling?"falling":"flat")+". "+(direction==="WAIT"?"Momentum band and candle follow-through do not align.":"RSI and price follow-through support this bias.");
+    }else if(role==="volatility"){
+      const recent=atrValues.slice(Math.max(0,i-20),i).filter(Number.isFinite),avg=recent.length?recent.reduce((a,b)=>a+b,0)/recent.length:NaN,ratio=avg>0?atrNow/avg:NaN,shock=atrPct>0.025||(Number.isFinite(ratio)&&ratio>2.2);
+      if(shock){veto=true;detail="Volatility shock: ATR is "+(atrPct*100).toFixed(2)+"% of price"+(Number.isFinite(ratio)?", "+ratio.toFixed(2)+"× its recent average":"")+". Avoid fresh entries until volatility cools.";}
+      else if(up&&ratio>=0.7&&ratio<=1.9)direction="LONG";else if(down&&ratio>=0.7&&ratio<=1.9)direction="SHORT";
+      if(!detail)detail=Number.isFinite(ratio)?"ATR "+fmt(atrNow)+"; "+ratio.toFixed(2)+"× its recent average. "+(direction==="WAIT"?"No clean trend/volatility combination.":"Volatility is compatible with this trend."):"ATR comparison unavailable; no directional vote.";
+    }else if(role==="volume"){
+      const vols=closed.slice(Math.max(0,i-20),i).map(x=>x.volume).filter(v=>Number.isFinite(v)&&v>0),avg=vols.length?vols.reduce((a,b)=>a+b,0)/vols.length:NaN,ratio=avg>0?last.volume/avg:NaN,loc=(c-last.low)/Math.max(last.high-last.low,Number.EPSILON);
+      if(Number.isFinite(ratio)&&ratio>=1.2&&loc>=0.7&&c>last.open)direction="LONG";else if(Number.isFinite(ratio)&&ratio>=1.2&&loc<=0.3&&c<last.open)direction="SHORT";
+      detail=Number.isFinite(ratio)?"Volume "+ratio.toFixed(2)+"× its previous 20-bar average; close location "+(loc*100).toFixed(0)+"%. "+(direction==="WAIT"?"Participation does not confirm direction.":"Volume and candle close support this bias."):"Volume data is missing or not comparable.";
+    }else if(role==="timeframe"){
+      if(htf.ready&&htf.up)direction="LONG";else if(htf.ready&&htf.down)direction="SHORT";
+      detail=htf.ready?"Higher timeframe is "+htf.direction+"; "+(direction==="WAIT"?"no directional confirmation.":"it supports this bias."):"Higher-timeframe candles are unavailable.";
+    }else if(role==="risk"){
+      const long=baseDecision&&baseDecision.action==="BUY / LONG",short=baseDecision&&baseDecision.action==="SELL / SHORT";
+      const entry=Number(baseDecision?.entry),stop=Number(baseDecision?.stop),target=Number(baseDecision?.target),valid=Number.isFinite(entry)&&Number.isFinite(stop)&&Number.isFinite(target)&&((long&&stop<entry&&target>entry)||(short&&stop>entry&&target<entry));
+      const risk=long?entry-stop:short?stop-entry:NaN,reward=long?target-entry:short?entry-target:NaN,rr=valid&&risk>0?reward/risk:NaN;
+      if(long||short){
+        if(valid&&Number.isFinite(rr)&&rr>=1.8&&htf.ready&&((long&&htf.up)||(short&&htf.down))&&atrPct<=0.025)direction=long?"LONG":"SHORT";
+        else{veto=true;detail="Risk gate rejected the chart signal: stop/target geometry, reward-to-risk, higher-timeframe alignment or ATR is unsuitable.";}
+      }else detail="No existing qualified chart entry to approve. This agent will not invent a trade.";
+      if(!detail)detail="Chart setup passes basic geometry at "+rr.toFixed(2)+"R with trend alignment; fees, slippage and execution risk still apply.";
+    }
+    return {role,name:liveAgentSpecialists[role].name,direction,detail,veto};
+  }
+  function renderLiveAgentResults(results){
+    const box=byId("liveAgentResults");box.replaceChildren();
+    results.forEach(result=>{
+      const card=document.createElement("article");card.className="live-agent-result";
+      const head=document.createElement("div");head.className="live-agent-result-head";
+      const title=document.createElement("b");title.textContent=result.name;
+      const vote=document.createElement("span");vote.className="live-agent-vote "+(result.direction==="LONG"?"long":result.direction==="SHORT"?"short":"wait");vote.textContent=result.veto?"RISK VETO":result.direction;
+      head.append(title,vote);const p=document.createElement("p");p.textContent=result.detail;card.append(head,p);box.append(card);
+    });
+  }
+  function updateLiveAgentSlotOptions(){
+    const selects=Array.from(document.querySelectorAll("[data-agent-role]")),used=selects.map(s=>s.value).filter(Boolean);
+    selects.forEach(select=>Array.from(select.options).forEach(option=>{if(option.value)option.disabled=option.value!==select.value&&used.includes(option.value);}));
+    selects.forEach(select=>{const state=byId("liveAgentSlotState"+select.dataset.agentRole);if(state)state.textContent=select.value?"ADDED":"EMPTY";});
+  }
+  async function runLiveAgentTeam(){
+    const runButton=byId("runLiveAgentTeam"),statusEl=byId("liveAgentRunStatus"),summary=byId("liveAgentConsensus");
+    const selections=Array.from(document.querySelectorAll("[data-agent-role]")).map(s=>s.value).filter(Boolean);
+    if(selections.length<3){statusEl.textContent="Select at least three different specialists.";return;}
+    if(new Set(selections).size!==selections.length){statusEl.textContent="Each slot must use a different specialist.";return;}
+    if(!rows.length||!candleSeries){statusEl.textContent="Refresh live analysis first; market data is not ready.";return;}
+    const closed=closedOnly(rows,currentInterval);
+    if(closed.length<80){statusEl.textContent="Not enough closed candles. Refresh market data first.";return;}
+    const i=closed.length-1,last=closed[i],prev=closed[i-1],closes=closed.map(x=>x.close),e9=ema(closes,9),e21=ema(closes,21),e50=ema(closes,50),rsiValues=rsi(closes,14),atrValues=atr(closed,14),prior=closed.slice(Math.max(0,i-20),i);
+    const priorHigh=Math.max(...prior.map(x=>x.high)),priorLow=Math.min(...prior.map(x=>x.low)),htf=trendFor(higherCache,higherMap[currentInterval]||"1d"),baseDecision=window.tarotaiLiveDecision||null;
+    const end=Number.isFinite(last.closeTime)&&last.closeTime>last.time?last.closeTime:last.time+msFor(currentInterval)-1;
+    if(Date.now()-end>msFor(currentInterval)*2+60000){summary.className="live-agent-consensus bad";summary.replaceChildren();const t=document.createElement("strong");t.textContent="Team consensus: WAIT — stale data";const p=document.createElement("span");p.textContent="The last closed candle is too old to qualify a live opportunity. Refresh the chart; no directional setup will be issued.";summary.append(t,p);statusEl.textContent="Blocked because candles are stale.";return;}
+    if(!htf.ready){summary.className="live-agent-consensus warn";summary.replaceChildren();const t=document.createElement("strong");t.textContent="Team consensus: WAIT — higher timeframe unavailable";const p=document.createElement("span");p.textContent="Refresh and wait for higher-timeframe candles before qualifying a setup.";summary.append(t,p);statusEl.textContent="Waiting for higher-timeframe confirmation.";return;}
+    runButton.disabled=true;statusEl.textContent="Running "+selections.length+" agents concurrently on "+currentSymbol+" "+currentInterval+"…";
+    summary.className="live-agent-consensus warn";summary.replaceChildren();const loading=document.createElement("strong");loading.textContent="Team consensus: ANALYZING";const msg=document.createElement("span");msg.textContent="All selected specialists received the same fresh closed-candle snapshot.";summary.append(loading,msg);
+    try{
+      const ctx={closed,last,prev,priorHigh,priorLow,ema9:e9,ema21:e21,ema50:e50,rsiValues,atrValues,i,htf,baseDecision};
+      const results=await Promise.all(selections.map(role=>Promise.resolve().then(()=>evaluateLiveSpecialist(role,ctx))));
+      renderLiveAgentResults(results);
+      const longs=results.filter(r=>r.direction==="LONG").length,shorts=results.filter(r=>r.direction==="SHORT").length,needed=Math.max(3,Math.ceil(results.length*0.67)),vetoes=results.filter(r=>r.veto);
+      const baseLong=baseDecision?.action==="BUY / LONG",baseShort=baseDecision?.action==="SELL / SHORT";
+      let title="Team consensus: WAIT — no strong agreement",body=longs+" LONG · "+shorts+" SHORT · "+(results.length-longs-shorts)+" WAIT. Need "+needed+" matching votes plus a matching qualified chart signal.",mood="warn";
+      if(vetoes.length){title="Team consensus: WAIT — risk veto";body=vetoes.map(r=>r.name+": "+r.detail).join(" ")+" Do not open a new paper entry from this run.";mood="bad";}
+      else if(longs>=needed&&shorts<=1){
+        if(baseLong){title="Team consensus: LONG setup confirmed";body=longs+"/"+results.length+" specialists support LONG and the main chart engine confirms it. Entry "+fmt(baseDecision.entry)+" · stop "+fmt(baseDecision.stop)+" · target "+fmt(baseDecision.target)+" · "+Number(baseDecision.rr).toFixed(2)+"R. Use paper-trading controls only after the signal remains fresh.";mood="good";}
+        else{title="Team consensus: bullish bias — WAIT";body=longs+"/"+results.length+" specialists lean LONG, but the main chart engine has not confirmed an entry. This is not a buy signal.";}
+      }else if(shorts>=needed&&longs<=1){
+        if(baseShort){title="Team consensus: SHORT setup confirmed";body=shorts+"/"+results.length+" specialists support SHORT and the main chart engine confirms it. Entry "+fmt(baseDecision.entry)+" · stop "+fmt(baseDecision.stop)+" · target "+fmt(baseDecision.target)+" · "+Number(baseDecision.rr).toFixed(2)+"R. Use paper-trading controls only after the signal remains fresh.";mood="good";}
+        else{title="Team consensus: bearish bias — WAIT";body=shorts+"/"+results.length+" specialists lean SHORT, but the main chart engine has not confirmed an entry. This is not a sell signal.";}
+      }
+      summary.className="live-agent-consensus "+mood;summary.replaceChildren();const t=document.createElement("strong");t.textContent=title;const p=document.createElement("span");p.textContent=body;summary.append(t,p);
+      statusEl.textContent="Finished "+results.length+" specialist analyses at "+new Date().toLocaleTimeString()+" · "+currentSymbol+" "+currentInterval+" · "+marketVenue+" · closed candles only.";
+    }catch(e){statusEl.textContent="Analysis failed: "+(e&&e.message?e.message:String(e));}
+    finally{runButton.disabled=false;}
+  }
   async function fetchJSON(url){const r=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(9000)});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.detail||j.error||("HTTP "+r.status));if(j.stale)throw new Error("Exchange data marked stale by the server");if(!Array.isArray(j.candles))throw new Error("Exchange response did not contain candles");return j;}
   async function fetchMarketWithFallback(symbol,interval,limit){
     const failures=[];
