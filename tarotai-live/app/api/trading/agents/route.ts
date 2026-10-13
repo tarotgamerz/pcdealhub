@@ -142,7 +142,7 @@ export async function POST(request:Request) {
   last24ClosedCandles:compactCandles(market.candles,24),last12HigherTimeframeCandles:compactCandles(market.higherCandles,12)
  };
  const serialized=JSON.stringify(userContext);
- const results=await Promise.all(roles.map(async role=>{
+ const results=await Promise.all(roles.map(async (role: string)=>{
   const agentStarted=Date.now();
   try {
    const response=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",cache:"no-store",signal:AbortSignal.timeout(16000),
