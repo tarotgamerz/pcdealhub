@@ -401,13 +401,13 @@ test("historical analogue matcher uses only matured prior candles and reports ob
 });
 
 test("retired free models fall back to OpenRouter free router and supervisor audits seven roles", () => {
-  assert.match(parallelAgentsRoute,/qwen\\/qwen3-next-80b-a3b-instruct:free/);
-  assert.match(parallelAgentsRoute,/configuredModel==="qwen\\/qwen3-next-80b-a3b-instruct:free"\\?"openrouter\\/free":configuredModel/);
-  assert.match(parallelAgentsRoute,/const unavailable=Number\\(response.status\\)===404/);
-  assert.match(parallelAgentsRoute,/role:"supervisor"/);
-  assert.match(parallelAgentsRoute,/priorReports/);
-  assert.match(parallelAgentsRoute,/const paperTradeContext=/);
-  assert.match(parallelAgentsRoute,/openrouter\\/free/);
+  assert.ok(parallelAgentsRoute.includes("qwen/qwen3-next-80b-a3b-instruct:free"));
+  assert.ok(parallelAgentsRoute.includes('configuredModel==="qwen/qwen3-next-80b-a3b-instruct:free"?"openrouter/free":configuredModel'));
+  assert.ok(parallelAgentsRoute.includes("const unavailable=Number(response.status)===404"));
+  assert.ok(parallelAgentsRoute.includes('role:"supervisor"'));
+  assert.ok(parallelAgentsRoute.includes("priorReports"));
+  assert.ok(parallelAgentsRoute.includes("const paperTradeContext="));
+  assert.ok(parallelAgentsRoute.includes("openrouter/free"));
 });
 
 test("parallel specialist API performs distinct authenticated AI calls with independently fetched candles", () => {
