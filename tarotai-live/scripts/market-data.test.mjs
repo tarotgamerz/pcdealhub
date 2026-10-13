@@ -400,7 +400,17 @@ test("historical analogue matcher uses only matured prior candles and reports ob
   assert.equal(tooShort.ready,false);
 });
 
-test("retired free models fall back to OpenRouter free router and supervisor audits seven roles", () => {\n  assert.match(parallelAgentsRoute,/qwen\\/qwen3-next-80b-a3b-instruct:free/);\n  assert.match(parallelAgentsRoute,/configuredModel==="qwen\\/qwen3-next-80b-a3b-instruct:free"\?"openrouter\\/free":configuredModel/);\n  assert.match(parallelAgentsRoute,/const unavailable=Number\\(response.status\\)===404/);\n  assert.match(parallelAgentsRoute,/role:"supervisor"/);\n  assert.match(parallelAgentsRoute,/priorReports/);\n  assert.match(parallelAgentsRoute,/const paperTradeContext=/);\n  assert.match(parallelAgentsRoute,/openrouter\\/free/);\n});\n\ntest("parallel specialist API performs distinct authenticated AI calls with independently fetched candles", () => {
+test("retired free models fall back to OpenRouter free router and supervisor audits seven roles", () => {
+  assert.match(parallelAgentsRoute,/qwen\\/qwen3-next-80b-a3b-instruct:free/);
+  assert.match(parallelAgentsRoute,/configuredModel==="qwen\\/qwen3-next-80b-a3b-instruct:free"\\?"openrouter\\/free":configuredModel/);
+  assert.match(parallelAgentsRoute,/const unavailable=Number\\(response.status\\)===404/);
+  assert.match(parallelAgentsRoute,/role:"supervisor"/);
+  assert.match(parallelAgentsRoute,/priorReports/);
+  assert.match(parallelAgentsRoute,/const paperTradeContext=/);
+  assert.match(parallelAgentsRoute,/openrouter\\/free/);
+});
+
+test("parallel specialist API performs distinct authenticated AI calls with independently fetched candles", () => {
   assert.match(parallelAgentsRoute,/if\(!process\.env\.TAROTAI_ACCESS_CODE\)/);
   assert.match(parallelAgentsRoute,/if\(!isAuthorized\(request\)\)/);
   assert.match(parallelAgentsRoute,/OPENROUTER_API_KEY/);
@@ -425,8 +435,8 @@ test("retired free models fall back to OpenRouter free router and supervisor aud
   assert.match(parallelAgentsRoute,/riskOffProxyMaxGrossExposurePct:5/);
    assert.match(parallelAgentsRoute,/AbortSignal\.timeout\(14000\)/);
    assert.match(parallelAgentsRoute,/qwen\/qwen3-next-80b-a3b-instruct:free/);
-   assert.match(parallelAgentsRoute,/meta-llama\/llama-3\.3-8b-instruct:free/);
-   assert.match(parallelAgentsRoute,/qwen\/qwen3-235b-a22b-07-25:free/);
+   assert.match(parallelAgentsRoute,/modelCandidates/);
+   assert.match(parallelAgentsRoute,/openrouter\/free/);
    assert.match(parallelAgentsRoute,/max_tokens:1200/);
   assert.match(parallelAgentsRoute,/orderPlacement:false/);
   assert.doesNotMatch(parallelAgentsRoute,/fapi\.binance\.com\/fapi\/v1\/order/);
@@ -435,12 +445,12 @@ test("retired free models fall back to OpenRouter free router and supervisor aud
 test("Trading Desk requests real parallel AI outputs and gates agreement on risk and historical evidence", () => {
   assert.match(futuresDesk,/<script src="\/market-patterns\.js"><\/script>/);
   assert.match(futuresDesk,/fetch\("\/api\/trading\/agents"/);
-  assert.match(parallelAgentsRoute,/Promise\.all\(roles\.map\(async \(role: string\)=>/);
+  assert.match(parallelAgentsRoute,/Promise\.all\(roles\.filter\(\(role:string\)=>role!=="supervisor"\)\.map\(async \(role: string\)=>/);
   assert.match(futuresDesk,/historical evidence inconclusive/);
   assert.match(futuresDesk,/!riskSelected/);
   assert.match(futuresDesk,/sameSnapshot/);
   assert.match(futuresDesk,/Historical analogue study/);
-  assert.match(futuresDesk,/Exactly seven separate AI specialist calls run concurrently/);
+  assert.match(parallelAgentsRoute,/roles\.filter\(\(role:string\)=>role!=="supervisor"\)/);\n  assert.match(parallelAgentsRoute,/Agent Operations Supervisor/);
   assert.match(historicalPatternSource,/root\.TarotAIMarketPatterns = \{ findSimilarCases \}/);
 });
 
