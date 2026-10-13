@@ -433,7 +433,7 @@ test("live chart retains historical candles, loads older pages on left-scroll, a
 });
 
 test("multi-agent panel recovers missing or expired signed sessions without bypassing API authentication", () => {
-  assert.match(futuresDesk, /id="liveAgentAuthGate" hidden/);
+  assert.match(futuresDesk, /id="liveAgentAuthGate"[^>]*hidden/);
   assert.match(futuresDesk, /async function ensurePrivateSession\(\)/);
   assert.match(futuresDesk, /fetch\("\/api\/auth",\{cache:"no-store",credentials:"same-origin"/);
   assert.match(futuresDesk, /async function unlockAgentSession\(\)/);
