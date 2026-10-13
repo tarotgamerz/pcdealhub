@@ -199,7 +199,12 @@
           }
         }
         state.phase = "complete";
-        state.lastSummary = "Agents ran, but this team run failed: " + why;
+        const failedDetails = results.filter(result => result && result.ok === false)
+          .map(result => (result.name || result.role || "Specialist") + ": " + String(result.text || "No provider error details returned.").replace(/\\s+/g, " ").slice(0, 240))
+          .slice(0, 2);
+        const modelUsed = typeof data.model === "string" ? data.model : "model not reported";
+        state.lastSummary = "All " + results.length + " specialist requests failed using " + modelUsed + ". " +
+          (failedDetails.length ? failedDetails.join(" | ") : why);
       } else {
         for (const agent of state.agents.values()) {
           if (agent.status === "queued") {
