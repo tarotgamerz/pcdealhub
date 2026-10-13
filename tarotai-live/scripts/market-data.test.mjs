@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { findSimilarCases } from "../lib/market-patterns.mjs";
 
 const source = readFileSync(new URL("../app/api/exchanges/market/route.ts", import.meta.url), "utf8");
 const consolePage = readFileSync(new URL("../public/console.html", import.meta.url), "utf8");
@@ -358,4 +359,52 @@ test("live chart offers seven configurable specialist agents that analyze a shar
   assert.match(futuresDesk, /Team consensus: WAIT/);
   assert.match(futuresDesk, /baseDecision\?\.action/);
   assert.match(futuresDesk, /No real exchange orders are sent/);
+});
+
+
+const parallelAgentsRoute = readFileSync(new URL("../app/api/trading/agents/route.ts", import.meta.url), "utf8");
+const historicalPatternSource = readFileSync(new URL("../public/market-patterns.js", import.meta.url), "utf8");
+
+test("historical analogue matcher uses only matured prior candles and reports observed outcomes", () => {
+  const candles=[];
+  for(let i=0;i<360;i++){
+    const close=100+0.018*i+3.8*Math.sin(i*0.15)+1.2*Math.sin(i*0.043);
+    const previous=i?candles[i-1].close:close-0.25;
+    const open=previous, high=Math.max(open,close)+0.22+0.04*Math.abs(Math.sin(i*0.37));
+    const low=Math.min(open,close)-0.2-0.04*Math.abs(Math.cos(i*0.29));
+    candles.push({time:Date.UTC(2025,0,1)+i*900000,open,high,low,close,volume:900+250*(1+Math.sin(i*0.11)),closeTime:Date.UTC(2025,0,1)+i*900000+899999});
+  }
+  const study=findSimilarCases(candles,"15m",{horizon:6,maxExamples:8,maxDistance:0.8});
+  assert.equal(study.ready,true);
+  assert.ok(study.sampleCount>=3);
+  assert.ok(study.examples.every(e=>e.time < candles.at(-1).time));
+  assert.ok(study.examples.every(e=>Number.isFinite(e.forwardReturnPct)&&["UP","DOWN","FLAT"].includes(e.outcome)));
+  assert.ok(study.examples.every(e=>e.time <= candles.at(-1).time-9*900000));
+  const tooShort=findSimilarCases(candles.slice(-100),"15m");
+  assert.equal(tooShort.ready,false);
+});
+
+test("parallel specialist API performs distinct authenticated AI calls with independently fetched candles", () => {
+  assert.match(parallelAgentsRoute,/if\(!process\.env\.TAROTAI_ACCESS_CODE\)/);
+  assert.match(parallelAgentsRoute,/if\(!isAuthorized\(request\)\)/);
+  assert.match(parallelAgentsRoute,/OPENROUTER_API_KEY/);
+  assert.match(parallelAgentsRoute,/const results=await Promise\.all\(roles\.map\(async role=>/);
+  assert.match(parallelAgentsRoute,/fetchVerifiedMarket\(symbol,interval,preferred\)/);
+  assert.match(parallelAgentsRoute,/findSimilarCases\(market\.candles,interval/);
+  assert.match(parallelAgentsRoute,/historicalAnalogueStudy/);
+  assert.match(parallelAgentsRoute,/AbortSignal\.timeout\(16000\)/);
+  assert.match(parallelAgentsRoute,/orderPlacement:false/);
+  assert.doesNotMatch(parallelAgentsRoute,/fapi\.binance\.com\/fapi\/v1\/order/);
+});
+
+test("Trading Desk requests real parallel AI outputs and gates agreement on risk and historical evidence", () => {
+  assert.match(futuresDesk,/<script src="\/market-patterns\.js"><\/script>/);
+  assert.match(futuresDesk,/fetch\("\/api\/trading\/agents"/);
+  assert.match(futuresDesk,/Promise\.all\(selections\.map/);
+  assert.match(futuresDesk,/historical evidence inconclusive/);
+  assert.match(futuresDesk,/!riskSelected/);
+  assert.match(futuresDesk,/sameSnapshot/);
+  assert.match(futuresDesk,/Historical analogue study/);
+  assert.match(futuresDesk,/Each selected specialist is a separate AI model call/);
+  assert.match(historicalPatternSource,/root\.TarotAIMarketPatterns = \{ findSimilarCases \}/);
 });
