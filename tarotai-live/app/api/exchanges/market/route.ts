@@ -46,9 +46,15 @@ export async function GET(req:Request){
   if(venue!=="binance")rows=rows.slice().reverse();
   let candles=rows.map(normalize).filter(c=>before===null||c.time<before);
   if(!candles.length||candles.some(c=>![c.time,c.open,c.high,c.low,c.close].every(Number.isFinite)||c.high<c.low||c.low<=0||c.close<=0)||candles.some((c,i)=>i>0&&c.time<=candles[i-1].time))return NextResponse.json({error:"Exchange returned no valid candles",venue,detail:raw?.retMsg||raw?.msg||raw?.code},{status:502});
-  const last=candles[candles.length-1],ageMs=Date.now()-last.time;
+  const last=candles[candles.length-1];
   const intervalMs:Record<string,number>={"1m":60000,"3m":180000,"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"2h":7200000,"4h":14400000,"1d":86400000};
-  const stale=ageMs>intervalMs[interval]+60000;
-  return NextResponse.json({venue,symbol,interval,fetchedAt:new Date().toISOString(),sourceHost,lastCandleAgeMs:ageMs,dataAgeMs:ageMs,marketDataMode:"live-public-read-only",stale:historyPage?false:stale,historyPage,candles,readOnly:true,orderPlacement:false},{headers:{"Cache-Control":"no-store"}});
+  const now=Date.now(),duration=intervalMs[interval];
+  const candleEnd=(c:any)=>Number.isFinite(c.closeTime)&&c.closeTime>c.time?c.closeTime:Number(c.time)+duration-1;
+  const closedCandles=candles.filter(c=>candleEnd(c)<now-300);
+  const latestClosed=closedCandles[closedCandles.length-1];
+  const ageMs=latestClosed?Math.max(0,now-candleEnd(latestClosed)):Number.POSITIVE_INFINITY;
+  const stale=!Number.isFinite(ageMs)||ageMs>duration+60000;
+  const latestCandleInProgress=candleEnd(last)>=now-300;
+  return NextResponse.json({venue,symbol,interval,fetchedAt:new Date().toISOString(),sourceHost,lastCandleAgeMs:ageMs,dataAgeMs:ageMs,latestClosedCandleTime:latestClosed?.time??null,latestCandleTime:last.time,latestCandleInProgress,closedCandleCount:closedCandles.length,marketDataMode:"live-public-read-only",stale:historyPage?false:stale,historyPage,candles,readOnly:true,orderPlacement:false},{headers:{"Cache-Control":"no-store"}});
  }catch{return NextResponse.json({error:"Exchange market-data request timed out",venue},{status:502});}
 }
