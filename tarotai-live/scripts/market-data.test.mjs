@@ -360,7 +360,7 @@ test("live chart offers eight trade-lifecycle agents including a supervisor", ()
   assert.match(futuresDesk, /Team consensus: WAIT/);
   assert.match(futuresDesk, /const baseLong=decision\.action/);
   assert.match(futuresDesk, /window\.tarotaiAgentCommitteeApproval=committeeApproved\?/);
-  assert.match(futuresDesk, /Paper entry blocked: run the full eight-agent trading team/);
+  assert.match(futuresDesk, /Paper entry blocked: wait for the continuous eight-role team/);
   assert.match(futuresDesk, /Select all eight trading agents before running analysis/);
   assert.match(futuresDesk, /No real exchange orders are sent/);
 });
@@ -506,4 +506,24 @@ test("AI provider failures produce explicit fallback reports and block AI-review
   assert.match(parallelAgentsRoute, /providerDegraded\|\|results\.some\(r=>!r\.ok\)\|\|monitorBias\.veto/);
   assert.match(parallelAgentsRoute, /fallbackAgents:fallbackCount,aiProviderStatus:fallbackCount\?"degraded":"ok"/);
   assert.match(parallelAgentsRoute, /results\.length!==8\|\|failed!==0\|\|specialistOk!==7/);
+});
+
+test("all live chart panels share one Binance perpetual symbol/timeframe and current WebSocket URL", () => {
+  assert.match(futuresDesk, /function updateTradingViewChart\(source="tv"\)/);
+  assert.match(futuresDesk, /allow_symbol_change:"0"/);
+  assert.match(futuresDesk, /window\.tarotaiReloadLiveChart=/);
+  assert.match(futuresDesk, /wss:\/\/fstream\.binance\.com\/market\/ws\//);
+  assert.doesNotMatch(futuresDesk, /wss:\/\/fstream\.binance\.com\/ws\//);
+  assert.match(futuresDesk, /for\(const venue of \[marketVenue\]\)/);
+  assert.match(parallelAgentsRoute, /const venues=\[preferred\],failures:string\[\]=\[\]/);
+});
+
+test("automatic paper trading is opt-in, persistent-ledger gated, and records one entry per approved candle", () => {
+  assert.match(futuresDesk, /id="livePaperAutoToggle"/);
+  assert.match(futuresDesk, /let paperBusy=false,paperOpening=false,paperStoreReady=false,autoPaperEnabled=false/);
+  assert.match(futuresDesk, /window\.tarotaiContinuousTeamApproval=approve\?/);
+  assert.match(futuresDesk, /autoPaperEnabled&&approve&&!paperOpening&&paperStoreReady/);
+  assert.match(futuresDesk, /candleKey!==lastAutoPaperCandleKey/);
+  assert.match(futuresDesk, /PAPER_ONLY/);
+  assert.match(futuresDesk, /No exchange order was sent/);
 });

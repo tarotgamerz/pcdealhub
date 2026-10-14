@@ -68,7 +68,7 @@ async function fetchVenue(venue:Venue,symbol:string,interval:Interval,limit:numb
  const raw=await requestJson(url),candles=validateCandles(raw,interval,venue);if(candles.length<60)throw new Error("Only "+candles.length+" closed candles.");return {candles,host:"www.okx.com"};
 }
 async function fetchVerifiedMarket(symbol:string,interval:Interval,preferred:Venue) {
- const venues=[preferred,...VENUE_ORDER.filter(v=>v!==preferred)],failures:string[]=[];
+ const venues=[preferred],failures:string[]=[];
  for(const venue of venues) {
   try {
    const higher=HIGHER[interval];
