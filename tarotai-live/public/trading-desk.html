@@ -112,15 +112,18 @@
 <div class="agent"><div class="agenthead"><div class="ico">✓</div><div><strong>Execution Discipline Agent</strong><div class="sub">Confirmation, slippage awareness and paper-only checklist</div></div></div><span class="tag">DISCIPLINE</span></div>
 <div class="agent"><div class="agenthead"><div class="ico">◉</div><div><strong>Live Position Manager</strong><div class="sub">Checks paper-position stops and targets on fresh live ticks while this chart is open</div></div></div><span class="tag">POSITION</span></div>
 <div class="agent"><div class="agenthead"><div class="ico">▤</div><div><strong>Trade Journal & Review Analyst</strong><div class="sub">Reviews completed paper trades without inventing history</div></div></div><span class="tag">JOURNAL</span></div>
-<div class="agent"><div class="agenthead"><div class="ico">🛡</div><div><strong>Agent Operations Supervisor</strong><div class="sub">Audits reports, contradictions and fail-closed risk controls</div></div></div><span class="tag">SUPERVISOR</span></div></div><div class="row" style="margin-top:13px"><button class="btn primary" id="runReview">Run paper risk review</button><span class="muted" id="reviewStatus">Paper-only review. No exchange order is sent.</span></div></section>
-<section class="panel"><h2>Demo order ticket</h2>
-<div class="field"><label for="symbol">Futures symbol</label><select id="symbol"><option>BTCUSDT</option><option>ETHUSDT</option><option>BNBUSDT</option><option>SOLUSDT</option></select></div>
-<div class="row"><div class="field" style="flex:1"><label for="side">Direction</label><select id="side"><option>LONG</option><option>SHORT</option></select></div><div class="field" style="flex:1"><label for="lev">Leverage (simulation only)</label><select id="lev"><option>1</option><option>2</option><option>3</option><option>5</option></select></div></div>
-<div class="field"><label for="entry">Illustrative entry price (USDT)</label><input id="entry" type="number" min="0" step="any" placeholder="e.g. 65000"></div>
-<div class="row"><div class="field" style="flex:1"><label for="stop">Stop price</label><input id="stop" type="number" min="0" step="any" placeholder="Stop"></div><div class="field" style="flex:1"><label for="target">Target price</label><input id="target" type="number" min="0" step="any" placeholder="Target"></div></div>
-<div class="field"><label for="risk">Risk budget (USDT, simulated)</label><input id="risk" type="number" min="1" max="100" value="10"></div>
-<div id="riskCheck" class="muted" style="font-size:12px;margin:8px 0 12px">Enter prices to calculate risk/reward. Risk budget capped at $100 per demo trade.</div>
-<button class="btn primary" style="width:100%" id="makeDemo">Create local demo plan</button><button class="btn" style="width:100%;margin-top:8px" id="savePaper">Save position to persistent paper ledger</button><p class="muted" style="font-size:11px">This records your chosen numbers locally. It does not fetch market prices or place an exchange order.</p>
+<div class="agent"><div class="agenthead"><div class="ico">🛡</div><div><strong>Agent Operations Supervisor</strong><div class="sub">Audits reports, contradictions and fail-closed risk controls</div></div></div><span class="tag">SUPERVISOR</span></div></div><div class="row" style="margin-top:13px"><button class="btn primary" id="runReview">Run 8-agent risk review</button><span class="muted" id="reviewStatus">Checks live candles and agent votes; paper only.</span></div></section>
+<section class="panel" id="agentPaperTicket"><h2>Agent-controlled paper order ticket</h2>
+<p class="muted">No manual entry, stop or target inputs. The ticket uses the selected live-analysis chart, its latest last-trade quote and the current agent-approved setup. Orders are simulated in the persistent paper ledger only.</p>
+<div class="row"><div class="field" style="flex:1"><label>Market</label><strong id="demoMarketSymbol">Waiting for chart</strong></div><div class="field" style="flex:1"><label>Venue</label><strong id="demoMarketVenue">—</strong></div></div>
+<div class="row"><div class="field" style="flex:1"><label>Live last-trade quote</label><strong id="demoLivePrice">Waiting for live quote</strong></div><div class="field" style="flex:1"><label>Quote age</label><strong id="demoQuoteAge">—</strong></div></div>
+<div class="row"><div class="field" style="flex:1"><label>Agent direction</label><strong id="demoAgentDirection">WAIT</strong></div><div class="field" style="flex:1"><label>Eight-role approval</label><strong id="demoAgentApproval">Waiting</strong></div></div>
+<div class="row"><div class="field" style="flex:1"><label>Agent stop level</label><strong id="demoAgentStop">—</strong></div><div class="field" style="flex:1"><label>Target from agent risk geometry</label><strong id="demoAgentTarget">—</strong></div></div>
+<div class="row"><div class="field" style="flex:1"><label>Paper quantity</label><strong id="demoAgentQuantity">—</strong></div><div class="field" style="flex:1"><label>Estimated risk at stop</label><strong id="demoAgentRisk">—</strong></div></div>
+<button class="btn primary" style="width:100%" id="demoAgentOpen" type="button" disabled>Place agent-approved paper order</button>
+<button class="btn" style="width:100%;margin-top:8px" id="demoRefreshAgent" type="button">Refresh agent analysis</button>
+<div id="demoTicketStatus" class="muted" style="font-size:12px;margin-top:10px" aria-live="polite">Waiting for a fresh quote, a valid setup, eight-role approval and the persistent paper ledger.</div>
+<p class="muted" style="font-size:11px">Entry reference is the latest live last-trade price, not a hand-entered estimate. Stop is taken from the active chart setup; target and quantity are recalculated for the current entry and selected paper-risk settings. A stale quote or missing approval blocks the order.</p>
 </section>
 <section class="panel"><h2>Risk guardrails</h2>
 <div class="switchrow"><div><strong>Live trading</strong><div class="sub">Hard-disabled in this build</div></div><input class="switch" type="checkbox" checked disabled aria-label="Live trading disabled"></div>
@@ -129,7 +132,7 @@
 <div class="switchrow"><div><strong>Max simulated leverage</strong><div class="sub">Demo only</div></div><strong>5×</strong></div>
 <div class="switchrow"><div><strong>Testnet connection</strong><div class="sub">Not connected yet</div></div><span class="tag">OFFLINE</span></div>
 </section>
-<section class="panel wide"><h2>Demo trade journal</h2><div class="tablewrap"><table><thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Entry</th><th>Stop / Target</th><th>Risk</th><th>Status</th></tr></thead><tbody id="trades"><tr><td colspan="7" class="empty">No demo orders yet. Create a local demo record to begin.</td></tr></tbody></table></div></section>
+<section class="panel wide"><h2>Paper trade journal</h2><p class="muted">Open and closed positions, simulated fills, fees, stops, targets, P&amp;L and agent decision source are recorded in the persistent Paper Trading panel. Local-only demo plans are disabled.</p></section>
 <section class="panel"><h2>Research pipeline</h2><div class="step"><span class="tag">01</span><div><strong>Market data</strong><div class="sub">Source + timestamp verification required</div></div></div><div class="step"><span class="tag">02</span><div><strong>Historical backtest</strong><div class="sub">Fees, funding, slippage, out-of-sample split</div></div></div><div class="step"><span class="tag">03</span><div><strong>Forward test</strong><div class="sub">Paper results across varied regimes</div></div></div><div class="step"><span class="tag">04</span><div><strong>Risk review</strong><div class="sub">Independent veto + exposure caps</div></div></div><div class="step"><span class="tag">05</span><div><strong>Human approval</strong><div class="sub">Required before any future live-trading feature</div></div></div></section>
 
 <section class="panel full" id="tradingview-panel"><div class="row" style="justify-content:space-between;margin-bottom:12px"><div><h2 style="margin:0">Synchronized market chart</h2><div class="sub">This chart and the live-analysis chart below share one OKX swap candle array and the same live last-trade WebSocket quote.</div></div><span class="tag">ONE CANONICAL FEED</span></div>
@@ -185,7 +188,7 @@
 <section class="panel full" id="visual-strategy-panel"><div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px"><div><h2 style="margin:0">Visual strategy annotations</h2><div class="sub">Multi-factor live setup · EMA trend · RSI momentum · ATR/structure stop · 2R target</div></div><span class="tag">READ-ONLY</span></div><div class="row" style="margin-bottom:10px"><div class="field" style="flex:1;min-width:150px;margin:0"><label for="strategySymbol">Market</label><select id="strategySymbol"><option value="BTCUSDT">BTC/USDT</option><option value="ETHUSDT">ETH/USDT</option><option value="BNBUSDT">BNB/USDT</option><option value="SOLUSDT">SOL/USDT</option></select></div><div class="field" style="flex:1;min-width:130px;margin:0"><label for="strategyInterval">Timeframe</label><select id="strategyInterval"><option value="1m">1 minute</option><option value="5m" selected>5 minutes</option><option value="15m">15 minutes</option><option value="1h">1 hour</option><option value="4h">4 hours</option></select></div><button class="btn primary" id="drawStrategy">Analyze live market</button></div><div class="strategy-metrics"><div class="strategy-metric"><label>Latest close</label><strong id="strategyPrice">—</strong></div><div class="strategy-metric"><label>Latest signal</label><strong id="strategySignal">WAIT</strong></div><div class="strategy-metric"><label>Stop loss</label><strong id="strategyStop">—</strong></div><div class="strategy-metric"><label>Take profit</label><strong id="strategyTarget">—</strong></div></div><div class="strategy-chart-wrap"><canvas id="strategyCanvas" width="1200" height="440" role="img" aria-label="Candlestick chart with EMA crossover entries, stop loss and take profit annotations"></canvas><iframe id="strategyFallbackChart" title="Live TradingView chart fallback; no strategy annotations when exchange candles are unavailable" loading="lazy" allowfullscreen referrerpolicy="origin"></iframe></div><div class="strategy-legend"><span><i class="swatch" style="background:#65e6ad"></i>Bull candle / LONG</span><span><i class="swatch" style="background:#ff7b83"></i>Bear candle / SHORT</span><span><i class="swatch" style="background:#7eafff"></i>EMA 9</span><span><i class="swatch" style="background:#f2c46f"></i>EMA 21</span><span><i class="swatch" style="background:#ff7b83"></i>Stop loss</span><span><i class="swatch" style="background:#65e6ad"></i>Take profit</span></div><div class="muted" id="strategyStatus" style="font-size:11px">Waiting for live exchange candles. Auto-refreshes every 30 seconds while this page is visible. No orders are sent.</div></section>
 <section class="panel full"><h2>Connected research services</h2>
 <div class="row"><div class="field" style="flex:1;min-width:160px"><label>Private access code</label><input id="accessCode" type="password" autocomplete="current-password" placeholder="App access code"></div><button class="btn primary" id="loginBtn">Unlock private APIs</button><button class="btn" id="logoutBtn">Lock</button></div>
-<div class="row"><div class="field" style="flex:1;min-width:120px"><label>Venue</label><select id="venue"><option value="binance">Binance USDⓈ-M Futures</option><option value="bybit">OKX swap market data</option><option value="okx">OKX market data</option></select></div><div class="field" style="flex:1;min-width:120px"><label>Symbol</label><input id="marketSymbol" value="BTCUSDT"></div><div class="field" style="flex:1;min-width:100px"><label>Interval</label><select id="marketInterval"><option>1m</option><option>5m</option><option selected>15m</option><option>1h</option><option>4h</option><option>1d</option></select></div><button class="btn" id="marketBtn">Fetch market data</button></div>
+<div class="row"><div class="field" style="flex:1;min-width:120px"><label>Venue</label><select id="venue"><option value="binance">Binance USDⓈ-M Futures</option><option value="bybit">Bybit linear perpetual</option><option value="okx">OKX perpetual swap</option></select></div><div class="field" style="flex:1;min-width:120px"><label>Symbol</label><input id="marketSymbol" value="BTCUSDT"></div><div class="field" style="flex:1;min-width:100px"><label>Interval</label><select id="marketInterval"><option>1m</option><option>5m</option><option selected>15m</option><option>1h</option><option>4h</option><option>1d</option></select></div><button class="btn" id="marketBtn">Fetch market data</button></div>
 <div id="marketResult" class="log">Not connected. Unlock to fetch verified exchange response data.</div>
 <div class="row" style="margin-top:12px"><div class="field" style="flex:1"><label>Fast SMA period</label><input id="fastPeriod" type="number" value="9" min="2" max="99"></div><div class="field" style="flex:1"><label>Slow SMA period</label><input id="slowPeriod" type="number" value="21" min="3" max="100"></div><div class="field" style="flex:1"><label>Fee (bps/turn)</label><input id="feeBps" type="number" value="5" min="0" max="50"></div><div class="field" style="flex:1"><label>Slippage (bps/turn)</label><input id="slippageBps" type="number" value="2" min="0" max="50"></div><button class="btn primary" id="backtestBtn">Run backtest</button></div>
 <div id="backtestResult" class="log">Backtest has not been run. Results are research-only and do not place orders.</div>
@@ -206,7 +209,7 @@
 <script src="/market-patterns.js"></script>
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 <script>
-const $=id=>document.getElementById(id);let demoTrades=[];let equity=10000;
+const $=id=>document.getElementById(id);
 
 const featureOverlay=$('featureOverlay');
 function toggleFeatureMenu(open){featureOverlay.classList.toggle('open',!!open);$('featureTrigger').setAttribute('aria-expanded',String(!!open));document.body.style.overflow=open?'hidden':'';if(open)$('featureClose').focus();else $('featureTrigger').focus()}
@@ -216,11 +219,7 @@ featureOverlay.addEventListener('click',e=>{if(e.target===featureOverlay)toggleF
 document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleFeatureMenu(false)});
 
 function log(s){$('log').textContent+='\n['+new Date().toLocaleTimeString()+'] '+s;$('log').scrollTop=$('log').scrollHeight}
-function calc(){const e=Number($('entry').value),s=Number($('stop').value),t=Number($('target').value),r=Number($('risk').value),side=$('side').value;let valid=e>0&&s>0&&t>0&&(side==='LONG'?s<e&&t>e:s>e&&t<e)&&r>0&&r<=100;if(!valid){$('riskCheck').textContent='Check prices: LONG requires stop < entry < target; SHORT requires target < entry < stop. Risk cap: $100.';return null}const distance=Math.abs(e-s),qty=r/distance,rr=Math.abs(t-e)/distance;$('riskCheck').textContent='Illustrative quantity: '+qty.toFixed(6)+' units · reward/risk: '+rr.toFixed(2)+'R · not a live quote.';return {e,s,t,r,qty,rr}}
-['entry','stop','target','risk','side'].forEach(id=>$(id).addEventListener('input',calc));
-$('makeDemo').addEventListener('click',()=>{const c=calc();if(!c){alert('Enter valid entry, stop, target and risk values first.');return}const trade={time:new Date().toLocaleTimeString(),symbol:$('symbol').value,side:$('side').value,entry:c.e,stop:c.s,target:c.t,risk:c.r,status:'SIMULATED PLAN'};demoTrades.unshift(trade);render();log('Created local-only simulated plan for '+trade.symbol+' '+trade.side+'. No API call made.')});
-function render(){$('trades').innerHTML=demoTrades.length?demoTrades.map(t=>'<tr><td>'+t.time+'</td><td>'+t.symbol+'</td><td class="'+(t.side==='LONG'?'green':'amber')+'">'+t.side+'</td><td>'+t.entry+'</td><td>'+t.stop+' / '+t.target+'</td><td>$'+t.risk.toFixed(2)+'</td><td><span class="tag">'+t.status+'</span></td></tr>').join(''):'<tr><td colspan="7" class="empty">No demo orders yet.</td></tr>';$('openCount').textContent='0';$('equity').textContent='$'+equity.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});$('pnl').textContent='$0.00'}
-$('runReview').addEventListener('click',()=>{const steps=['Desk manager: research scope prepared.','Market analyst: no verified live market feed configured; no directional signal issued.','Strategy lab: historical data/backtest engine not connected; no performance claim made.','Challenge agent: evidence gap flagged; avoid overfitting and look-ahead bias.','Independent risk: no trade approved without verified data and explicit constraints.','Trade auditor: review logged locally.'];let i=0;$('runReview').disabled=true;$('reviewStatus').textContent='Running checklist…';function next(){if(i>=steps.length){$('reviewStatus').textContent='Review complete · no live signal';$('runReview').disabled=false;log('Demo review finished. No market data, AI agents, or exchange API were called.');return}log(steps[i++]);$('reviewStatus').textContent='Checklist '+i+' / '+steps.length;setTimeout(next,180)}next()});
+$('runReview').addEventListener('click',()=>{const button=$('runLiveAgentTeam');if(button)button.click();else $('reviewStatus').textContent='Agent panel is unavailable. Refresh the page and retry.';});
 
 const connectedLog=(id,msg)=>{const el=$(id);el.textContent=typeof msg==='string'?msg:JSON.stringify(msg,null,2)};
 if($('tnClientId')&&!$('tnClientId').value)$('tnClientId').value='t'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
@@ -271,8 +270,7 @@ $('signalsBtn').addEventListener('click',async()=>{try{const r=await fetch('/api
 
 $('savePaper').addEventListener('click',async()=>{const p=calc();if(!p){alert('Enter valid entry, stop and target first.');return}if(!window.tarotaiMarketFetchedAt||window.tarotaiMarketStale){connectedLog('ledgerResult','Fetch fresh market data first. Stale or missing market data blocks paper entries.');return}const body={action:'OPEN',symbol:$('symbol').value,side:$('side').value==='LONG'?'BUY':'SELL',quantity:p.qty,price:p.e,stopPrice:p.s,targetPrice:p.t,feeBps:Number($('feeBps')?.value??5),slippageBps:Number($('slippageBps')?.value??2),marketTime:Date.now()};try{const r=await fetch('/api/trading/paper',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();connectedLog('ledgerResult',{httpStatus:r.status,...d});if(r.ok)log('Persistent paper ledger recorded '+body.symbol+' '+body.side+'. No exchange order was sent.')}catch(e){connectedLog('ledgerResult','Paper ledger request failed: '+e)}});
 
-$('runReview').replaceWith($('runReview').cloneNode(true));
-$('runReview').addEventListener('click',async()=>{const p=calc();if(!p){connectedLog('ledgerResult','Enter valid entry, stop and target values before risk review.');return}const age=window.tarotaiMarketStale?999999:Date.now()-Number(window.tarotaiMarketFetchedAt||0);try{const r=await fetch('/api/trading/review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entry:p.e,stop:p.s,target:p.t,side:$('side').value,riskPct:Math.min(1,p.r/10000*100),paperBalance:10000,dataAgeMs:age,spreadBps:0})});const d=await r.json();connectedLog('ledgerResult',{httpStatus:r.status,...d});$('reviewStatus').textContent=d.combinedVerdict||d.error||'Review complete'}catch(e){connectedLog('ledgerResult','Risk review request failed: '+e)}});
+
 $('tnSubmit').addEventListener('click',async()=>{if(!$('tnConfirm').checked){connectedLog('tnResult','Tick the explicit demo/testnet confirmation first.');return}const body={confirmTestnetOrder:true,clientOrderId:$('tnClientId').value.trim(),symbol:$('marketSymbol').value,side:$('tnSide').value,type:$('tnType').value,quantity:Number($('tnQty').value),price:Number($('tnPrice').value)};try{const venue=$('venue').value;const endpoint=venue==='bybit'?'/api/trading/bybit-testnet-order':venue==='okx'?'/api/trading/okx-demo-order':'/api/trading/testnet-order';const r=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const d=await r.json();connectedLog('tnResult',{httpStatus:r.status,...d});if(d.order?.orderId)$('tnOrderId').value=d.order.orderId;if(d.accepted)$('tnClientId').value='t'+Date.now().toString(36)+Math.random().toString(36).slice(2,8)}catch(e){connectedLog('tnResult','Demo order request failed: '+e)}});
 $('tnVerify').addEventListener('click',async()=>{const id=$('tnOrderId').value.trim();if(!id){connectedLog('tnResult','Enter the exchange order ID or the same client order ID used for submission.');return}try{const venue=$('venue').value;const p=new URLSearchParams({symbol:$('marketSymbol').value,orderId:id});const endpoint=venue==='bybit'?'/api/trading/bybit-testnet-order-status':venue==='okx'?'/api/trading/okx-demo-order-status':'/api/trading/testnet-order-status';const r=await fetch(endpoint+'?'+p);connectedLog('tnResult',{httpStatus:r.status,...await r.json()})}catch(e){connectedLog('tnResult','Order verification failed: '+e)}});
 
@@ -323,6 +321,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   function renderSharedQuote(price){
     if(!Number.isFinite(price)||price<=0)return;
     const now=Date.now(),fresh=Number.isFinite(lastTradePrice)&&now-lastTradeAt<=3000;
+    updateDemoAgentTicket();
     if(now-lastQuoteRenderAt>=100){
       byId("livePrice").textContent=fmt(price);
       const badge=byId("tvSyncedPrice"),meta=byId("tvSyncedMeta");
@@ -584,6 +583,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     title.textContent="Continuous local team: "+(localVeto?"8/8 CHECKED · VETO / WAIT":approve?"8/8 CHECKED · "+bias+" SETUP REVIEWED":"8/8 CHECKED · HOLD / WAIT");
     detail.textContent="Cycle #"+continuousCycle+" · 8/8 deterministic role checks refreshed at "+new Date(now).toLocaleTimeString()+" · quote age "+(Number.isFinite(quoteAgeMs)?Math.max(0,Math.round(quoteAgeMs))+" ms":"unknown")+" · "+(quoteFresh?"live last-trade tick fresh":"STALE QUOTE — ENTRIES BLOCKED")+" · every second while this tab is open and visible · no LLM calls in this loop.";
     if(byId("liveAgentRunStatus")&&!byId("runLiveAgentTeam").disabled)byId("liveAgentRunStatus").textContent="Continuous monitoring active · 8/8 local roles checked · "+new Date(now).toLocaleTimeString()+". AI-enhanced review is separate.";
+    updateDemoAgentTicket();
     if(autoPaperEnabled&&approve&&!paperOpening&&paperStoreReady){
       const candleKey=currentSymbol+"|"+currentInterval+"|"+Number(last.time);
       if(candleKey!==lastAutoPaperCandleKey){lastAutoPaperCandleKey=candleKey;byId("livePaperAutoStatus").textContent="AUTO PAPER: evaluating the just-approved "+bias+" setup on "+currentSymbol+" "+currentInterval+"…";void paperOpenSignal();}
@@ -878,6 +878,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const closedNow=closedOnly(rows,currentInterval).slice(-1)[0],approvals=[window.tarotaiContinuousTeamApproval,window.tarotaiAgentCommitteeApproval].filter(Boolean);
     const teamApproved=!!closedNow&&approvals.some(a=>a.symbol===d?.symbol&&a.interval===d?.interval&&Number(a.candleTime)===Number(closedNow.time)&&a.action===d?.action&&["continuous-local-team","ai-eight-agent-review"].includes(a.source));
     byId("livePaperOpen").disabled=paperOpening||!qualifies||!teamApproved||opened.some(t=>t.symbol===byId("liveSymbol").value);
+    updateDemoAgentTicket();
     if(opened.some(t=>t.symbol===byId("liveSymbol").value))paperStatus("A paper position for this market is already open. Close it before opening another.");
   }
   function paperTradeVenue(t){
@@ -895,7 +896,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       if(checkStops){
         const positions=paperOpened(ledger).filter(t=>t.symbol),checks=[...new Map(positions.map(t=>[paperTradeVenue(t)+"|"+t.symbol,{symbol:t.symbol,venue:paperTradeVenue(t)}])).values()],warnings=[];
         for(const {symbol,venue} of checks){try{const result=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"STOP_CHECK",symbol,venue})});if(result.historyGaps?.length)warnings.push(symbol+": "+result.historyGaps.length+" position(s) predate available candle history");}catch(e){warnings.push(symbol+" ("+venue+"): stop check failed ("+e.message+")");}}
-        if(symbols.length){d=await paperRequest("/api/trading/paper");ledger=Array.isArray(d.ledger)?d.ledger:[];}
+        if(checks.length){d=await paperRequest("/api/trading/paper");ledger=Array.isArray(d.ledger)?d.ledger:[];}
         window.tarotaiPaperWarnings=warnings;
       }
       paperRender(ledger);
@@ -908,6 +909,43 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       byId("livePaperPositions").textContent="Ledger unavailable. Unlock private APIs and configure Upstash Redis. No paper trade was created.";
       byId("livePaperOpen").disabled=true;paperStatus("Paper ledger unavailable: "+e.message+". Authentication and persistent storage must work before entry.",true);
     }finally{paperBusy=false;}
+  }
+  function updateDemoAgentTicket(){
+    const now=Date.now(),fresh=Number.isFinite(lastTradePrice)&&lastTradePrice>0&&now-lastTradeAt<=3000;
+    const d=window.tarotaiLiveDecision||null,symbol=byId("liveSymbol")?.value||currentSymbol||"—",interval=byId("liveInterval")?.value||currentInterval||"—";
+    const action=d&&d.symbol===symbol&&d.interval===interval&&["BUY / LONG","SELL / SHORT"].includes(d.action)?d.action:"WAIT";
+    const latest=closedOnly(rows,currentInterval).slice(-1)[0];
+    const approvals=[window.tarotaiContinuousTeamApproval,window.tarotaiAgentCommitteeApproval].filter(Boolean);
+    const approval=approvals.find(a=>a.symbol===d?.symbol&&a.interval===d?.interval&&Number(a.candleTime)===Number(d?.candleTime)&&a.action===d?.action&&["continuous-local-team","ai-eight-agent-review"].includes(a.source));
+    const approved=!!approval&&!!latest&&Number(latest.time)===Number(approval.candleTime);
+    const entry=fresh?Number(lastTradePrice):NaN,stop=action!=="WAIT"?Number(d.stop):NaN,long=action==="BUY / LONG";
+    const valid=Number.isFinite(entry)&&entry>0&&Number.isFinite(stop)&&stop>0&&(long?stop<entry:stop>entry);
+    const distance=valid?Math.abs(entry-stop):NaN,target=valid?(long?entry+2*distance:entry-2*distance):NaN;
+    const balance=Number(byId("livePaperBalance")?.value),riskPct=Number(byId("livePaperRisk")?.value),riskBudget=balance*riskPct/100;
+    const quantity=valid&&Number.isFinite(riskBudget)&&riskBudget>0?Math.min(riskBudget/distance,balance/entry):NaN;
+    const usable=approved&&valid&&fresh&&paperStoreReady&&!paperOpening&&Number.isFinite(quantity)&&quantity>0;
+    const put=(id,value)=>{const el=byId(id);if(el)el.textContent=value;};
+    put("demoMarketSymbol",symbol+(interval!=="—"?" · "+interval:""));
+    put("demoMarketVenue",marketVenue.toUpperCase()+" perpetual");
+    put("demoLivePrice",fresh?paperFmt(entry)+" USDT":"STALE — waiting for live tick");
+    put("demoQuoteAge",fresh?Math.max(0,now-lastTradeAt)+" ms":"stale / unavailable");
+    put("demoAgentDirection",action);
+    put("demoAgentApproval",approved?(approval.source==="ai-eight-agent-review"?"AI 8-agent approved":"8-role rules approved"):"WAIT — exact candle not approved");
+    put("demoAgentStop",valid?paperFmt(stop)+" USDT":"—");
+    put("demoAgentTarget",valid?paperFmt(target)+" USDT":"—");
+    put("demoAgentQuantity",Number.isFinite(quantity)?quantity.toLocaleString("en-US",{maximumFractionDigits:8})+" units":"—");
+    put("demoAgentRisk",Number.isFinite(quantity)&&Number.isFinite(distance)?paperFmt(quantity*distance)+" USDT":"—");
+    const button=byId("demoAgentOpen");if(button)button.disabled=!usable;
+    const status=byId("demoTicketStatus");
+    if(status){
+      if(!fresh)status.textContent="Blocked: live last-trade quote is stale. No delayed paper entry is allowed.";
+      else if(!paperStoreReady)status.textContent="Blocked: unlock the private session and connect the persistent paper ledger first.";
+      else if(action==="WAIT")status.textContent="WAIT: no qualified live-chart setup. Agents will not invent an entry.";
+      else if(!valid)status.textContent="Blocked: the live quote has crossed the setup's stop/invalidation level.";
+      else if(!approved)status.textContent="Candidate "+action+" only. Waiting for all eight roles to approve this exact closed candle.";
+      else if(paperOpening)status.textContent="Paper order is being validated and recorded.";
+      else status.textContent="Ready: entry uses the live last-trade quote; stop comes from the active setup; target is recalculated at 2R. Independent risk review and server-side price verification still apply.";
+    }
   }
   async function paperOpenSignal(){
     if(paperOpening)return;
@@ -955,6 +993,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     }catch(e){paperStatus("Paper close failed: "+e.message,true);button.disabled=false;button.textContent="Close at verified live price";}
   }
   byId("livePaperOpen").addEventListener("click",paperOpenSignal);
+  byId("demoAgentOpen").addEventListener("click",paperOpenSignal);
+  byId("demoRefreshAgent").addEventListener("click",()=>{runContinuousAgentCycle();updateDemoAgentTicket();const button=byId("runLiveAgentTeam");if(button)button.click();});
   byId("livePaperReload").addEventListener("click",()=>paperRefresh(true));
   async function setAutoPaperEnabled(next){
     const button=byId("livePaperAutoToggle"),status=byId("livePaperAutoStatus");
@@ -974,8 +1014,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     }
   }
   byId("livePaperAutoToggle").addEventListener("click",()=>void setAutoPaperEnabled(!autoPaperEnabled));
-  paperRefresh(true);
-  setInterval(()=>{if(document.visibilityState==="visible")paperRefresh(true);},10000);
+  paperRefresh(true).finally(updateDemoAgentTicket);
+  setInterval(()=>{if(document.visibilityState==="visible")paperRefresh(true).finally(updateDemoAgentTicket);},10000);
 
   byId("liveSymbol").addEventListener("change",()=>{updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;reloadAll(true);});
   byId("liveInterval").addEventListener("change",()=>{updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;reloadAll(true);});

@@ -615,3 +615,21 @@ test("paper close and stop checks keep using the recorded trade venue", () => {
   assert.match(futuresDesk, /tradeVenue===marketVenue&&Number\.isFinite\(lastTradePrice\)/);
   assert.doesNotMatch(futuresDesk, /new URLSearchParams\(\{venue:"binance",symbol:t\.symbol/);
 });
+
+
+test("demo order ticket uses live agent decision and persistent paper execution, not illustrative manual prices", () => {
+  assert.match(futuresDesk, /id="agentPaperTicket"/);
+  assert.match(futuresDesk, /id="demoLivePrice"/);
+  assert.match(futuresDesk, /id="demoAgentStop"/);
+  assert.match(futuresDesk, /id="demoAgentTarget"/);
+  assert.match(futuresDesk, /id="demoAgentOpen"[^>]*disabled/);
+  assert.doesNotMatch(futuresDesk, /Illustrative entry price/);
+  assert.doesNotMatch(futuresDesk, /id="entry"/);
+  assert.doesNotMatch(futuresDesk, /id="stop"/);
+  assert.doesNotMatch(futuresDesk, /id="target"/);
+  assert.match(futuresDesk, /byId\("demoAgentOpen"\)\.addEventListener\("click",paperOpenSignal\)/);
+  assert.match(futuresDesk, /const entry=Number\(currentMarketPrice\(\)\),stop=Number\(d\.stop\)/);
+  assert.match(futuresDesk, /action:"OPEN",symbol:d\.symbol,venue:marketVenue/);
+  assert.match(futuresDesk, /function updateDemoAgentTicket\(\)/);
+  assert.match(futuresDesk, /if\(checks\.length\)\{d=await paperRequest/);
+});
