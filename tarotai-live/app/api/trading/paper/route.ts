@@ -93,7 +93,7 @@ export async function POST(req:Request){
   const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),venue=String(b.venue||"binance").toLowerCase(),side=String(b.side||"").toUpperCase(),qty=Number(b.quantity),price=Number(b.price),feeBps=Number(b.feeBps??5),slipBps=Number(b.slippageBps??2),marketTime=Number(b.marketTime);
   if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["okx","bybit","binance"].includes(venue)||!["BUY","SELL"].includes(side)||![qty,price,feeBps,slipBps,marketTime].every(Number.isFinite)||qty<=0||price<=0||feeBps<0||feeBps>50||slipBps<0||slipBps>50)return NextResponse.json({error:"Invalid trade inputs; include marketTime and costs 0-50 bps"},{status:400});
   if(isStale(marketTime))return NextResponse.json({error:"Stale or missing market timestamp; refresh market data before paper trading"},{status:409});
-  let verifiedMarketPrice:number,executionReferencePrice=price,marketSource="",verifiedSpreadBps=Number.NaN;
+  let verifiedMarketPrice:number,executionReferencePrice=price,marketSource="",verifiedSpreadBps=Number.NaN,verifiedBidPrice=Number.NaN,verifiedAskPrice=Number.NaN;
   try{
    let marketResponse:Response,marketQuote:any;
    if(venue==="okx"){
@@ -103,6 +103,7 @@ export async function POST(req:Request){
     const ticker=marketQuote?.code==="0"&&Array.isArray(marketQuote?.data)?marketQuote.data[0]:null;
     if(!marketResponse.ok||!Number.isFinite(Number(ticker?.last))||Number(ticker?.last)<=0)return NextResponse.json({error:"Fresh OKX swap last-trade price could not be verified; paper trade blocked"},{status:502});
     const bid=Number(ticker.bidPx),ask=Number(ticker.askPx);
+    verifiedBidPrice=bid;verifiedAskPrice=ask;
     verifiedSpreadBps=Number.isFinite(bid)&&Number.isFinite(ask)&&bid>0&&ask>=bid?((ask-bid)/((ask+bid)/2))*10000:Number.NaN;
     if(action==="OPEN"&&!Number.isFinite(verifiedSpreadBps))return NextResponse.json({error:"Paper entry blocked: current OKX bid-ask spread could not be verified."},{status:502});
     verifiedMarketPrice=Number(ticker.last);marketSource="OKX public swap last-trade ticker";
@@ -112,26 +113,27 @@ export async function POST(req:Request){
     const ticker=marketQuote?.retCode===0&&Array.isArray(marketQuote?.result?.list)?marketQuote.result.list[0]:null;
     if(!marketResponse.ok||!Number.isFinite(Number(ticker?.lastPrice))||Number(ticker?.lastPrice)<=0)return NextResponse.json({error:"Fresh Bybit linear last-trade price could not be verified; paper trade blocked"},{status:502});
     const bid=Number(ticker.bid1Price),ask=Number(ticker.ask1Price);
+    verifiedBidPrice=bid;verifiedAskPrice=ask;
     verifiedSpreadBps=Number.isFinite(bid)&&Number.isFinite(ask)&&bid>0&&ask>=bid?((ask-bid)/((ask+bid)/2))*10000:Number.NaN;
     if(action==="OPEN"&&!Number.isFinite(verifiedSpreadBps))return NextResponse.json({error:"Paper entry blocked: current Bybit bid-ask spread could not be verified."},{status:502});
     verifiedMarketPrice=Number(ticker.lastPrice);marketSource="Bybit linear-perpetual public last-trade ticker";
    }else{
-    // One ticker payload supplies last trade, bid and ask so the fill reference and
-    // spread guard do not combine observations from two different snapshots.
-    const marketUrl=new URL("https://fapi.binance.com/fapi/v1/ticker/24hr");marketUrl.searchParams.set("symbol",symbol);
+    // A single exchange-timestamped order-book snapshot supplies both sides.
+    // Midpoint is the consistency reference; simulated execution uses side-specific bid/ask.
+    const marketUrl=new URL("https://fapi.binance.com/fapi/v1/ticker/bookTicker");marketUrl.searchParams.set("symbol",symbol);
     marketResponse=await fetch(marketUrl,{cache:"no-store",signal:AbortSignal.timeout(6000)});marketQuote=await marketResponse.json().catch(()=>null);
-    if(!marketResponse.ok||!Number.isFinite(Number(marketQuote?.lastPrice))||Number(marketQuote?.lastPrice)<=0)return NextResponse.json({error:"Fresh Binance USDⓈ-M Futures last-trade price could not be verified; paper trade blocked"},{status:502});
-    const bid=Number(marketQuote?.bidPrice),ask=Number(marketQuote?.askPrice);
-    verifiedSpreadBps=Number.isFinite(bid)&&Number.isFinite(ask)&&bid>0&&ask>=bid?((ask-bid)/((ask+bid)/2))*10000:Number.NaN;
-    if(action==="OPEN"&&!Number.isFinite(verifiedSpreadBps))return NextResponse.json({error:"Paper entry blocked: current Binance Futures bid-ask spread could not be verified."},{status:502});
-    verifiedMarketPrice=Number(marketQuote.lastPrice);marketSource="Binance USDⓈ-M Futures 24h ticker snapshot";
-   }
+    const bid=Number(marketQuote?.bidPrice),ask=Number(marketQuote?.askPrice),timestamp=Number(marketQuote?.time),ageMs=Date.now()-timestamp;
+    if(!marketResponse.ok||marketQuote?.symbol!==symbol||!Number.isFinite(bid)||!Number.isFinite(ask)||bid<=0||ask<bid||!Number.isFinite(timestamp)||timestamp<=0||ageMs < -1500||ageMs>5000)return NextResponse.json({error:"Fresh Binance USDⓈ-M Futures order-book quote could not be verified; paper trade blocked",ageMs:Number.isFinite(ageMs)?ageMs:null},{status:502});
+    verifiedBidPrice=bid;verifiedAskPrice=ask;verifiedMarketPrice=(bid+ask)/2;
+    verifiedSpreadBps=((ask-bid)/verifiedMarketPrice)*10000;marketSource="Binance USDⓈ-M Futures timestamped order-book midpoint";
+   }}
    if(!Number.isFinite(verifiedMarketPrice)||verifiedMarketPrice<=0)return NextResponse.json({error:"Server-side market price is malformed; paper trade blocked"},{status:409});
    if(action==="OPEN"&&(!Number.isFinite(verifiedSpreadBps)||verifiedSpreadBps<0||verifiedSpreadBps>20))return NextResponse.json({error:"Paper entry blocked: bid-ask spread is unavailable or exceeds the 20 bps safety limit.",spreadBps:Number.isFinite(verifiedSpreadBps)?verifiedSpreadBps:null,maxAllowedSpreadBps:20},{status:409});
    const priceDrift=Math.abs(price-verifiedMarketPrice)/verifiedMarketPrice;
-   if(action==="OPEN"&&priceDrift>0.002)return NextResponse.json({error:"Paper entry blocked: chart price differs from the server-verified "+venue.toUpperCase()+" last-trade quote by "+(priceDrift*100).toFixed(3)+"%. Refresh the live chart before retrying.",verifiedMarketPrice,submittedPrice:price,maxAllowedDriftPct:0.2},{status:409});
-   // The simulated fill uses the server-verified exchange price, never the browser's submitted price.
-   executionReferencePrice=verifiedMarketPrice;
+   if(action==="OPEN"&&priceDrift>0.002)return NextResponse.json({error:"Paper entry blocked: chart price differs from the server-verified "+venue.toUpperCase()+" price reference by "+(priceDrift*100).toFixed(3)+"%. Refresh the live chart before retrying.",verifiedMarketPrice,submittedPrice:price,maxAllowedDriftPct:0.2},{status:409});
+   // Simulated market fills cross the spread in the order's direction, then apply adverse slippage.
+   const canUseBook=Number.isFinite(verifiedBidPrice)&&Number.isFinite(verifiedAskPrice)&&verifiedBidPrice>0&&verifiedAskPrice>=verifiedBidPrice;
+   executionReferencePrice=canUseBook?(side==="BUY"?verifiedAskPrice:verifiedBidPrice):verifiedMarketPrice;
   }catch{return NextResponse.json({error:"Market freshness verification failed; paper entry blocked"},{status:502});}
   if(action==="OPEN"&&Math.abs(price-verifiedMarketPrice)/verifiedMarketPrice>0.01)return NextResponse.json({error:"Entry price moved more than 1% from the server-verified live price; re-analyze the chart before paper entry",requestedPrice:price,verifiedMarketPrice},{status:409});
   let existingOpenExposure=0;
