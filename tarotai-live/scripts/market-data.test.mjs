@@ -554,11 +554,11 @@ test("continuous local rule roles refresh every second and paper entries use the
 
 
 test("strategy chart, agent context and paper checks stay on the same selected live venue", () => {
-  assert.match(futuresDesk, /marketVenue="okx"/);
-  assert.match(futuresDesk, /const sourceVenue=window\.tarotaiMarketVenue\|\|'okx'/);
+  assert.match(futuresDesk, /marketVenue="binance"/);
+  assert.match(futuresDesk, /const sourceVenue=window\.tarotaiMarketVenue\|\|'binance'/);
   assert.match(futuresDesk, /Research venue is separate/);
   assert.match(futuresDesk, /venue:marketVenue/);
-  assert.match(paperRoute, /const symbol=String\(b\.symbol\|\|"BTCUSDT"\)\.toUpperCase\(\),venue=String\(b\.venue\|\|"okx"\)/);
+  assert.match(paperRoute, /const symbol=String\(b\.symbol\|\|"BTCUSDT"\)\.toUpperCase\(\),venue=String\(b\.venue\|\|"binance"\)/);
 });
 
 test("paper entry checks a live OKX last-trade ticker and blocks material quote drift", () => {
@@ -576,22 +576,22 @@ test("continuous local agents veto missing or stale last-trade ticks", () => {
 });
 
 
-test("OKX is the canonical live chart source because its production market endpoint is reachable", () => {
-  assert.match(futuresDesk, /marketVenue="okx"/);
-  assert.match(futuresDesk, /wss:\/\/ws\.okx\.com\/ws\/v5\/business/);
-  assert.match(futuresDesk, /wss:\/\/ws\.okx\.com\/ws\/v5\/public/);
+test("Binance Futures is the canonical live chart source selected by the user", () => {
+  assert.match(futuresDesk, /marketVenue="binance"/);
+  assert.match(futuresDesk, /wss:\/\/fstream\.binance\.com\/ws\//);
+  assert.match(source, /https:\/\/fapi\.binance\.com\/fapi\/v1\/klines/);
+  assert.match(parallelAgentsRoute, /fapi\.binance\.com\/fapi\/v1\/klines/);
+  assert.match(paperRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/price/);
+  assert.match(liveQuoteRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/price/);
   assert.match(futuresDesk, /channel:"trades",instId/);
-  assert.match(source, /https:\/\/www\.okx\.com\/api\/v5\/market\/candles/);
-  assert.match(parallelAgentsRoute, /www\.okx\.com\/api\/v5\/market\/candles/);
-  assert.match(paperRoute, /https:\/\/www\.okx\.com\/api\/v5\/market\/ticker/);
-  assert.match(paperRoute, /https:\/\/www\.okx\.com\/api\/v5\/market\/candles/);
+  assert.match(futuresDesk, /Open official TradingView \(external\)/);
 });
 
 
-test("strategy fallback and both in-app charts use the same reachable OKX venue", () => {
+test("strategy fallback and both in-app charts use the same selected Binance venue", () => {
   assert.match(futuresDesk, /window\.tarotaiMarketVenue=marketVenue/);
   assert.match(futuresDesk, /const sourceVenue=window\.tarotaiMarketVenue\|\|'okx'/);
-  assert.match(futuresDesk, /const tvExchange=\(\{binance:'BINANCE',bybit:'BYBIT',okx:'OKX'\}\)\[window\.tarotaiMarketVenue\]\|\|'OKX'/);
+  assert.match(futuresDesk, /const tvExchange=\(\{binance:'BINANCE',bybit:'BYBIT',okx:'OKX'\}\)\[window\.tarotaiMarketVenue\]\|\|'BINANCE'/);
   assert.doesNotMatch(futuresDesk, /const tvSymbol='BINANCE:'/);
   const updateFn=futuresDesk.slice(futuresDesk.indexOf('function updateTradingViewChart'),futuresDesk.indexOf('$("tvRefresh")'));
   assert.equal((updateFn.match(/window\.tarotaiReloadLiveChart\(\)/g)||[]).length,1);
@@ -605,9 +605,9 @@ test("OKX candles and trade ticks use their correct WebSocket services", () => {
   assert.match(futuresDesk, /msg\?\.event==="error"/);
 });
 
-test("market data and agent APIs default to the reachable OKX swap feed", () => {
-  assert.match(source, /const venue=\(q\.get\("venue"\)\|\|"okx"\)\.toLowerCase\(\)/);
-  assert.match(parallelAgentsRoute, /preferred=String\(body\?\.venue\|\|"okx"\)\.toLowerCase\(\) as Venue/);
+test("market data and agent APIs default to Binance Futures", () => {
+  assert.match(source, /const venue=\(q\.get\("venue"\)\|\|"binance"\)\.toLowerCase\(\)/);
+  assert.match(parallelAgentsRoute, /preferred=String\(body\?\.venue\|\|"binance"\)\.toLowerCase\(\) as Venue/);
 });
 
 
@@ -653,8 +653,23 @@ test("market-data status reports the actual selected venue rather than a hard-co
   assert.match(futuresDesk, /Source: "\+\(\{binance:"Binance USDⓈ-M Futures",bybit:"Bybit linear perpetual",okx:"OKX perpetual swap"\}\[marketVenue\]/);
 });
 
+test("Binance live chart renders automatic support, resistance, trendlines and shared live ticks", () => {
+  assert.match(futuresDesk, /marketVenue="binance"/);
+  assert.match(futuresDesk, /wss:\/\/fstream\.binance\.com\/ws\//);
+  assert.match(futuresDesk, /function drawStructureAnnotations\(candles,currentAtr\)/);
+  assert.match(futuresDesk, /Auto support/);
+  assert.match(futuresDesk, /Auto resistance/);
+  assert.match(futuresDesk, /Rising swing-low trendline/);
+  assert.match(futuresDesk, /Falling swing-high trendline/);
+  assert.match(futuresDesk, /mirrorSupportSeries/);
+  assert.match(futuresDesk, /mirrorRisingTrendSeries/);
+  assert.match(futuresDesk, /lastQuoteSource===marketVenue\+"-websocket"/);
+  assert.match(source, /https:\/\/fapi\.binance\.com\/fapi\/v1\/klines/);
+  assert.match(paperRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/price/);
+});
 
-test("live quote fallback uses the same validated OKX perpetual feed and blocks stale prices", () => {
+
+test("live quote fallback uses the selected venue and blocks stale prices", () => {
   assert.match(liveQuoteRoute, /api\/v5\/market\/ticker/);
   assert.match(liveQuoteRoute, /new Set\(\["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT"\]\)/);
   assert.match(liveQuoteRoute, /ageMs > 3000/);
@@ -662,7 +677,7 @@ test("live quote fallback uses the same validated OKX perpetual feed and blocks 
   assert.match(futuresDesk, /function hasFreshLiveQuote\(now=Date\.now\(\)\)/);
   assert.match(futuresDesk, /function refreshQuoteFallback\(\)/);
   assert.match(futuresDesk, /quoteFallbackTimer=setInterval/);
-  assert.match(futuresDesk, /lastQuoteSource==="okx-rest-ticker"/);
+  assert.match(futuresDesk, /lastQuoteSource===marketVenue+"-rest-ticker"/);
   assert.match(futuresDesk, /LIVE PRICE STALE/);
   assert.match(futuresDesk, /if\(!hasFreshLiveQuote\(\)\)/);
   assert.doesNotMatch(futuresDesk, /reloadAll\(true\)/);
