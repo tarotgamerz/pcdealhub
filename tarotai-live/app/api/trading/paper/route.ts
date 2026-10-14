@@ -19,7 +19,7 @@ export async function POST(req:Request){
  try{
   const d=store();
   if(action==="REPLAY"){
-   const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),venue=String(b.venue||"okx").toLowerCase(),interval=String(b.interval||"1m"),limit=Math.min(500,Math.max(20,Math.floor(Number(b.limit)||100)));
+   const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),venue=String(b.venue||"binance").toLowerCase(),interval=String(b.interval||"1m"),limit=Math.min(500,Math.max(20,Math.floor(Number(b.limit)||100)));
    if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["okx","bybit","binance"].includes(venue)||!["1m","3m","5m","15m","30m","1h","2h","4h","1d"].includes(interval))return NextResponse.json({error:"Invalid venue, symbol or interval"},{status:400});
    let candles:any[]=[];
    if(venue==="okx"){
@@ -46,7 +46,7 @@ export async function POST(req:Request){
    return NextResponse.json({mode:"PAPER_ONLY",replayId:replay.id,venue,candles,stored:true,liveTradingEnabled:false});
   }
   if(action==="STOP_CHECK"){
-   const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),venue=String(b.venue||"okx").toLowerCase();
+   const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),venue=String(b.venue||"binance").toLowerCase();
    if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["binance","bybit","okx"].includes(venue))return NextResponse.json({error:"Unsupported symbol or venue"},{status:400});
    let url:URL,raw:any,closedCandles:any[]=[];
    try{
@@ -90,7 +90,7 @@ export async function POST(req:Request){
    return NextResponse.json({mode:"PAPER_ONLY",checkedSymbol:symbol,venue,sourceCandle:latest.candle,sourceCandleTime:latest.time,sourceCandleCloseTime:latest.closeTime,sourceCandleClosed:true,triggered,historyGaps,liveTradingEnabled:false,stopFirstOnAmbiguousCandle:true,note:"Only fully closed candles beginning after paper entry are evaluated; the first stop/target event is recorded."});
   }
   if(!["OPEN","CLOSE"].includes(action))return NextResponse.json({error:"action must be OPEN, CLOSE, REPLAY, or STOP_CHECK"},{status:400});
-  const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),venue=String(b.venue||"okx").toLowerCase(),side=String(b.side||"").toUpperCase(),qty=Number(b.quantity),price=Number(b.price),feeBps=Number(b.feeBps??5),slipBps=Number(b.slippageBps??2),marketTime=Number(b.marketTime);
+  const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),venue=String(b.venue||"binance").toLowerCase(),side=String(b.side||"").toUpperCase(),qty=Number(b.quantity),price=Number(b.price),feeBps=Number(b.feeBps??5),slipBps=Number(b.slippageBps??2),marketTime=Number(b.marketTime);
   if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["okx","bybit","binance"].includes(venue)||!["BUY","SELL"].includes(side)||![qty,price,feeBps,slipBps,marketTime].every(Number.isFinite)||qty<=0||price<=0||feeBps<0||feeBps>50||slipBps<0||slipBps>50)return NextResponse.json({error:"Invalid trade inputs; include marketTime and costs 0-50 bps"},{status:400});
   if(isStale(marketTime))return NextResponse.json({error:"Stale or missing market timestamp; refresh market data before paper trading"},{status:409});
   let verifiedMarketPrice:number,executionReferencePrice=price,marketSource="";
