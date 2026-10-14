@@ -163,7 +163,7 @@
     <div id="livePatternStudy" class="live-agent-consensus warn" aria-live="polite"><strong id="livePatternTitle">Historical analogue study: not run</strong><span id="livePatternSummary">The seven trade-lifecycle specialists and supervisor use verified closed candles and earlier patterns from the same market and timeframe. Historical outcomes are descriptive, not guaranteed.</span></div>
     <div id="livePatternExamples" class="live-agent-results"><div class="live-agent-result"><p>Historical examples will appear here with similarity and their observed six-candle outcomes.</p></div></div>
     <div id="liveAgentResults" class="live-agent-results"><div class="live-agent-result"><p>Selected specialist agents will return independent AI analysis, historical context and counterarguments.</p></div></div>
-    <p class="live-agent-footnote">Eight deterministic local agents refresh every five seconds against the latest verified closed candles and current quote while this tab is open and visible. The separate AI-enhanced review calls the model provider only when clicked. The local roles are not eight separate LLM calls. Macro/news, Level-2, options IV and live venue depth are not connected. Paper only; no real orders are sent.</p>
+    <p class="live-agent-footnote">Eight deterministic local roles re-evaluate on every live Binance kline update (normally about 250 ms where the exchange stream delivers updates), with a five-second heartbeat as fallback. Setups use fully closed candles; live price and paper risk checks use the same stream. The separate AI-enhanced review is on-demand, not eight continuous LLM calls. Macro/news, Level-2, options IV and live venue depth are not connected. Paper only; no real orders are sent.</p>
   </section>
   <div class="live-metrics">
     <div class="live-metric"><label>Agent decision · closed candles only</label><strong id="liveDecision" class="live-decision">HOLD / WAIT</strong></div>
@@ -235,6 +235,72 @@ const view=data.map((c,j)=>{const index=offset+j,ii=Math.min(index,analysisCandl
 if(plan){[['ENTRY',plan.entry,'#7eafff'],['STOP',plan.stop,'#ff7b83'],['TP 2R',plan.target,'#65e6ad']].forEach(([label,price,color])=>{const yy=y(price);ctx.strokeStyle=color;ctx.setLineDash([7,5]);ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(W-pad.r,yy);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=color;ctx.font='bold 11px system-ui';ctx.fillText(label,W-pad.r+7,yy-5)});const xx=x(last),yy=y(plan.entry);ctx.fillStyle=plan.side==='LONG'?'#65e6ad':'#ff7b83';ctx.beginPath();ctx.arc(xx,yy,5,0,Math.PI*2);ctx.fill();ctx.font='bold 11px system-ui';ctx.fillText(plan.side+' SETUP',Math.max(pad.l,xx-65),yy-12)}
 $('strategyPrice').textContent=(Number.isFinite(Number(latestPrice))?Number(latestPrice):Number(candles[candles.length-1]?.close??closes[last])).toLocaleString('en-US',{maximumFractionDigits:2});$('strategySignal').textContent=plan?plan.side+' SETUP · '+plan.score+'/5':'WAIT · NO EDGE';$('strategySignal').style.color=plan?(plan.side==='LONG'?'#65e6ad':'#ff7b83'):'#f2c46f';$('strategyStop').textContent=plan?plan.stop.toLocaleString('en-US',{maximumFractionDigits:2}):'—';$('strategyTarget').textContent=plan?plan.target.toLocaleString('en-US',{maximumFractionDigits:2}):'—';window.tarotaiLatestPlan=plan?{...plan,symbol,interval,candleTime:analysisCandles[last].time,rsi:Number(rsiNow.toFixed(1)),atr:Number(atr[last].toFixed(6))}:null;window.tarotaiHigherTrendLabel=higherReady?(higherTrendUp?'BULLISH':higherTrendDown?'BEARISH':'MIXED / NEUTRAL'):'UNAVAILABLE';$('strategyStatus').textContent=symbol+' Binance USDⓈ-M perpetual · '+interval+' · '+data.length+' candles displayed · '+analysisCandles.length+' closed candles analyzed · live price '+(Number.isFinite(Number(latestPrice))?Number(latestPrice):Number(candles[candles.length-1]?.close??closes[last])).toLocaleString('en-US',{maximumFractionDigits:2})+' · entry rules use the latest CLOSED candle · RSI '+rsiNow.toFixed(1)+' · '+(plan?'multi-factor '+plan.side+' setup ('+plan.score+'/5 checks), with 2R target and volatility/structure stop.':'no high-confluence setup (long '+longScore+'/5, short '+shortScore+'/5). WAIT is intentional.')+' · refreshed '+new Date().toLocaleTimeString()+'. The chart current candle is live; setup math uses the last closed candle.';
 }
+$('drawStrategy').addEventListener('click',async()=>{
+ const btn=$('drawStrategy');if(btn.disabled)return;btn.disabled=true;$('strategyStatus').textContent='Checking the shared Binance USDⓈ-M live snapshot…';
+ try{
+  const symbol=$('strategySymbol').value,interval=$('strategyInterval').value,ms=({'1m':60000,'5m':300000,'15m':900000,'1h':3600000,'4h':14400000})[interval]||300000;
+  const snapshot=window.tarotaiLiveMarketSnapshot;let displayCandles=[],closedCandles=[],higherCandles=[],sourceHost='fapi.binance.com',sourceMode='Binance REST snapshot',higherTimeframeError='';
+  if(snapshot&&snapshot.venue==='binance'&&snapshot.symbol===symbol&&snapshot.interval===interval&&Date.now()-snapshot.updatedAt<=5000&&Array.isArray(snapshot.candles)&&Array.isArray(snapshot.closedCandles)&&snapshot.candles.length>=35&&snapshot.closedCandles.length>=35){
+   displayCandles=snapshot.candles.map(c=>({...c}));closedCandles=snapshot.closedCandles.map(c=>({...c}));higherCandles=Array.isArray(snapshot.higherCandles)?snapshot.higherCandles.map(c=>({...c})):[];sourceHost=snapshot.sourceHost||sourceHost;sourceMode='shared live WebSocket snapshot';
+  }else{
+   const p=new URLSearchParams({venue:'binance',symbol,interval,limit:'200',public:'1'}),r=await fetch('/api/exchanges/market?'+p,{cache:'no-store',signal:AbortSignal.timeout(9000)}),j=await r.json().catch(()=>({}));
+   if(!r.ok||j.stale||!Array.isArray(j.candles))throw new Error('Binance USDⓈ-M Futures feed unavailable: '+(j.detail||j.error||('HTTP '+r.status))+'; cross-exchange fallbacks are disabled to prevent mismatched prices.');
+   displayCandles=j.candles.filter(c=>[c.time,c.open,c.high,c.low,c.close].every(Number.isFinite)&&c.low>0&&c.high>=Math.max(c.open,c.close,c.low)&&c.close>0).sort((a,b)=>a.time-b.time);sourceHost=j.sourceHost||sourceHost;
+   closedCandles=displayCandles.filter(c=>Number.isFinite(Number(c.closeTime))?Date.now()>=Number(c.closeTime):Date.now()>=Number(c.time)+ms);
+   const higherInterval=({'1m':'15m','5m':'1h','15m':'4h','1h':'1d','4h':'1d'})[interval]||'1h',higherMs=({'1m':900000,'5m':3600000,'15m':14400000,'1h':86400000,'4h':86400000})[interval]||3600000;
+   try{const hp=new URLSearchParams({venue:'binance',symbol,interval:higherInterval,limit:'120',public:'1'}),hr=await fetch('/api/exchanges/market?'+hp,{cache:'no-store',signal:AbortSignal.timeout(9000)}),hj=await hr.json().catch(()=>({}));if(hr.ok&&!hj.stale&&Array.isArray(hj.candles)){higherCandles=hj.candles.filter(c=>[c.time,c.open,c.high,c.low,c.close].every(Number.isFinite)&&c.low>0&&c.high>=Math.max(c.open,c.close,c.low)&&Date.now()>=(Number.isFinite(Number(c.closeTime))?Number(c.closeTime):Number(c.time)+higherMs)).slice(-120)}else higherTimeframeError=hj.detail||hj.error||('HTTP '+hr.status)}catch(e){higherTimeframeError=String(e)}
+  }
+  if(displayCandles.length<35||closedCandles.length<35)throw new Error('Insufficient valid live and closed Binance candles for reliable analysis.');
+  const live=displayCandles[displayCandles.length-1],age=Math.max(0,Date.now()-Number(live.time));
+  if(age>ms*2+60000)throw new Error('Binance candles are stale ('+Math.round(age/1000)+'s old); signals blocked.');
+  if(!higherCandles.length)higherTimeframeError=higherTimeframeError||'Higher-timeframe Binance history unavailable; directional setup is not confirmed.';
+  $('strategyFallbackChart').style.display='none';$('strategyCanvas').style.display='block';
+  drawStrategyChart(displayCandles,symbol,interval,higherCandles,closedCandles,Number(live.close));
+  window.tarotaiHigherTimeframeError=higherTimeframeError;window.tarotaiStrategyHigherCandles=higherCandles;window.tarotaiStrategyCandles=closedCandles;window.tarotaiStrategyDisplayCandles=displayCandles;window.tarotaiStrategyFetchedAt=Date.now();window.tarotaiStrategySource='binance-usdm-shared-or-rest';
+  if(higherTimeframeError)$('strategyStatus').textContent+=' Higher-timeframe check: '+higherTimeframeError+'. No entry should be taken while HTF data is unavailable.';
+  $('strategyStatus').textContent+=' · '+sourceMode+' ('+sourceHost+') · live candle refreshed '+new Date().toLocaleTimeString()+'.';
+  log('Rendered '+symbol+' '+interval+' live candle chart from '+sourceMode+'; signal decisions use '+closedCandles.length+' fully closed candles.');
+ }catch(e){
+  $('strategyCanvas').style.display='none';const fallback=$('strategyFallbackChart'),tvInterval=({'1m':'1','5m':'5','15m':'15','1h':'60','4h':'240'})[$('strategyInterval').value]||'5',tvSymbol='BINANCE:'+ $('strategySymbol').value +'.P',q=new URLSearchParams({symbol:tvSymbol,interval:tvInterval,theme:'dark',style:'1',timezone:'Etc/UTC',withdateranges:'1',hide_side_toolbar:'0',allow_symbol_change:'0',details:'1',hotlist:'0',calendar:'0',locale:'en'});
+  fallback.src='https://s.tradingview.com/widgetembed/?'+q.toString();fallback.style.display='block';$('strategyPrice').textContent='UNVERIFIED';$('strategySignal').textContent='NO SIGNAL';$('strategyStop').textContent='—';$('strategyTarget').textContent='—';$('strategyStatus').textContent='Could not verify fresh Binance USDⓈ-M candles: '+e.message+'. TradingView is shown without generated trade signals; no cross-exchange data is substituted.';
+ }finally{btn.disabled=false;}
+});
+let lastStrategyLivePaintAt=0;
+window.tarotaiRefreshStrategyFromLive=function(force=false){
+ const snapshot=window.tarotaiLiveMarketSnapshot;
+ if(!snapshot||snapshot.venue!=="binance"||snapshot.symbol!==$("strategySymbol").value||snapshot.interval!==$("strategyInterval").value||!Array.isArray(snapshot.candles)||!Array.isArray(snapshot.closedCandles)||snapshot.candles.length<35||snapshot.closedCandles.length<35)return false;
+ const now=Date.now();if(!force&&now-lastStrategyLivePaintAt<750)return true;
+ $("strategyFallbackChart").style.display="none";$("strategyCanvas").style.display="block";
+ drawStrategyChart(snapshot.candles,$("strategySymbol").value,$("strategyInterval").value,snapshot.higherCandles||[],snapshot.closedCandles,snapshot.latestPrice);
+ window.tarotaiStrategyCandles=snapshot.closedCandles;window.tarotaiStrategyDisplayCandles=snapshot.candles;window.tarotaiStrategyHigherCandles=snapshot.higherCandles||[];window.tarotaiStrategyFetchedAt=snapshot.updatedAt;window.tarotaiStrategySource="shared-binance-live-snapshot";
+ if(snapshot.higherTimeframeError)window.tarotaiHigherTimeframeError=snapshot.higherTimeframeError;
+ $("strategyStatus").textContent=$("strategyStatus").textContent+" · shared live feed age "+Math.max(0,Date.now()-snapshot.updatedAt)+" ms.";
+ lastStrategyLivePaintAt=now;return true;
+};
+$("strategySymbol").addEventListener("change",()=>{updateTradingViewChart("strategy");if(!$("drawStrategy").disabled)$("drawStrategy").click();});
+$("strategyInterval").addEventListener("change",()=>{updateTradingViewChart("strategy");if(!$("drawStrategy").disabled)$("drawStrategy").click();});
+function tradingViewInterval(){return $('tvInterval').value}
+const tvToLiveInterval={"1":"1m","5":"5m","15":"15m","60":"1h","240":"4h"};
+const liveToTvInterval={"1m":"1","5m":"5","15m":"15","1h":"60","4h":"240"};
+function tradingViewSymbol(){const base=$("liveSymbol")?.value||$("tvSymbol").value;return "BINANCE:"+base+".P";}
+function updateTradingViewChart(source="tv"){
+  let base,interval;
+  if(source==="strategy"){base=$("strategySymbol").value;interval=$("strategyInterval").value;}
+  else if(source==="live"){base=$("liveSymbol").value;interval=$("liveInterval").value;}
+  else{base=$("tvSymbol").value;interval=tvToLiveInterval[$("tvInterval").value]||"15m";}
+  if(!Object.hasOwn(liveToTvInterval,interval))interval="15m";
+  $("tvSymbol").value=base;$("liveSymbol").value=base;$("strategySymbol").value=base;
+  $("liveInterval").value=interval;$("strategyInterval").value=interval;$("tvInterval").value=liveToTvInterval[interval];
+  if($("marketSymbol"))$("marketSymbol").value=base;
+  if($("marketInterval"))$("marketInterval").value=interval;
+  const symbol=tradingViewSymbol(),tvInterval=liveToTvInterval[interval];
+  const q=new URLSearchParams({symbol,interval:tvInterval,theme:"dark",style:"1",timezone:"Etc/UTC",withdateranges:"1",hide_side_toolbar:"0",allow_symbol_change:"0",details:"1",hotlist:"0",calendar:"0",locale:"en"});
+  $("tvChart").src="https://s.tradingview.com/widgetembed/?"+q.toString();
+  $("tvOpenExternal").href="https://www.tradingview.com/chart/?symbol="+encodeURIComponent(symbol);
+  $("tvStatus").textContent="SYNCED · "+symbol+" · "+interval+" · Binance USDⓈ-M perpetual. Live quotes arrive independently and can differ briefly by feed latency.";
+  if(source!=="live"&&typeof window.tarotaiReloadLiveChart==="function")window.tarotaiReloadLiveChart();
+}
+
 $("tvRefresh").addEventListener("click",()=>updateTradingViewChart("tv"));
 $("tvSymbol").addEventListener("change",()=>updateTradingViewChart("tv"));
 $("tvInterval").addEventListener("change",()=>updateTradingViewChart("tv"));
@@ -296,6 +362,14 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   function closedOnly(input,interval){const now=Date.now(),dur=msFor(interval);return (input||[]).filter(c=>{const end=Number.isFinite(c.closeTime)&&c.closeTime>c.time?c.closeTime:c.time+dur-1;return end<now-300;});}
   function plotCandle(c){return {time:toSec(c.time),open:c.open,high:c.high,low:c.low,close:c.close};}
   function lineData(values,ts){const out=[];for(let i=0;i<values.length;i++)if(Number.isFinite(values[i]))out.push({time:toSec(ts[i].time),value:values[i]});return out;}
+  function publishLiveMarketSnapshot(){
+    if(!currentSymbol||!currentInterval||!rows.length)return;
+    const closed=closedOnly(rows,currentInterval),live=rows[rows.length-1],now=Date.now();
+    window.tarotaiLiveMarketSnapshot={symbol:currentSymbol,interval:currentInterval,venue:marketVenue,sourceHost:"fapi.binance.com",updatedAt:now,lastMarketUpdateAt,latestPrice:Number(live.close),candles:rows.slice(),closedCandles:closed.slice(),higherCandles:higherCache.slice(),higherInterval:higherMap[currentInterval]||"1d"};
+    const quote=byId("tvCanonicalQuote");
+    if(quote)quote.textContent=currentSymbol+" · "+currentInterval+" · BINANCE USDⓈ-M perpetual · canonical live price "+fmt(Number(live.close))+" · refreshed "+new Date(now).toLocaleTimeString()+" · "+Math.max(0,now-lastMarketUpdateAt)+" ms since the last market update. TradingView iframe ticks independently.";
+    if(typeof window.tarotaiRefreshStrategyFromLive==="function")window.tarotaiRefreshStrategyFromLive();
+  }
   function clearPlanLines(){if(candleSeries)for(const l of priceLines){try{candleSeries.removePriceLine(l);}catch(e){}}priceLines=[];}
   function addPlanLine(title,price,color,style){if(!candleSeries||!Number.isFinite(price))return;priceLines.push(candleSeries.createPriceLine({price,color,lineWidth:2,lineStyle:style||window.LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title}));}
   function checkRow(title,passed,detail,neutral){const row=document.createElement("div");row.className="live-check "+(neutral?"neutral":passed?"pass":"fail");const mark=document.createElement("em");mark.textContent=neutral?"•":passed?"✓":"×";const text=document.createElement("span");text.textContent=title+": "+detail;row.append(mark,text);return row;}
@@ -514,7 +588,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     window.tarotaiContinuousTeamApproval=approve?{symbol:currentSymbol,interval:currentInterval,candleTime:Number(last.time),action:action,source:"continuous-local-team",model:"local-rules-v1",agentVotes:window.tarotaiContinuousAgentReports,checkedAt:now}:null;
     statusPanel.className="live-agent-consensus "+(localVeto?"warn":approve?"good":"warn");
     title.textContent="Continuous local team: "+(localVeto?"8/8 CHECKED · VETO / WAIT":approve?"8/8 CHECKED · "+bias+" SETUP REVIEWED":"8/8 CHECKED · HOLD / WAIT");
-    detail.textContent="Cycle #"+continuousCycle+" · 8/8 deterministic role checks refreshed at "+new Date(now).toLocaleTimeString()+" · every 5 seconds while this tab is open and visible · no LLM calls in this loop.";
+    detail.textContent="Cycle #"+continuousCycle+" · 8/8 local roles checked at "+new Date(now).toLocaleTimeString()+" · event-driven on live kline updates plus 5-second heartbeat · no LLM calls in this loop.";
     if(byId("liveAgentRunStatus")&&!byId("runLiveAgentTeam").disabled)byId("liveAgentRunStatus").textContent="Continuous monitoring active · 8/8 local roles checked · "+new Date(now).toLocaleTimeString()+". AI-enhanced review is separate.";
     if(autoPaperEnabled&&approve&&!paperOpening&&paperStoreReady){
       const candleKey=currentSymbol+"|"+currentInterval+"|"+Number(last.time);
@@ -704,6 +778,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       if(rows.length<80)throw new Error("Only "+rows.length+" valid candles were returned; need at least 80.");
       renderRows(firstRender);
       try{await loadHigher(false);analyze();}catch(e){higherCache=[];higherCacheKey="";byId("liveHtf").textContent="UNAVAILABLE";analyze();status("Chart data loaded, but the higher-timeframe confirmation failed: "+e.message+". Signal stays HOLD until trend confirmation succeeds.");}
+      publishLiveMarketSnapshot();
       const last=rows[rows.length-1],age=Math.max(0,Date.now()-last.time);
       const venueLabel=({binance:"BINANCE FUTURES",bybit:"BYBIT LINEAR FUTURES",okx:"OKX SWAP"})[marketVenue]||String(marketVenue).toUpperCase();
       setFeed(venueLabel+" · "+(marketVenue==="binance"&&feedSocket&&feedSocket.readyState===1?"LIVE STREAM":"REST REFRESH"),marketVenue==="binance"&&feedSocket&&feedSocket.readyState===1?"good":"neutral");
@@ -734,6 +809,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
         else{const idx=rows.findIndex(x=>x.time===bar.time);if(idx>=0)rows[idx]=bar;}
         if(rows.length>5000)rows=rows.slice(-5000);
         try{candleSeries.update(plotCandle(bar));const cls=rows.map(c=>c.close);ema9Series.setData(lineData(ema(cls,9),rows));ema21Series.setData(lineData(ema(cls,21),rows));ema50Series.setData(lineData(ema(cls,50),rows));byId("livePrice").textContent=fmt(bar.close);if(stickAtRealtime)chart.timeScale().scrollToRealTime();}catch(e){}
+        publishLiveMarketSnapshot();runContinuousAgentCycle();
         if(k.x&&Number(k.T)!==lastWsCandleTime){lastWsCandleTime=Number(k.T);refresh(false);}
       };
       feedSocket.onerror=()=>setFeed("WEBSOCKET UNAVAILABLE · POLLING","neutral");
