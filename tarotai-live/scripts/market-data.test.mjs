@@ -538,7 +538,8 @@ test("in-dashboard charts use one candle source plus a shared live OKX swap last
   assert.match(futuresDesk, /function createMirrorChart\(\)/);
   assert.match(futuresDesk, /mirrorCandleSeries\.setData\(candleData\)/);
   assert.match(futuresDesk, /channel:"trades",instId/);
-  assert.match(futuresDesk, /function hasFreshLiveQuote\(now=Date\.now\(\)\)/);\n  assert.match(futuresDesk, /function currentMarketPrice\(\)/);
+  assert.match(futuresDesk, /function hasFreshLiveQuote\(now=Date\.now\(\)\)/);
+  assert.match(futuresDesk, /function currentMarketPrice\(\)/);
   assert.match(futuresDesk, /function renderSharedQuote\(_price\)/);
   assert.match(futuresDesk, /Open official TradingView \(external\)/);
 });
