@@ -47,6 +47,16 @@ export function resolveStopTarget(candle, side, stop, target) {
  return {exit:null,price:null,ambiguous:false};
 }
 
+
+export function resolveTargetOnlyObservation(candle, side, stop, target) {
+ if (![candle?.open,candle?.high,candle?.low,stop,target].every(Number.isFinite) || candle.open<=0 || candle.low<=0 || candle.high<candle.low || stop<=0 || target<=0 || !["LONG","SHORT"].includes(side)) throw new Error("invalid target-only observation inputs");
+ const stopTouched = side==="LONG" ? candle.low<=stop : candle.high>=stop;
+ const targetTouched = side==="LONG" ? candle.high>=target : candle.low<=target;
+ if (stopTouched && targetTouched) return {exit:null,price:null,ambiguous:true,stopTouched:true,targetTouched:true};
+ if (targetTouched) return {exit:"TARGET",price:target,ambiguous:false,stopTouched:false,targetTouched:true};
+ return {exit:null,price:null,ambiguous:false,stopTouched,targetTouched:false};
+}
+
 export function validateOrderRequest({symbol,side,type,quantity,price,clientOrderId,venue="binance"}) {
  if (typeof symbol!=="string" || !/^[A-Z0-9]{4,20}$/.test(symbol)) return "invalid symbol";
  if (!["BUY","SELL"].includes(side)) return "invalid side";
