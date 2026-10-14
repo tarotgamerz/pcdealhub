@@ -699,7 +699,7 @@ test("Binance live chart renders automatic support, resistance, trendlines and s
   assert.match(futuresDesk, /mirrorRisingTrendSeries/);
   assert.match(futuresDesk, /lastQuoteSource===marketVenue\+"-websocket"/);
   assert.match(source, /https:\/\/fapi\.binance\.com\/fapi\/v1\/klines/);
-  assert.match(paperRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/price/);
+  assert.match(paperRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/24hr/);
 });
 
 
