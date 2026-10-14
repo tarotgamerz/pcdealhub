@@ -527,3 +527,17 @@ test("automatic paper trading is opt-in, persistent-ledger gated, and records on
   assert.match(futuresDesk, /PAPER_ONLY/);
   assert.match(futuresDesk, /No exchange order was sent/);
 });
+
+
+test("TarotAI first-party charts use one Binance live snapshot while signals use closed candles", () => {
+  assert.ok(futuresDesk.includes('id="tvCanonicalQuote"'));
+  assert.ok(futuresDesk.includes("window.tarotaiLiveMarketSnapshot={symbol:currentSymbol,interval:currentInterval,venue:marketVenue"));
+  assert.ok(futuresDesk.includes("window.tarotaiRefreshStrategyFromLive=function"));
+  assert.ok(futuresDesk.includes('drawStrategyChart(snapshot.candles,$("strategySymbol").value,$("strategyInterval").value,snapshot.higherCandles||[],snapshot.closedCandles,snapshot.latestPrice)'));
+  assert.ok(futuresDesk.includes("candleTime:analysisCandles[last].time"));
+  assert.ok(futuresDesk.includes("publishLiveMarketSnapshot();runContinuousAgentCycle();"));
+  assert.ok(!futuresDesk.includes("https://api.bybit.com/v5/market/kline?"));
+  assert.ok(!futuresDesk.includes("https://www.okx.com/api/v5/market/candles?"));
+  assert.ok(futuresDesk.includes("entry rules use the latest CLOSED candle"));
+  assert.ok(futuresDesk.includes("event-driven on live kline updates plus 5-second heartbeat"));
+});
