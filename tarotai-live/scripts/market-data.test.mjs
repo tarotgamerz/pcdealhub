@@ -694,7 +694,7 @@ test("live last-trade tick updates the in-progress candle on both in-app price c
   assert.match(futuresDesk, /function drawStrategyChart\(candles,symbol,interval,higherCandles=\[\],liveCandle=null\)/);
   assert.match(futuresDesk, /window\.tarotaiStrategyLiveCandle=liveCandle/);
   assert.match(futuresDesk, /drawStrategyChart\(candles,symbol,interval,higherCandles,liveCandle\)/);
-  assert.match(futuresDesk, /const liveP=Number\(window\.tarotaiSharedLastPrice\)/);
+  assert.match(futuresDesk, /liveP=Number\(window\.tarotaiSharedLastPrice\)/);
   assert.match(futuresDesk, /streamWasStale=Date\.now\(\)-lastMarketUpdateAt>5000/);
   assert.match(futuresDesk, /pollTimer=setInterval\(\(\)=>\{if\(document\.visibilityState==="visible"&&Date\.now\(\)-lastMarketUpdateAt>5000\)void refresh\(true\);\},5000\)/);
 });
