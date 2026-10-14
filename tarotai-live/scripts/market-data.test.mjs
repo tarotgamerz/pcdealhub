@@ -662,7 +662,7 @@ test("market-data status reports the actual selected venue rather than a hard-co
 });
 
 test("Binance chart has a native interval-specific kline stream and only re-analyzes each closed bar once", () => {
-  assert.match(futuresDesk, /@kline_\"\+currentInterval/);
+  assert.match(futuresDesk, /@kline_"\+currentInterval/);
   assert.match(futuresDesk, /message\?\.e!==\"kline\"/);
   assert.match(futuresDesk, /confirmed:k\.x===true/);
   assert.match(futuresDesk, /function analyzeNewClosedBar\(\)/);
