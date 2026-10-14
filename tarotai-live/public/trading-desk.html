@@ -132,9 +132,9 @@
 <section class="panel wide"><h2>Demo trade journal</h2><div class="tablewrap"><table><thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Entry</th><th>Stop / Target</th><th>Risk</th><th>Status</th></tr></thead><tbody id="trades"><tr><td colspan="7" class="empty">No demo orders yet. Create a local demo record to begin.</td></tr></tbody></table></div></section>
 <section class="panel"><h2>Research pipeline</h2><div class="step"><span class="tag">01</span><div><strong>Market data</strong><div class="sub">Source + timestamp verification required</div></div></div><div class="step"><span class="tag">02</span><div><strong>Historical backtest</strong><div class="sub">Fees, funding, slippage, out-of-sample split</div></div></div><div class="step"><span class="tag">03</span><div><strong>Forward test</strong><div class="sub">Paper results across varied regimes</div></div></div><div class="step"><span class="tag">04</span><div><strong>Risk review</strong><div class="sub">Independent veto + exposure caps</div></div></div><div class="step"><span class="tag">05</span><div><strong>Human approval</strong><div class="sub">Required before any future live-trading feature</div></div></div></section>
 
-<section class="panel full" id="tradingview-panel"><div class="row" style="justify-content:space-between;margin-bottom:12px"><div><h2 style="margin:0">TradingView chart</h2><div class="sub">Interactive chart for visual analysis. Confirm live data in the research panel before planning a trade.</div></div><span class="tag">CHART VIEW</span></div>
-<div class="row" style="margin-bottom:12px"><div class="field" style="flex:1;min-width:150px;margin:0"><label for="tvSymbol">Chart market</label><select id="tvSymbol"><option value="BTCUSDT">BTCUSDT perpetual</option><option value="ETHUSDT">ETHUSDT perpetual</option><option value="BNBUSDT">BNBUSDT perpetual</option><option value="SOLUSDT">SOLUSDT perpetual</option></select></div><div class="field" style="flex:1;min-width:120px;margin:0"><label for="tvInterval">Chart timeframe</label><select id="tvInterval"><option value="1">1 minute</option><option value="5">5 minutes</option><option value="15" selected>15 minutes</option><option value="60">1 hour</option><option value="240">4 hours</option><option value="1D">1 day</option></select></div><button class="btn" id="tvRefresh">Update chart</button></div>
-<div style="width:100%;height:clamp(360px,55vw,560px);border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#080d14"><iframe id="tvChart" title="TradingView interactive market chart" src="https://s.tradingview.com/widgetembed/?symbol=BINANCE%3ABTCUSDT.P&interval=15&theme=dark&style=1&timezone=Etc%2FUTC&withdateranges=1&hide_side_toolbar=0&allow_symbol_change=1&details=1&hotlist=0&calendar=0&locale=en" style="width:100%;height:100%;border:0" loading="lazy" allowfullscreen referrerpolicy="origin"></iframe></div>
+<section class="panel full" id="tradingview-panel"><div class="row" style="justify-content:space-between;margin-bottom:12px"><div><h2 style="margin:0">TradingView chart</h2><div class="sub">This TradingView view is linked to the live-analysis symbol and timeframe. Both reference the same Binance USDⓈ-M perpetual market; the separate live stream may differ by a brief network tick.</div></div><span class="tag">CHART VIEW</span></div>
+<div class="row" style="margin-bottom:12px"><div class="field" style="flex:1;min-width:150px;margin:0"><label for="tvSymbol">Chart market</label><select id="tvSymbol"><option value="BTCUSDT">BTCUSDT perpetual</option><option value="ETHUSDT">ETHUSDT perpetual</option><option value="BNBUSDT">BNBUSDT perpetual</option><option value="SOLUSDT">SOLUSDT perpetual</option></select></div><div class="field" style="flex:1;min-width:120px;margin:0"><label for="tvInterval">Chart timeframe</label><select id="tvInterval"><option value="1">1 minute</option><option value="5">5 minutes</option><option value="15" selected>15 minutes</option><option value="60">1 hour</option><option value="240">4 hours</option></select></div><button class="btn" id="tvRefresh">Update chart</button></div>
+<div style="width:100%;height:clamp(360px,55vw,560px);border:1px solid var(--line);border-radius:11px;overflow:hidden;background:#080d14"><iframe id="tvChart" title="TradingView interactive market chart" src="https://s.tradingview.com/widgetembed/?symbol=BINANCE%3ABTCUSDT.P&interval=15&theme=dark&style=1&timezone=Etc%2FUTC&withdateranges=1&hide_side_toolbar=0&allow_symbol_change=0&details=1&hotlist=0&calendar=0&locale=en" style="width:100%;height:100%;border:0" loading="lazy" allowfullscreen referrerpolicy="origin"></iframe></div>
 <div class="row" style="margin-top:12px"><button class="btn primary" id="tvAskAgent">Draw visual chart analysis</button><a class="btn" id="tvOpenExternal" href="https://www.tradingview.com/chart/?symbol=BINANCE%3ABTCUSDT.P" target="_blank" rel="noopener noreferrer" style="text-decoration:none">Open full TradingView</a><span class="muted" id="tvStatus" style="font-size:12px">Chart view only · no orders are sent.</span></div>
 <p class="muted" style="font-size:11px;margin-bottom:0">The Trading Agent does not automatically see drawings or indicators inside this embedded chart. The analysis handoff sends the selected market and timeframe, then asks the agent to fetch and verify its own available market data before giving an opinion.</p></section>
 
@@ -178,7 +178,7 @@
     <div class="live-checks"><h3>Why the agent decided this</h3><div id="liveCheckList" class="live-check-list"><div class="live-check neutral"><em>•</em><span>Waiting for closed candles and higher-timeframe data.</span></div></div></div>
   </div>
   <div id="liveMarketStatus" class="live-market-status">Market data has not been checked yet. No orders are sent from this panel.</div>
-<div class="live-instructions" style="margin-top:12px"><h3>Paper trade controls</h3><div class="sub">Only fresh confirmed BUY / LONG or SELL / SHORT setups qualify. No real exchange orders are sent.</div><div class="live-paper-controls"><div class="field"><label for="livePaperBalance">Simulated balance (USDT)</label><input id="livePaperBalance" type="number" min="100" max="10000000" step="100" value="10000"></div><div class="field"><label for="livePaperRisk">Risk per trade (%)</label><input id="livePaperRisk" type="number" min="0.1" max="1" step="0.1" value="0.5"></div><button class="btn primary" id="livePaperOpen" type="button" disabled>Open paper trade from signal</button><button class="btn" id="livePaperReload" type="button">Refresh ledger / check stops</button></div><div class="live-paper-summary"><div class="live-level"><label>Open positions</label><strong id="livePaperOpenCount">—</strong></div><div class="live-level"><label>Closed paper trades</label><strong id="livePaperClosedCount">—</strong></div><div class="live-level"><label>Realized net P&amp;L (USDT)</label><strong id="livePaperNetPnl">—</strong></div><div class="live-level"><label>Win rate</label><strong id="livePaperWinRate">—</strong></div></div><div id="livePaperPositions" class="live-paper-positions"><div class="muted">Loading persistent paper ledger…</div></div><div id="livePaperStatus" class="live-market-status">Paper trading is disabled until a valid signal and persistent private ledger are available.</div></div>
+<div class="live-instructions" style="margin-top:12px"><h3>Paper trade controls</h3><div class="sub">Only fresh confirmed BUY / LONG or SELL / SHORT setups qualify. No real exchange orders are sent.</div><div class="live-paper-controls"><div class="field"><label for="livePaperBalance">Simulated balance (USDT)</label><input id="livePaperBalance" type="number" min="100" max="10000000" step="100" value="10000"></div><div class="field"><label for="livePaperRisk">Risk per trade (%)</label><input id="livePaperRisk" type="number" min="0.1" max="1" step="0.1" value="0.5"></div><button class="btn primary" id="livePaperOpen" type="button" disabled>Open paper trade from signal</button><button class="btn" id="livePaperReload" type="button">Refresh ledger / check stops</button><button class="btn" id="livePaperAutoToggle" type="button" aria-pressed="false">Enable auto paper trading</button></div><div id="livePaperAutoStatus" class="live-market-status">AUTO PAPER: OFF. The 8-role local rule team runs continuously; simulated entries begin only when you enable paper mode and the private persistent ledger is available. No real orders are sent.</div><div class="live-paper-summary><div class="live-level"><label>Open positions</label><strong id="livePaperOpenCount">—</strong></div><div class="live-level"><label>Closed paper trades</label><strong id="livePaperClosedCount">—</strong></div><div class="live-level"><label>Realized net P&amp;L (USDT)</label><strong id="livePaperNetPnl">—</strong></div><div class="live-level"><label>Overall win rate</label><strong id="livePaperWinRate">—</strong></div><div class="live-level"><label>AI-review win rate</label><strong id="livePaperAiWinRate">—</strong><small id="livePaperAiSamples">0 closed trades</small></div><div class="live-level"><label>Continuous-rule win rate</label><strong id="livePaperLocalWinRate">—</strong><small id="livePaperLocalSamples">0 closed trades</small></div></div><div id="livePaperPositions" class="live-paper-positions"><div class="muted">Loading persistent paper ledger…</div></div><div id="livePaperStatus" class="live-market-status">Paper trading is disabled until a valid signal and persistent private ledger are available.</div></div>
   <div class="live-safety-note"><strong>Execution safety:</strong> BUY means a potential long setup; SELL means a potential short setup; HOLD / WAIT means do not enter. Levels are analytical references calculated from closed candles, not guaranteed fills. The chart is read-only and never submits orders.</div>
 </section>
 
@@ -234,15 +234,33 @@ const view=data.map((c,j)=>({...c,index:offset+j,fast:fast[offset+j],slow:slow[o
 if(plan){[['ENTRY',plan.entry,'#7eafff'],['STOP',plan.stop,'#ff7b83'],['TP 2R',plan.target,'#65e6ad']].forEach(([label,price,color])=>{const yy=y(price);ctx.strokeStyle=color;ctx.setLineDash([7,5]);ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(W-pad.r,yy);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=color;ctx.font='bold 11px system-ui';ctx.fillText(label,W-pad.r+7,yy-5)});const xx=x(last),yy=y(plan.entry);ctx.fillStyle=plan.side==='LONG'?'#65e6ad':'#ff7b83';ctx.beginPath();ctx.arc(xx,yy,5,0,Math.PI*2);ctx.fill();ctx.font='bold 11px system-ui';ctx.fillText(plan.side+' SETUP',Math.max(pad.l,xx-65),yy-12)}
 $('strategyPrice').textContent=closes[last].toLocaleString('en-US',{maximumFractionDigits:2});$('strategySignal').textContent=plan?plan.side+' SETUP · '+plan.score+'/5':'WAIT · NO EDGE';$('strategySignal').style.color=plan?(plan.side==='LONG'?'#65e6ad':'#ff7b83'):'#f2c46f';$('strategyStop').textContent=plan?plan.stop.toLocaleString('en-US',{maximumFractionDigits:2}):'—';$('strategyTarget').textContent=plan?plan.target.toLocaleString('en-US',{maximumFractionDigits:2}):'—';window.tarotaiLatestPlan=plan?{...plan,symbol,interval,candleTime:candles[last].time,rsi:Number(rsiNow.toFixed(1)),atr:Number(atr[last].toFixed(6))}:null;window.tarotaiHigherTrendLabel=higherReady?(higherTrendUp?'BULLISH':higherTrendDown?'BEARISH':'MIXED / NEUTRAL'):'UNAVAILABLE';$('strategyStatus').textContent=symbol+' perpetual · '+interval+' · '+data.length+' candles · RSI '+rsiNow.toFixed(1)+' · '+(plan?'multi-factor '+plan.side+' setup ('+plan.score+'/5 checks), 2R target and volatility/structure stop. Wait for a candle close and confirm risk before considering a trade.':'no high-confluence setup (long '+longScore+'/5, short '+shortScore+'/5). WAIT is intentional; no forced trade.')+' · updated '+new Date().toLocaleTimeString()+'. This is a rule-based probability estimate, not a guaranteed prediction.'}
 $('drawStrategy').addEventListener('click',async()=>{const btn=$('drawStrategy');if(btn.disabled)return;btn.disabled=true;$('strategyStatus').textContent='Fetching fresh perpetual-market candles…';try{const symbol=$('strategySymbol').value,interval=$('strategyInterval').value;let d=null,lastError='market data unavailable';const p=new URLSearchParams({venue:'binance',symbol,interval,limit:'200',public:'1'});try{const r=await fetch('/api/exchanges/market?'+p,{cache:'no-store'});const j=await r.json();if(r.ok&&!j.stale&&Array.isArray(j.candles)){d=j}else lastError=j.detail||j.error||('HTTP '+r.status)}catch(e){lastError=String(e)}if(!d){const bybitInterval=({'1m':'1','5m':'5','15m':'15','1h':'60','4h':'240'})[interval]||'5';try{const u='https://api.bybit.com/v5/market/kline?'+new URLSearchParams({category:'linear',symbol,interval:bybitInterval,limit:'200'});const r=await fetch(u,{cache:'no-store',signal:AbortSignal.timeout(7000)}),j=await r.json();if(r.ok&&j.retCode===0&&Array.isArray(j.result?.list)&&j.result.list.length>=35){d={symbol,interval,venue:'bybit',sourceHost:'api.bybit.com',stale:false,candles:j.result.list.slice().reverse().map(c=>({time:Number(c[0]),open:Number(c[1]),high:Number(c[2]),low:Number(c[3]),close:Number(c[4]),volume:Number(c[5])}))}}else lastError='Bybit: '+(j.retMsg||'no candle data')}catch(e){lastError='Bybit: '+String(e)}}if(!d){const bar=({'1m':'1m','5m':'5m','15m':'15m','1h':'1H','4h':'4H'})[interval]||'5m',inst=symbol.endsWith('USDT')?symbol.slice(0,-4)+'-USDT-SWAP':symbol;try{const u='https://www.okx.com/api/v5/market/candles?'+new URLSearchParams({instId:inst,bar,limit:'200'});const r=await fetch(u,{cache:'no-store',signal:AbortSignal.timeout(7000)}),j=await r.json();if(r.ok&&j.code==='0'&&Array.isArray(j.data)&&j.data.length>=35){d={symbol,interval,venue:'okx',sourceHost:'www.okx.com',stale:false,candles:j.data.slice().reverse().map(c=>({time:Number(c[0]),open:Number(c[1]),high:Number(c[2]),low:Number(c[3]),close:Number(c[4]),volume:Number(c[5]),confirmed:c[8]==='1'}))}}else lastError='OKX: '+(j.msg||'no candle data')}catch(e){lastError='OKX: '+String(e)}}if(!d)throw new Error('Binance, Bybit and OKX candle feeds failed. '+lastError);let candles=(d.candles||[]).filter(c=>[c.time,c.open,c.high,c.low,c.close].every(Number.isFinite)&&c.low>0&&c.high>=c.low&&c.close>0);if(candles.length>1){const ms=({'1m':60000,'5m':300000,'15m':900000,'1h':3600000,'4h':14400000})[interval]||300000;const last=candles[candles.length-1];if(Date.now()<last.time+ms)candles.pop()}if(candles.length<35)throw new Error('Not enough closed, valid candles to calculate EMA/ATR signals.');const age=Date.now()-candles[candles.length-1].time,period=({'1m':60000,'5m':300000,'15m':900000,'1h':3600000,'4h':14400000})[interval]||300000;if(age>period*2+60000)throw new Error('Candles are stale ('+Math.round(age/1000)+'s old); annotations blocked.');const higherInterval=({'1m':'15m','5m':'1h','15m':'4h','1h':'1d','4h':'1d'})[interval]||'1h',higherMs=({'1m':900000,'5m':3600000,'15m':14400000,'1h':86400000,'4h':86400000})[interval]||3600000;let higherCandles=[],higherTimeframeError='';try{const hp=new URLSearchParams({venue:d.venue||'binance',symbol,interval:higherInterval,limit:'120',public:'1'}),hr=await fetch('/api/exchanges/market?'+hp,{cache:'no-store'}),hj=await hr.json();if(hr.ok&&!hj.stale&&Array.isArray(hj.candles)){higherCandles=hj.candles.filter(c=>[c.time,c.open,c.high,c.low,c.close].every(Number.isFinite)&&c.low>0&&c.high>=Math.max(c.open,c.low,c.close)&&Date.now()>=c.time+higherMs).slice(-120)}else higherTimeframeError=hj.detail||hj.error||('HTTP '+hr.status)}catch(e){higherTimeframeError=String(e)}$('strategyFallbackChart').style.display='none';$('strategyCanvas').style.display='block';drawStrategyChart(candles,symbol,interval,higherCandles);window.tarotaiHigherTimeframeError=higherTimeframeError;window.tarotaiStrategyHigherCandles=higherCandles;window.tarotaiStrategyCandles=candles;window.tarotaiStrategyFetchedAt=Date.now();$('strategyStatus').textContent=symbol+' perpetual · '+interval+' · '+d.venue.toUpperCase()+' live feed · '+candles.length+' closed candles · last candle '+Math.round(age/1000)+'s old · HTF '+higherInterval+' '+(window.tarotaiHigherTrendLabel||'UNAVAILABLE')+'. New setup requires matching higher-timeframe trend; arrows are rule illustrations, not guaranteed trades.';log('Rendered read-only strategy chart for '+symbol+' '+interval+' from '+candles.length+' closed candles via '+d.venue+'.')}catch(e){$('strategyCanvas').style.display='none';const fallback=$('strategyFallbackChart');const tvInterval=({'1m':'1','5m':'5','15m':'15','1h':'60','4h':'240'})[$('strategyInterval').value]||'5';const tvSymbol='BINANCE:'+ $('strategySymbol').value +'.P';const q=new URLSearchParams({symbol:tvSymbol,interval:tvInterval,theme:'dark',style:'1',timezone:'Etc/UTC',withdateranges:'1',hide_side_toolbar:'0',allow_symbol_change:'1',details:'1',hotlist:'0',calendar:'0',locale:'en'});fallback.src='https://s.tradingview.com/widgetembed/?'+q.toString();fallback.style.display='block';$('strategyPrice').textContent='UNVERIFIED';$('strategySignal').textContent='NO SIGNAL';$('strategyStop').textContent='—';$('strategyTarget').textContent='—';$('strategyStatus').textContent='Could not verify fresh candles: '+e.message+'. TradingView chart is shown without fabricated signals. Check network access or retry.'}finally{btn.disabled=false}});
-let strategyRefreshTimer=null;function startStrategyAutoRefresh(){if(strategyRefreshTimer)clearInterval(strategyRefreshTimer);strategyRefreshTimer=setInterval(()=>{if(document.visibilityState==='visible'&&!$('drawStrategy').disabled)$('drawStrategy').click()},30000)}$('strategySymbol').addEventListener('change',()=>{if(!$('drawStrategy').disabled)$('drawStrategy').click()});$('strategyInterval').addEventListener('change',()=>{if(!$('drawStrategy').disabled)$('drawStrategy').click()});// Replaced by the live agent chart refresh loop above; legacy mock-chart auto-refresh disabled.
+let strategyRefreshTimer=null;function startStrategyAutoRefresh(){if(strategyRefreshTimer)clearInterval(strategyRefreshTimer);strategyRefreshTimer=setInterval(()=>{if(document.visibilityState==='visible'&&!$('drawStrategy').disabled)$('drawStrategy').click()},30000)}$('strategySymbol').addEventListener('change',()=>{updateTradingViewChart("strategy");if(!$('drawStrategy').disabled)$('drawStrategy').click()});$('strategyInterval').addEventListener('change',()=>{updateTradingViewChart("strategy");if(!$('drawStrategy').disabled)$('drawStrategy').click()});// Replaced by the live agent chart refresh loop above; legacy mock-chart auto-refresh disabled.
 function tradingViewInterval(){return $('tvInterval').value}
-function tradingViewSymbol(){const base=$('tvSymbol').value;const venue=$('venue')?.value||'binance';const prefix=venue==='bybit'?'BYBIT':venue==='okx'?'OKX':'BINANCE';return prefix+':'+base+'.P'}
-function updateTradingViewChart(){const symbol=tradingViewSymbol(),interval=tradingViewInterval();const q=new URLSearchParams({symbol,interval,theme:'dark',style:'1',timezone:'Etc/UTC',withdateranges:'1',hide_side_toolbar:'0',allow_symbol_change:'1',details:'1',hotlist:'0',calendar:'0',locale:'en'});$('tvChart').src='https://s.tradingview.com/widgetembed/?'+q.toString();$('tvOpenExternal').href='https://www.tradingview.com/chart/?symbol='+encodeURIComponent(symbol);$('tvStatus').textContent='Showing '+symbol+' · '+interval+' timeframe · chart only';if($('marketSymbol'))$('marketSymbol').value=$('tvSymbol').value;if($('marketInterval'))$('marketInterval').value=({'1':'1m','5':'5m','15':'15m','60':'1h','240':'4h','1D':'1d'})[interval]||'15m';}
-$('tvRefresh').addEventListener('click',updateTradingViewChart);
-$('tvSymbol').addEventListener('change',updateTradingViewChart);
-$('tvInterval').addEventListener('change',updateTradingViewChart);
-$('venue').addEventListener('change',updateTradingViewChart);
-$('tvAskAgent').addEventListener('click',()=>{const interval=tradingViewInterval(),marketInterval=({'1':'1m','5':'5m','15':'15m','60':'1h','240':'4h','1D':'1d'})[interval]||'5m';$('strategySymbol').value=$('tvSymbol').value;$('strategyInterval').value=marketInterval;$('tvStatus').textContent='Opening the visual annotation chart. Trade signals will only appear if fresh exchange candles are verified.';$('visual-strategy-panel').scrollIntoView({behavior:'smooth',block:'start'});$('drawStrategy').click()});
+const tvToLiveInterval={"1":"1m","5":"5m","15":"15m","60":"1h","240":"4h"};
+const liveToTvInterval={"1m":"1","5m":"5","15m":"15","1h":"60","4h":"240"};
+function tradingViewSymbol(){const base=$("liveSymbol")?.value||$("tvSymbol").value;return "BINANCE:"+base+".P";}
+function updateTradingViewChart(source="tv"){
+  let base,interval;
+  if(source==="strategy"){base=$("strategySymbol").value;interval=$("strategyInterval").value;}
+  else if(source==="live"){base=$("liveSymbol").value;interval=$("liveInterval").value;}
+  else{base=$("tvSymbol").value;interval=tvToLiveInterval[$("tvInterval").value]||"15m";}
+  if(!Object.hasOwn(liveToTvInterval,interval))interval="15m";
+  $("tvSymbol").value=base;$("liveSymbol").value=base;$("strategySymbol").value=base;
+  $("liveInterval").value=interval;$("strategyInterval").value=interval;$("tvInterval").value=liveToTvInterval[interval];
+  if($("marketSymbol"))$("marketSymbol").value=base;
+  if($("marketInterval"))$("marketInterval").value=interval;
+  const symbol=tradingViewSymbol(),tvInterval=liveToTvInterval[interval];
+  const q=new URLSearchParams({symbol,interval:tvInterval,theme:"dark",style:"1",timezone:"Etc/UTC",withdateranges:"1",hide_side_toolbar:"0",allow_symbol_change:"0",details:"1",hotlist:"0",calendar:"0",locale:"en"});
+  $("tvChart").src="https://s.tradingview.com/widgetembed/?"+q.toString();
+  $("tvOpenExternal").href="https://www.tradingview.com/chart/?symbol="+encodeURIComponent(symbol);
+  $("tvStatus").textContent="SYNCED · "+symbol+" · "+interval+" · Binance USDⓈ-M perpetual. Live quotes arrive independently and can differ briefly by feed latency.";
+  if(source!=="live"&&typeof window.tarotaiReloadLiveChart==="function")window.tarotaiReloadLiveChart();
+}
+$("tvRefresh").addEventListener("click",()=>updateTradingViewChart("tv"));
+$("tvSymbol").addEventListener("change",()=>updateTradingViewChart("tv"));
+$("tvInterval").addEventListener("change",()=>updateTradingViewChart("tv"));
+$("venue").addEventListener("change",()=>{$("tvStatus").textContent="The research venue changed. All linked live charts remain on Binance USDⓈ-M perpetual to avoid cross-exchange price mismatches.";});
+$("tvAskAgent").addEventListener("click",()=>{updateTradingViewChart("tv");$("tvStatus").textContent="Opening synchronized visual annotations. Signals use verified Binance Futures candles and closed-candle confirmation.";$("visual-strategy-panel").scrollIntoView({behavior:"smooth",block:"start"});$("drawStrategy").click()});
 updateTradingViewChart();
 
 $('loginBtn').addEventListener('click',async()=>{try{const r=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:$('accessCode').value})});const d=await r.json();connectedLog('marketResult',d);if(r.ok)log('Private research APIs unlocked for this browser session.')}catch(e){connectedLog('marketResult','Authentication request failed: '+e)}});
@@ -512,11 +530,16 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     continuousCycle++;
     renderLiveAgentResults(reports,"continuousAgentResults");
     const approve=!!validLevels&&!localVeto&&!disciplineVeto&&sizeReady&&onSymbol.length===0&&alerts.length===0&&Number.isFinite(drift)&&drift<=.01;
-    window.tarotaiAgentCommitteeApproval=approve?{symbol:currentSymbol,interval:currentInterval,candleTime:Number(last.time),action:action,source:"continuous-local-team",checkedAt:now}:null;
+    window.tarotaiContinuousAgentReports=reports.map(r=>({role:r.role,bias:r.bias,veto:r.veto,model:r.model,fallback:Boolean(r.fallback)}));
+    window.tarotaiContinuousTeamApproval=approve?{symbol:currentSymbol,interval:currentInterval,candleTime:Number(last.time),action:action,source:"continuous-local-team",model:"local-rules-v1",agentVotes:window.tarotaiContinuousAgentReports,checkedAt:now}:null;
     statusPanel.className="live-agent-consensus "+(localVeto?"warn":approve?"good":"warn");
     title.textContent="Continuous local team: "+(localVeto?"8/8 CHECKED · VETO / WAIT":approve?"8/8 CHECKED · "+bias+" SETUP REVIEWED":"8/8 CHECKED · HOLD / WAIT");
     detail.textContent="Cycle #"+continuousCycle+" · 8/8 deterministic role checks refreshed at "+new Date(now).toLocaleTimeString()+" · every 5 seconds while this tab is open and visible · no LLM calls in this loop.";
     if(byId("liveAgentRunStatus")&&!byId("runLiveAgentTeam").disabled)byId("liveAgentRunStatus").textContent="Continuous monitoring active · 8/8 local roles checked · "+new Date(now).toLocaleTimeString()+". AI-enhanced review is separate.";
+    if(autoPaperEnabled&&approve&&!paperOpening&&paperStoreReady){
+      const candleKey=currentSymbol+"|"+currentInterval+"|"+Number(last.time);
+      if(candleKey!==lastAutoPaperCandleKey){lastAutoPaperCandleKey=candleKey;byId("livePaperAutoStatus").textContent="AUTO PAPER: evaluating the just-approved "+bias+" setup on "+currentSymbol+" "+currentInterval+"…";void paperOpenSignal();}
+    }
   }
   function startContinuousAgentMonitor(){
     continuousTeamEnabled=true;const button=byId("toggleContinuousTeam");button.textContent="Pause continuous 8-agent monitor";button.setAttribute("aria-pressed","true");
@@ -525,7 +548,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   function stopContinuousAgentMonitor(){
     continuousTeamEnabled=false;if(continuousTeamTimer)clearInterval(continuousTeamTimer);continuousTeamTimer=null;
     const button=byId("toggleContinuousTeam");button.textContent="Start continuous 8-agent monitor";button.setAttribute("aria-pressed","false");
-    byId("continuousTeamStatus").className="live-agent-consensus warn";byId("continuousTeamTitle").textContent="Continuous team: PAUSED";byId("continuousTeamDetails").textContent="The local rule agents are paused. Start monitoring to resume five-second checks.";window.tarotaiAgentCommitteeApproval=null;
+    byId("continuousTeamStatus").className="live-agent-consensus warn";byId("continuousTeamTitle").textContent="Continuous team: PAUSED";byId("continuousTeamDetails").textContent="The local rule agents are paused. Start monitoring to resume five-second checks.";window.tarotaiContinuousTeamApproval=null;window.tarotaiAgentCommitteeApproval=null;
   }
 
   function renderHistoricalStudy(study){
@@ -635,7 +658,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       }else if(longs>=needed||shorts>=needed){title="Team consensus: WAIT — agents disagree";body=longs+" LONG and "+shorts+" SHORT votes indicate cross-agent disagreement. No entry is qualified.";}
       summary.className="live-agent-consensus "+mood;summary.replaceChildren();const t=document.createElement("strong");t.textContent=title;const p=document.createElement("span");p.textContent=body;summary.append(t,p);
       const committeeApproved=title==="Team consensus: LONG setup reviewed"||title==="Team consensus: SHORT setup reviewed";
-      window.tarotaiAgentCommitteeApproval=committeeApproved?{symbol:currentSymbol,interval:currentInterval,candleTime:Number(latestLocal.time),action:baseLong?"BUY / LONG":baseShort?"SELL / SHORT":null}:null;
+      window.tarotaiAgentCommitteeApproval=committeeApproved?{symbol:currentSymbol,interval:currentInterval,candleTime:Number(latestLocal.time),action:baseLong?"BUY / LONG":baseShort?"SELL / SHORT":null,source:"ai-eight-agent-review",model:data.model||"unreported",agentVotes:results.map(r=>({role:r.role,bias:r.bias,veto:r.veto,model:r.model,fallback:Boolean(r.fallback)})),completedAt:Date.now()}:null;
       statusEl.textContent="Finished "+results.filter(r=>r.ok).length+"/8 agents · "+results.filter(r=>!r.ok).length+" failed · "+results.filter(r=>r.role!=="supervisor"&&r.ok).length+"/7 specialists verified · "+(results.find(r=>r.role==="market")?.model||data.model||"model unreported")+" · "+(data.elapsedMs||0)+" ms · "+(data.market?.venue||marketVenue)+".";
     }catch(e){const message=e&&e.message?e.message:String(e);statusEl.textContent="Analysis failed: "+message;if(/authentication required/i.test(message)){showAgentAuthGate("The server rejected this private session. Unlock again and rerun the team.");}}
     finally{runButton.disabled=false;}
@@ -643,7 +666,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   async function fetchJSON(url){const r=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(9000)});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.detail||j.error||("HTTP "+r.status));if(j.stale)throw new Error("Exchange data marked stale by the server");if(!Array.isArray(j.candles))throw new Error("Exchange response did not contain candles");return j;}
   async function fetchMarketWithFallback(symbol,interval,limit,before){
     const failures=[];
-    for(const venue of ["binance","bybit","okx"]){
+    // Single-source chart invariant: never silently swap exchanges; perpetual prices can differ.
+    for(const venue of [marketVenue]){
       try{
         const params=new URLSearchParams({venue,symbol,interval,limit:String(limit),public:"1"});if(Number.isFinite(before)&&before>0)params.set("before",String(Math.floor(before)));
         const data=await fetchJSON("/api/exchanges/market?"+params);
@@ -717,7 +741,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     if(!currentSymbol||!currentInterval)return;
     if(marketVenue!=="binance"){setFeed((({bybit:"BYBIT",okx:"OKX"})[marketVenue]||String(marketVenue).toUpperCase())+" · REST REFRESH","neutral");return;}
     try{
-      const url="wss://fstream.binance.com/ws/"+currentSymbol.toLowerCase()+"@kline_"+currentInterval;
+      const url="wss://fstream.binance.com/market/ws/"+currentSymbol.toLowerCase()+"@kline_"+currentInterval;
       feedSocket=new WebSocket(url);
       feedSocket.onopen=()=>{if(socketReconnectTimer)clearTimeout(socketReconnectTimer);if(marketVenue==="binance")setFeed("BINANCE FUTURES · LIVE STREAM","good");};
       feedSocket.onmessage=event=>{
@@ -771,7 +795,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   });
   updateLiveAgentSlotOptions();
 
-  let paperBusy=false,paperOpening=false;
+  let paperBusy=false,paperOpening=false,paperStoreReady=false,autoPaperEnabled=false,lastAutoPaperCandleKey="";
   const paperClosedStatuses=new Set(["PAPER_CLOSE","PAPER_STOP","PAPER_TARGET"]);
   const paperNum=v=>Number.isFinite(Number(v))?Number(v):NaN;
   const paperFmt=v=>Number.isFinite(v)?v.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
@@ -786,6 +810,12 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     byId("livePaperOpenCount").textContent=String(opened.length);byId("livePaperClosedCount").textContent=String(closed.length);
     byId("livePaperNetPnl").textContent=(net>0?"+":"")+paperFmt(net);byId("livePaperNetPnl").style.color=net>0?"var(--green)":net<0?"var(--red)":"var(--text)";
     byId("livePaperWinRate").textContent=closed.length?(100*wins/closed.length).toFixed(1)+"%":"—";
+    const parentById=new Map(ledger.filter(t=>!t.parentTradeId).map(t=>[t.id,t]));
+    const aiCloses=closed.filter(t=>parentById.get(t.parentTradeId)?.decisionSource==="ai-eight-agent-review");
+    const localCloses=closed.filter(t=>parentById.get(t.parentTradeId)?.decisionSource==="continuous-local-team");
+    const winRate=items=>items.length?(100*items.filter(t=>paperNum(t.pnlNet)>0).length/items.length).toFixed(1)+"%":"—";
+    byId("livePaperAiWinRate").textContent=winRate(aiCloses);byId("livePaperAiSamples").textContent=aiCloses.length+" closed trade(s)";
+    byId("livePaperLocalWinRate").textContent=winRate(localCloses);byId("livePaperLocalSamples").textContent=localCloses.length+" closed trade(s)";
     const box=byId("livePaperPositions");box.replaceChildren();
     if(!opened.length){const empty=document.createElement("div");empty.className="muted";empty.textContent="No open paper positions yet. The agent waits for a confirmed setup.";box.append(empty);}
     for(const t of opened){
@@ -795,19 +825,21 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const tag=document.createElement("span");tag.className="tag";tag.textContent="PAPER OPEN";head.append(name,tag);card.append(head);
       const facts=document.createElement("div");facts.className="facts";
       const fact=(label,value)=>{const el=document.createElement("div"),l=document.createElement("small"),v=document.createElement("b");l.textContent=label;v.textContent=value;el.append(l,v);facts.append(el);};
-      fact("Entry fill",paperFmt(paperNum(t.fillPrice)));fact("Stop",paperFmt(paperNum(t.stopPrice)));fact("Target",paperFmt(paperNum(t.targetPrice)));
+      fact("Entry fill",paperFmt(paperNum(t.fillPrice)));fact("Signal source",t.decisionSource==="ai-eight-agent-review"?"AI review":t.decisionSource==="continuous-local-team"?"Continuous 8-role rules":"Manual chart");fact("Stop",paperFmt(paperNum(t.stopPrice)));fact("Target",paperFmt(paperNum(t.targetPrice)));
       fact("Quantity",paperNum(t.quantity).toLocaleString("en-US",{maximumFractionDigits:8}));fact("Risk at stop",paperFmt(Math.abs(paperNum(t.fillPrice)-paperNum(t.stopPrice))*paperNum(t.quantity)));fact("Entry fee",paperFmt(paperNum(t.fee)));card.append(facts);
       const close=document.createElement("button");close.className="btn";close.type="button";close.textContent="Close at verified live price";close.addEventListener("click",()=>paperClose(t,close));card.append(close);box.append(card);
     }
     window.tarotaiPaperLedger=ledger;
     const d=window.tarotaiLiveDecision,qualifies=d&&["BUY / LONG","SELL / SHORT"].includes(d.action)&&d.symbol===byId("liveSymbol").value&&d.interval===byId("liveInterval").value;
-    byId("livePaperOpen").disabled=paperOpening||!qualifies||opened.some(t=>t.symbol===byId("liveSymbol").value);
+    const closedNow=closedOnly(rows,currentInterval).slice(-1)[0],approvals=[window.tarotaiContinuousTeamApproval,window.tarotaiAgentCommitteeApproval].filter(Boolean);
+    const teamApproved=!!closedNow&&approvals.some(a=>a.symbol===d?.symbol&&a.interval===d?.interval&&Number(a.candleTime)===Number(closedNow.time)&&a.action===d?.action&&["continuous-local-team","ai-eight-agent-review"].includes(a.source));
+    byId("livePaperOpen").disabled=paperOpening||!qualifies||!teamApproved||opened.some(t=>t.symbol===byId("liveSymbol").value);
     if(opened.some(t=>t.symbol===byId("liveSymbol").value))paperStatus("A paper position for this market is already open. Close it before opening another.");
   }
   async function paperRefresh(checkStops=true){
     if(paperBusy)return;paperBusy=true;
     try{
-      let d=await paperRequest("/api/trading/paper"),ledger=Array.isArray(d.ledger)?d.ledger:[];
+      let d=await paperRequest("/api/trading/paper"),ledger=Array.isArray(d.ledger)?d.ledger:[];paperStoreReady=true;
       if(checkStops){
         const symbols=[...new Set(paperOpened(ledger).map(t=>t.symbol).filter(Boolean))],warnings=[];
         for(const symbol of symbols){try{const result=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"STOP_CHECK",symbol,venue:"binance"})});if(result.historyGaps?.length)warnings.push(symbol+": "+result.historyGaps.length+" position(s) predate available candle history");}catch(e){warnings.push(symbol+": stop check failed ("+e.message+")");}}
@@ -819,17 +851,19 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       else if(!paperOpened(ledger).length)paperStatus("Paper ledger connected · persistent storage · no real orders. "+ledger.length+" records loaded.");
       else paperStatus("Paper ledger connected. Open positions are checked against historical closed 1-minute candles; stop-first handling applies if stop and target occur inside the same candle.");
     }catch(e){
-      ["livePaperOpenCount","livePaperClosedCount","livePaperNetPnl","livePaperWinRate"].forEach(id=>byId(id).textContent="—");
+      paperStoreReady=false;
+      ["livePaperOpenCount","livePaperClosedCount","livePaperNetPnl","livePaperWinRate","livePaperAiWinRate","livePaperLocalWinRate"].forEach(id=>byId(id).textContent="—");
       byId("livePaperPositions").textContent="Ledger unavailable. Unlock private APIs and configure Upstash Redis. No paper trade was created.";
       byId("livePaperOpen").disabled=true;paperStatus("Paper ledger unavailable: "+e.message+". Authentication and persistent storage must work before entry.",true);
     }finally{paperBusy=false;}
   }
   async function paperOpenSignal(){
     if(paperOpening)return;
-    const d=window.tarotaiLiveDecision,approval=window.tarotaiAgentCommitteeApproval,now=Date.now();
+    const d=window.tarotaiLiveDecision,now=Date.now();
     if(!d||!["BUY / LONG","SELL / SHORT"].includes(d.action)||d.symbol!==byId("liveSymbol").value||d.interval!==byId("liveInterval").value){paperStatus("No qualified signal. HOLD / WAIT is never paper-traded.",true);return;}
     const latestClosedForApproval=closedOnly(rows,currentInterval).slice(-1)[0];
-    if(!approval||approval.symbol!==d.symbol||approval.interval!==d.interval||approval.candleTime!==Number(d.candleTime)||approval.action!==d.action||!latestClosedForApproval||Number(latestClosedForApproval.time)!==approval.candleTime){paperStatus("Paper entry blocked: run the full eight-agent trading team and obtain a matching LONG/SHORT approval on this exact closed candle first.",true);return;}
+    const approval=[window.tarotaiAgentCommitteeApproval,window.tarotaiContinuousTeamApproval].filter(Boolean).find(a=>a.symbol===d.symbol&&a.interval===d.interval&&Number(a.candleTime)===Number(d.candleTime)&&a.action===d.action&&["continuous-local-team","ai-eight-agent-review"].includes(a.source));
+    if(!approval||!latestClosedForApproval||Number(latestClosedForApproval.time)!==Number(approval.candleTime)){paperStatus("Paper entry blocked: wait for the continuous eight-role team to approve this exact closed candle.",true);return;}
     const balance=Number(byId("livePaperBalance").value),riskPct=Number(byId("livePaperRisk").value);
     if(!Number.isFinite(balance)||balance<100||balance>10000000||!Number.isFinite(riskPct)||riskPct<0.1||riskPct>1){paperStatus("Balance must be 100–10,000,000 USDT and risk 0.1%–1%.",true);return;}
     const live=rows[rows.length-1],closed=closedOnly(rows,currentInterval).slice(-1)[0];
@@ -847,11 +881,12 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const review=await paperRequest("/api/trading/review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({entry,stop,target,side,riskPct,paperBalance:balance,dataAgeMs:age,spreadBps:0})});
       if(review.combinedVerdict!=="PAPER_ONLY_APPROVAL")throw new Error("Independent risk review veto: "+(review.strategyAgent?.issues||review.riskAgent?.issues||[]).join("; "));
       byId("livePaperOpen").textContent="Saving paper trade…";
-      const opened=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"OPEN",symbol:d.symbol,side:long?"BUY":"SELL",quantity,price:entry,stopPrice:stop,targetPrice:target,feeBps:Number(byId("feeBps")?.value??5),slippageBps:Number(byId("slippageBps")?.value??2),marketTime:Date.now()})});
+      const opened=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"OPEN",symbol:d.symbol,side:long?"BUY":"SELL",quantity,price:entry,stopPrice:stop,targetPrice:target,feeBps:Number(byId("feeBps")?.value??5),slippageBps:Number(byId("slippageBps")?.value??2),marketTime:Date.now(),decisionSource:approval.source,signalCandleTime:Number(approval.candleTime),decisionAction:d.action,agentTeamModel:approval.model||"local-rules-v1",agentVotes:Array.isArray(approval.agentVotes)?approval.agentVotes.slice(0,8):Array.isArray(window.tarotaiContinuousAgentReports)?window.tarotaiContinuousAgentReports.slice(0,8).map(r=>({role:r.role,bias:r.bias,veto:r.veto,model:r.model,fallback:r.fallback})):[]})});
       paperStatus("Opened "+d.symbol+" "+side+" in persistent paper ledger · fill "+paperFmt(opened.trade?.fillPrice??entry)+" · planned risk ≤ "+paperFmt(quantity*distance)+" USDT. No exchange order was sent.");
+      if(autoPaperEnabled)byId("livePaperAutoStatus").textContent="AUTO PAPER: ON · opened a "+(approval.source==="ai-eight-agent-review"?"AI-reviewed":"continuous-rule-approved")+" simulated "+side+" on "+d.symbol+". Source and role votes are saved with the trade; results update after exit. No real order.";
       log("Opened persistent paper position "+d.symbol+" "+side+". PAPER ONLY; no exchange order sent.");
       await paperRefresh(true);
-    }catch(e){paperStatus("Paper entry rejected: "+e.message+". No live order was sent.",true);}
+    }catch(e){paperStatus("Paper entry rejected: "+e.message+". No live order was sent.",true);if(autoPaperEnabled)byId("livePaperAutoStatus").textContent="AUTO PAPER: ON · latest candidate was rejected: "+e.message+". It will not retry this same candle; no real order was sent."}
     finally{paperOpening=false;byId("livePaperOpen").textContent="Open paper trade from signal";await paperRefresh(false);}
   }
   async function paperClose(t,button){
@@ -868,11 +903,30 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   }
   byId("livePaperOpen").addEventListener("click",paperOpenSignal);
   byId("livePaperReload").addEventListener("click",()=>paperRefresh(true));
+  async function setAutoPaperEnabled(next){
+    const button=byId("livePaperAutoToggle"),status=byId("livePaperAutoStatus");
+    if(next===autoPaperEnabled)return;
+    if(next){
+      if(!await ensurePrivateSession()){button.setAttribute("aria-pressed","false");return;}
+      await paperRefresh(false);
+      if(!paperStoreReady){status.textContent="AUTO PAPER BLOCKED: private authentication or persistent Upstash Redis ledger is unavailable. No simulated entry was created.";status.style.color="var(--red)";button.setAttribute("aria-pressed","false");return;}
+      autoPaperEnabled=true;lastAutoPaperCandleKey="";
+      button.textContent="Disable auto paper trading";button.setAttribute("aria-pressed","true");
+      status.textContent="AUTO PAPER: ON · the 8-role local rule team checks the same closed candle every 5 seconds and opens a simulated position only after exact-candle approval, position sizing and server-side risk review. Stop/target monitoring uses closed Binance 1-minute candles. No real orders. Keep this tab open and visible.";
+      status.style.color="var(--green)";runContinuousAgentCycle();
+    }else{
+      autoPaperEnabled=false;button.textContent="Enable auto paper trading";button.setAttribute("aria-pressed","false");
+      status.textContent="AUTO PAPER: OFF · new simulated entries paused. Existing paper positions remain in the persistent ledger and will still be checked for stop/target exits.";
+      status.style.color="var(--muted)";
+    }
+  }
+  byId("livePaperAutoToggle").addEventListener("click",()=>void setAutoPaperEnabled(!autoPaperEnabled));
   paperRefresh(true);
-  setInterval(()=>{if(document.visibilityState==="visible")paperRefresh(true);},20000);
+  setInterval(()=>{if(document.visibilityState==="visible")paperRefresh(true);},10000);
 
-  byId("liveSymbol").addEventListener("change",()=>{higherCache=[];higherCacheKey="";higherCacheAt=0;reloadAll(true);});
-  byId("liveInterval").addEventListener("change",()=>{higherCache=[];higherCacheKey="";higherCacheAt=0;reloadAll(true);});
+  byId("liveSymbol").addEventListener("change",()=>{updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;reloadAll(true);});
+  byId("liveInterval").addEventListener("change",()=>{updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;reloadAll(true);});
+  window.tarotaiReloadLiveChart=()=>{higherCache=[];higherCacheKey="";higherCacheAt=0;reloadAll(true);};
   startContinuousAgentMonitor();
   refresh(true).then(()=>{connectSocket();runContinuousAgentCycle();});
   pollTimer=setInterval(()=>{if(document.visibilityState==="visible")refresh(false);},15000);
