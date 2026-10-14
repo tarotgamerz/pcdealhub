@@ -508,12 +508,12 @@ test("AI provider failures produce explicit fallback reports and block AI-review
   assert.match(parallelAgentsRoute, /results\.length!==8\|\|failed!==0\|\|specialistOk!==7/);
 });
 
-test("all live chart panels share one Bybit perpetual symbol/timeframe and current WebSocket URL", () => {
+test("all live chart panels share one OKX swap symbol/timeframe and current WebSocket URL", () => {
   assert.match(futuresDesk, /function updateTradingViewChart\(source="tv"\)/);
   assert.match(futuresDesk, /IN-APP CHARTS SYNCED/);
   assert.match(futuresDesk, /window\.tarotaiReloadLiveChart=/);
-  assert.match(futuresDesk, /wss:\/\/stream\.bybit\.com\/v5\/public\/linear/);
-  assert.match(futuresDesk, /kline\."\+/);
+  assert.match(futuresDesk, /wss:\/\/ws\.okx\.com:8443\/ws\/v5\/public/);
+  assert.match(futuresDesk, /candleChannel="candle"\+/);
   assert.match(futuresDesk, /for\(const venue of \[marketVenue\]\)/);
   assert.match(parallelAgentsRoute, /const venues=\[preferred\],failures:string\[\]=\[\]/);
 });
@@ -529,12 +529,12 @@ test("automatic paper trading is opt-in, persistent-ledger gated, and records on
 });
 
 
-test("in-dashboard charts use one candle source plus a shared live Bybit linear last-trade quote", () => {
+test("in-dashboard charts use one candle source plus a shared live OKX swap last-trade quote", () => {
   assert.match(futuresDesk, /id="tvSyncedChart"/);
   assert.doesNotMatch(futuresDesk, /<iframe id="tvChart"/);
   assert.match(futuresDesk, /function createMirrorChart\(\)/);
   assert.match(futuresDesk, /mirrorCandleSeries\.setData\(candleData\)/);
-  assert.match(futuresDesk, /publicTrade\."\+currentSymbol/);
+  assert.match(futuresDesk, /channel:"trades",instId/);
   assert.match(futuresDesk, /function currentMarketPrice\(\)/);
   assert.match(futuresDesk, /function renderSharedQuote\(price\)/);
   assert.match(futuresDesk, /Open official TradingView \(external\)/);
@@ -550,15 +550,15 @@ test("continuous local rule roles refresh every second and paper entries use the
 
 
 test("strategy chart, agent context and paper checks stay on the same selected live venue", () => {
-  assert.match(futuresDesk, /marketVenue="bybit"/);
+  assert.match(futuresDesk, /marketVenue="okx"/);
   assert.match(futuresDesk, /const sourceVenue=marketVenue\|\|'binance'/);
   assert.match(futuresDesk, /Research venue is separate/);
   assert.match(futuresDesk, /venue:marketVenue/);
-  assert.match(paperRoute, /const symbol=String\(b\.symbol\|\|"BTCUSDT"\)\.toUpperCase\(\),venue=String\(b\.venue\|\|"bybit"\)/);
+  assert.match(paperRoute, /const symbol=String\(b\.symbol\|\|"BTCUSDT"\)\.toUpperCase\(\),venue=String\(b\.venue\|\|"okx"\)/);
 });
 
-test("paper entry checks a live last-trade ticker and blocks material quote drift", () => {
-  assert.match(paperRoute, /api\.bybit\.com\/v5\/market\/tickers/);
+test("paper entry checks a live OKX last-trade ticker and blocks material quote drift", () => {
+  assert.match(paperRoute, /api\.v5\/market\/ticker/);
   assert.match(paperRoute, /action==="OPEN"&&priceDrift>0\.002/);
   assert.match(paperRoute, /executionReferencePrice=action==="CLOSE"\?verifiedMarketPrice:price/);
   assert.match(paperRoute, /marketSource,/);
@@ -572,12 +572,12 @@ test("continuous local agents veto missing or stale last-trade ticks", () => {
 });
 
 
-test("Bybit is the canonical live chart source when Binance Futures returns geo-restricted HTTP 451", () => {
-  assert.match(futuresDesk, /marketVenue="bybit"/);
-  assert.match(futuresDesk, /wss:\/\/stream\.bybit\.com\/v5\/public\/linear/);
-  assert.match(futuresDesk, /publicTrade\."\+currentSymbol/);
-  assert.match(source, /https:\/\/api\.bybit\.com\/v5\/market\/kline/);
-  assert.match(parallelAgentsRoute, /if\(venue==="bybit"\)/);
-  assert.match(paperRoute, /https:\/\/api\.bybit\.com\/v5\/market\/tickers/);
-  assert.match(paperRoute, /https:\/\/api\.bybit\.com\/v5\/market\/kline/);
+test("OKX is the canonical live chart source because its production market endpoint is reachable", () => {
+  assert.match(futuresDesk, /marketVenue="okx"/);
+  assert.match(futuresDesk, /wss:\/\/ws\.okx\.com:8443\/ws\/v5\/public/);
+  assert.match(futuresDesk, /channel:"trades",instId/);
+  assert.match(source, /https:\/\/www\.okx\.com\/api\/v5\/market\/candles/);
+  assert.match(parallelAgentsRoute, /www\.okx\.com\/api\/v5\/market\/candles/);
+  assert.match(paperRoute, /https:\/\/www\.okx\.com\/api\/v5\/market\/ticker/);
+  assert.match(paperRoute, /https:\/\/www\.okx\.com\/api\/v5\/market\/candles/);
 });
