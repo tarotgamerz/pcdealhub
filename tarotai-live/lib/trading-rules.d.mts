@@ -20,3 +20,23 @@ export function validateOrderRequest(input: {
   clientOrderId: string;
   venue?: string;
 }): string | null;
+
+export const PAPER_MAX_POSITION_EXPOSURE_PCT: 5;
+export const PAPER_MAX_PORTFOLIO_EXPOSURE_PCT: 20;
+export function calculatePaperQuantity(input: {
+  balance: number;
+  riskPct: number;
+  entry: number;
+  stop: number;
+  maxExposurePct?: number;
+}): number;
+export function validatePaperExposure(input: {
+  balance: number;
+  riskPct: number;
+  entry: number;
+  stop: number;
+  quantity: number;
+  existingExposure?: number;
+  maxExposurePct?: number;
+  maxTotalExposurePct?: number;
+}): string | null;
