@@ -633,3 +633,19 @@ test("demo order ticket uses live agent decision and persistent paper execution,
   assert.match(futuresDesk, /function updateDemoAgentTicket\(\)/);
   assert.match(futuresDesk, /if\(checks\.length\)\{d=await paperRequest/);
 });
+
+
+test("strategy chart uses the shared live quote and refreshes automatically", () => {
+  assert.match(futuresDesk, /<label>Live last trade<\/label><strong id="strategyPrice"/);
+  assert.match(futuresDesk, /window\.tarotaiSharedLastPrice=lastTradePrice/);
+  assert.match(futuresDesk, /window\.tarotaiUpdateStrategyLiveQuote\(price,now\)/);
+  assert.match(futuresDesk, /quoteFresh\?quote\.toLocaleString/);
+  assert.match(futuresDesk, /LIVE '\+liveP\.toLocaleString/);
+  assert.match(futuresDesk, /strategyRefreshTimer=setInterval\(\(\)=>\{if\(document\.visibilityState==='visible'&&!\\$\\('drawStrategy'\\)\.disabled\)\\$\\('drawStrategy'\\)\.click\(\)\},15000\)/);
+  assert.match(futuresDesk, /startStrategyAutoRefresh\(\);if\(document\.visibilityState==='visible'\)\\$\\('drawStrategy'\\)\.click\(\)/);
+  assert.match(futuresDesk, /window\.tarotaiStrategyCandles=null/);
+});
+
+test("market-data status reports the actual selected venue rather than a hard-coded exchange", () => {
+  assert.match(futuresDesk, /Source: "\+\(\{binance:"Binance USDⓈ-M Futures",bybit:"Bybit linear perpetual",okx:"OKX perpetual swap"\}\[marketVenue\]/);
+});
