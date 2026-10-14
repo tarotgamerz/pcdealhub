@@ -590,7 +590,7 @@ test("Binance Futures is the canonical live chart source selected by the user", 
 
 test("strategy fallback and both in-app charts use the same selected Binance venue", () => {
   assert.match(futuresDesk, /window\.tarotaiMarketVenue=marketVenue/);
-  assert.match(futuresDesk, /const sourceVenue=window\.tarotaiMarketVenue\|\|'okx'/);
+  assert.match(futuresDesk, /const sourceVenue=window\.tarotaiMarketVenue\|\|'binance'/);
   assert.match(futuresDesk, /const tvExchange=\(\{binance:'BINANCE',bybit:'BYBIT',okx:'OKX'\}\)\[window\.tarotaiMarketVenue\]\|\|'BINANCE'/);
   assert.doesNotMatch(futuresDesk, /const tvSymbol='BINANCE:'/);
   const updateFn=futuresDesk.slice(futuresDesk.indexOf('function updateTradingViewChart'),futuresDesk.indexOf('$("tvRefresh")'));
