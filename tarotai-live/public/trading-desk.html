@@ -293,7 +293,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   const higherMap={"1m":"15m","5m":"1h","15m":"4h","1h":"1d","4h":"1d"};
   let chart=null,candleSeries=null,ema9Series=null,ema21Series=null,ema50Series=null,socketReconnectTimer=null;let lastMarketUpdateAt=0,lastLiveCandleSyncAt=0;
   let mirrorChart=null,mirrorCandleSeries=null,mirrorEma9Series=null,mirrorEma21Series=null,mirrorEma50Series=null,mirrorResizeObserver=null,rangeSyncLock=false,mirrorPriceLines=[],mainLivePriceLine=null,mirrorLivePriceLine=null,lastLiveLineUpdateAt=0;
-  let rows=[],marketVenue="okx",feedSocket=null,quoteSocket=null,quoteReconnectTimer=null,quoteSymbol="",lastTradePrice=NaN,lastTradeAt=0,lastQuoteSource="none",lastQuoteSourceTimestamp=0,lastWsTradeAt=0,lastQuoteFallbackErrorAt=0,quoteFallbackTimer=null,quoteFallbackBusy=false,lastQuoteRenderAt=0,pollTimer=null,resizeObserver=null;window.tarotaiMarketVenue=marketVenue;
+  let rows=[],marketVenue="binance",feedSocket=null,quoteSocket=null,quoteReconnectTimer=null,quoteSymbol="",lastTradePrice=NaN,lastTradeAt=0,lastQuoteSource="none",lastQuoteSourceTimestamp=0,lastWsTradeAt=0,lastQuoteFallbackErrorAt=0,quoteFallbackTimer=null,quoteFallbackBusy=false,lastQuoteRenderAt=0,pollTimer=null,resizeObserver=null;window.tarotaiMarketVenue=marketVenue;
   let currentSymbol="",currentInterval="",higherCache=[],higherCacheKey="",higherCacheAt=0,priceLines=[],busy=false,firstRender=true,lastWsCandleTime=0,historyBusy=false,historyExhausted=false,historyPages=0,historyLoadAllowedAt=0;
   const fmt=(n)=>Number.isFinite(n)?n.toLocaleString("en-US",{maximumFractionDigits:n>=1000?2:n>=1?4:7}):"—";
   const msFor=i=>intervalMs[i]||300000;
@@ -387,19 +387,19 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     }
   }
   async function refreshQuoteFallback(){
-    if(quoteFallbackBusy||document.visibilityState!=="visible"||!currentSymbol||marketVenue!=="okx"||(hasFreshLiveQuote()&&lastQuoteSource==="okx-websocket"))return;
+    if(quoteFallbackBusy||document.visibilityState!=="visible"||!currentSymbol||!["binance","okx"].includes(marketVenue)||(hasFreshLiveQuote()&&lastQuoteSource===marketVenue+"-websocket"))return;
     const symbol=currentSymbol,startedAt=Date.now();quoteFallbackBusy=true;
     try{
-      const url="/api/exchanges/quote?"+new URLSearchParams({venue:"okx",symbol});
+      const quoteVenue=marketVenue;const url="/api/exchanges/quote?"+new URLSearchParams({venue:quoteVenue,symbol});
       const response=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(3000)});
       const data=await response.json().catch(()=>({}));
       if(!response.ok||!data.ok||data.stale)throw new Error(data.detail||data.error||("HTTP "+response.status));
-      if(symbol!==currentSymbol||marketVenue!=="okx")return;
+      if(symbol!==currentSymbol||marketVenue!==quoteVenue)return;
       if(lastWsTradeAt>=startedAt&&Date.now()-lastWsTradeAt<=3000)return;
       const price=Number(data.price),timestamp=Number(data.timestamp),sourceAge=Number(data.ageMs);
       if(!Number.isFinite(price)||price<=0||!Number.isFinite(timestamp)||timestamp<=0||!Number.isFinite(sourceAge)||sourceAge < -1500||sourceAge>3000)throw new Error("Exchange ticker is stale or invalid");
-      if(lastQuoteSource==="okx-rest-ticker"&&Number.isFinite(lastQuoteSourceTimestamp)&&timestamp<lastQuoteSourceTimestamp)return;
-      lastTradePrice=price;lastTradeAt=Date.now();lastQuoteSource="okx-rest-ticker";lastQuoteSourceTimestamp=timestamp;
+      if(lastQuoteSource===quoteVenue+"-rest-ticker"&&Number.isFinite(lastQuoteSourceTimestamp)&&timestamp<lastQuoteSourceTimestamp)return;
+      lastTradePrice=price;lastTradeAt=Date.now();lastQuoteSource=quoteVenue+"-rest-ticker";lastQuoteSourceTimestamp=timestamp;
       renderSharedQuote(price);
     }catch(e){
       if(Date.now()-lastQuoteFallbackErrorAt>5000){
@@ -413,7 +413,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   }
 
   function connectQuoteSocket(force=false){
-    if(!currentSymbol||marketVenue!=="okx"){
+    if(!currentSymbol||!["binance","okx"].includes(marketVenue)){
       if(quoteSocket){quoteSocket.onclose=null;try{quoteSocket.close();}catch(e){}quoteSocket=null;}
       quoteSymbol="";lastTradePrice=NaN;lastTradeAt=0;lastQuoteSource="none";lastQuoteSourceTimestamp=0;lastWsTradeAt=0;renderSharedQuote(NaN);return;
     }
@@ -426,22 +426,19 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     if(symbolChanged)renderSharedQuote(NaN);
     const instId=currentSymbol.endsWith("USDT")?currentSymbol.slice(0,-4)+"-USDT-SWAP":currentSymbol;
     try{
-      quoteSocket=new WebSocket("wss://ws.okx.com/ws/v5/public");
-      quoteSocket.onopen=()=>{if(quoteSocket&&quoteSymbol===currentSymbol){quoteSocket.send(JSON.stringify({op:"subscribe",args:[{channel:"trades",instId}]}));renderSharedQuote(NaN);}};
-      quoteSocket.onmessage=event=>{
-        if(quoteSymbol!==currentSymbol)return;
-        if(event.data==="ping"){try{quoteSocket.send("pong");}catch(e){}return;}
-        let msg;try{msg=JSON.parse(event.data);}catch(e){return;}
-        if(msg.arg?.channel!=="trades"||msg.arg?.instId!==instId||!Array.isArray(msg.data))return;
-        for(const tick of msg.data){
-          const price=Number(tick.px);if(!Number.isFinite(price)||price<=0)continue;
-          lastTradePrice=price;lastTradeAt=Date.now();lastWsTradeAt=lastTradeAt;lastQuoteSource="okx-websocket";
-          lastQuoteSourceTimestamp=Number(tick.ts)||lastTradeAt;
-          renderSharedQuote(price);
-        }
-      };
-      quoteSocket.onerror=()=>{const meta=byId("tvSyncedMeta");if(meta)meta.textContent="OKX trade WebSocket reconnecting; REST ticker fallback is available while ticks are stale."};
-      quoteSocket.onclose=()=>{if(quoteSymbol===currentSymbol&&marketVenue==="okx"&&document.visibilityState==="visible"){if(quoteReconnectTimer)clearTimeout(quoteReconnectTimer);quoteReconnectTimer=setTimeout(()=>connectQuoteSocket(true),1500);}};
+      if(marketVenue==="binance"){
+        quoteSocket=new WebSocket("wss://fstream.binance.com/ws/"+currentSymbol.toLowerCase()+"@trade");
+        quoteSocket.onopen=()=>{if(quoteSocket&&quoteSymbol===currentSymbol)renderSharedQuote(NaN);};
+        quoteSocket.onmessage=event=>{if(quoteSymbol!==currentSymbol)return;let tick;try{tick=JSON.parse(event.data);}catch(e){return;}const price=Number(tick.p);if(!Number.isFinite(price)||price<=0)return;const ts=Number(tick.T)||Date.now();lastTradePrice=price;lastTradeAt=Date.now();lastWsTradeAt=lastTradeAt;lastQuoteSource="binance-websocket";lastQuoteSourceTimestamp=ts;renderSharedQuote(price);};
+        quoteSocket.onerror=()=>{const meta=byId("tvSyncedMeta");if(meta)meta.textContent="Binance trade WebSocket reconnecting; Binance REST ticker fallback is available while ticks are stale."};
+        quoteSocket.onclose=()=>{if(quoteSymbol===currentSymbol&&marketVenue==="binance"&&document.visibilityState==="visible"){if(quoteReconnectTimer)clearTimeout(quoteReconnectTimer);quoteReconnectTimer=setTimeout(()=>connectQuoteSocket(true),1500);}};
+      }else{
+        quoteSocket=new WebSocket("wss://ws.okx.com/ws/v5/public");
+        quoteSocket.onopen=()=>{if(quoteSocket&&quoteSymbol===currentSymbol){quoteSocket.send(JSON.stringify({op:"subscribe",args:[{channel:"trades",instId}]}));renderSharedQuote(NaN);}};
+        quoteSocket.onmessage=event=>{if(quoteSymbol!==currentSymbol)return;if(event.data==="ping"){try{quoteSocket.send("pong");}catch(e){}return;}let msg;try{msg=JSON.parse(event.data);}catch(e){return;}if(msg.arg?.channel!=="trades"||msg.arg?.instId!==instId||!Array.isArray(msg.data))return;for(const tick of msg.data){const price=Number(tick.px);if(!Number.isFinite(price)||price<=0)continue;lastTradePrice=price;lastTradeAt=Date.now();lastWsTradeAt=lastTradeAt;lastQuoteSource="okx-websocket";lastQuoteSourceTimestamp=Number(tick.ts)||lastTradeAt;renderSharedQuote(price);}};
+        quoteSocket.onerror=()=>{const meta=byId("tvSyncedMeta");if(meta)meta.textContent="OKX trade WebSocket reconnecting; REST ticker fallback is available while ticks are stale."};
+        quoteSocket.onclose=()=>{if(quoteSymbol===currentSymbol&&marketVenue==="okx"&&document.visibilityState==="visible"){if(quoteReconnectTimer)clearTimeout(quoteReconnectTimer);quoteReconnectTimer=setTimeout(()=>connectQuoteSocket(true),1500);}};
+      }
     }catch(e){if(quoteReconnectTimer)clearTimeout(quoteReconnectTimer);quoteReconnectTimer=setTimeout(()=>connectQuoteSocket(true),2000);}
   }
 
@@ -1112,7 +1109,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   byId("liveInterval").addEventListener("change",()=>{updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;window.tarotaiContinuousTeamApproval=null;window.tarotaiAgentCommitteeApproval=null;void refresh(true).then(()=>runContinuousAgentCycle());});
   window.tarotaiReloadLiveChart=()=>{higherCache=[];higherCacheKey="";higherCacheAt=0;void refresh(true).then(()=>runContinuousAgentCycle());};
   startContinuousAgentMonitor();
-  if(quoteFallbackTimer)clearInterval(quoteFallbackTimer);quoteFallbackTimer=setInterval(()=>{if(document.visibilityState==="visible"&&(!hasFreshLiveQuote()||lastQuoteSource!=="okx-websocket"))void refreshQuoteFallback();},2000);
+  if(quoteFallbackTimer)clearInterval(quoteFallbackTimer);quoteFallbackTimer=setInterval(()=>{if(document.visibilityState==="visible"&&(!hasFreshLiveQuote()||lastQuoteSource!==marketVenue+"-websocket"))void refreshQuoteFallback();},2000);
   refresh(true).then(()=>{connectSocket();runContinuousAgentCycle();void refreshQuoteFallback();});
   pollTimer=setInterval(()=>{if(document.visibilityState==="visible"&&Date.now()-lastMarketUpdateAt>5000)void refresh(true);},5000);
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){void refresh(true).then(()=>runContinuousAgentCycle());void refreshQuoteFallback();}});
