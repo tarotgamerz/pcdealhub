@@ -78,7 +78,7 @@ export async function POST(req:Request){
   const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),side=String(b.side||"").toUpperCase(),qty=Number(b.quantity),price=Number(b.price),feeBps=Number(b.feeBps??5),slipBps=Number(b.slippageBps??2),marketTime=Number(b.marketTime);
   if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["BUY","SELL"].includes(side)||![qty,price,feeBps,slipBps,marketTime].every(Number.isFinite)||qty<=0||price<=0||feeBps<0||feeBps>50||slipBps<0||slipBps>50)return NextResponse.json({error:"Invalid trade inputs; include marketTime and costs 0-50 bps"},{status:400});
   if(isStale(marketTime))return NextResponse.json({error:"Stale or missing market timestamp; refresh market data before paper trading"},{status:409});
-  let verifiedMarketPrice:number;
+  let verifiedMarketPrice:number,executionReferencePrice=price;
   try{
    const marketUrl=new URL("https://fapi.binance.com/fapi/v1/ticker/price");marketUrl.searchParams.set("symbol",symbol);
    const marketResponse=await fetch(marketUrl,{cache:"no-store",signal:AbortSignal.timeout(6000)}),marketQuote=await marketResponse.json();
@@ -87,7 +87,7 @@ export async function POST(req:Request){
    if(!Number.isFinite(verifiedMarketPrice)||verifiedMarketPrice<=0)return NextResponse.json({error:"Server-side market price is malformed; paper trade blocked"},{status:409});
    const priceDrift=Math.abs(price-verifiedMarketPrice)/verifiedMarketPrice;
    if(action==="OPEN"&&priceDrift>0.002)return NextResponse.json({error:"Paper entry blocked: chart price differs from the server-verified Binance last-trade quote by "+(priceDrift*100).toFixed(3)+"%. Refresh the live chart before retrying.",verifiedMarketPrice,submittedPrice:price,maxAllowedDriftPct:0.2},{status:409});
-   const executionReferencePrice=action==="CLOSE"?verifiedMarketPrice:price;
+   executionReferencePrice=action==="CLOSE"?verifiedMarketPrice:price;
   }catch{return NextResponse.json({error:"Market freshness verification failed; paper entry blocked"},{status:502});}
   if(action==="OPEN"&&Math.abs(price-verifiedMarketPrice)/verifiedMarketPrice>0.01)return NextResponse.json({error:"Entry price moved more than 1% from the server-verified live price; re-analyze the chart before paper entry",requestedPrice:price,verifiedMarketPrice},{status:409});
   if(action==="OPEN"){
