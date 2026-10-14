@@ -1,6 +1,37 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {applySlippage,calculateFee,isStale,validateStops,resolveStopTarget,validateOrderRequest} from "../lib/trading-rules.mjs";
+import {applySlippage,calculateFee,isStale,validateStops,resolveStopTarget,validateOrderRequest,calculatePaperQuantity,validatePaperExposure,PAPER_MAX_POSITION_EXPOSURE_PCT,PAPER_MAX_PORTFOLIO_EXPOSURE_PCT} from "../lib/trading-rules.mjs";
+test("paper position sizing caps notional at 5% while respecting stop-risk budget",()=>{
+ assert.equal(PAPER_MAX_POSITION_EXPOSURE_PCT,5);
+ assert.equal(PAPER_MAX_PORTFOLIO_EXPOSURE_PCT,20);
+ const quantity=calculatePaperQuantity({balance:1000,riskPct:0.5,entry:100,stop:90});
+ assert.equal(quantity,0.5);
+ assert.ok(quantity*100<=1000*0.05);
+ assert.ok(quantity*Math.abs(100-90)<=1000*0.005+1e-8);
+});
+
+test("paper exposure checker rejects excessive per-position notional",()=>{
+ assert.match(validatePaperExposure({balance:10000,riskPct:0.5,entry:100,stop:95,quantity:6,existingExposure:0}),/5% per-position exposure cap/);
+});
+
+test("paper exposure checker rejects stop risk that exceeds configured risk budget",()=>{
+ assert.match(validatePaperExposure({balance:10000,riskPct:0.1,entry:100,stop:90,quantity:2,existingExposure:0}),/stop-distance risk exceeds/);
+});
+
+test("paper exposure checker rejects aggregate portfolio notional above 20%",()=>{
+ assert.match(validatePaperExposure({balance:10000,riskPct:0.5,entry:100,stop:95,quantity:5,existingExposure:1800}),/20% portfolio cap/);
+});
+
+test("paper exposure checker permits a correctly risk-sized capped position",()=>{
+ assert.equal(validatePaperExposure({balance:10000,riskPct:0.5,entry:100,stop:95,quantity:5,existingExposure:1000}),null);
+});
+
+test("paper position sizing rejects invalid balance, risk or geometry",()=>{
+ assert.throws(()=>calculatePaperQuantity({balance:0,riskPct:0.5,entry:100,stop:90}),/invalid paper sizing inputs/);
+ assert.throws(()=>calculatePaperQuantity({balance:10000,riskPct:2,entry:100,stop:90}),/invalid paper sizing inputs/);
+ assert.throws(()=>calculatePaperQuantity({balance:10000,riskPct:0.5,entry:100,stop:100}),/invalid paper sizing inputs/);
+});
+
 test("buy slippage worsens fill and sell slippage worsens fill",()=>{assert.equal(applySlippage("BUY",100,10),100.1);assert.equal(applySlippage("SELL",100,10),99.9)});
 test("fees are charged from fill notional",()=>{assert.equal(calculateFee(100,2,10),0.2)});
 test("stale data is rejected, fresh data accepted",()=>{assert.equal(isStale(1000,61001,60000),true);assert.equal(isStale(2000,61001,60000),false);assert.equal(isStale(NaN,61001,60000),true)});
