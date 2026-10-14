@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {applySlippage,calculateFee,isStale,validateStops,resolveStopTarget,validateOrderRequest,calculatePaperQuantity,validatePaperExposure,PAPER_MAX_POSITION_EXPOSURE_PCT,PAPER_MAX_PORTFOLIO_EXPOSURE_PCT} from "../lib/trading-rules.mjs";
+import {applySlippage,calculateFee,isStale,validateStops,resolveStopTarget,resolveTargetOnlyObservation,validateOrderRequest,calculatePaperQuantity,validatePaperExposure,PAPER_MAX_POSITION_EXPOSURE_PCT,PAPER_MAX_PORTFOLIO_EXPOSURE_PCT} from "../lib/trading-rules.mjs";
 test("paper position sizing caps notional at 5% while respecting stop-risk budget",()=>{
  assert.equal(PAPER_MAX_POSITION_EXPOSURE_PCT,5);
  assert.equal(PAPER_MAX_PORTFOLIO_EXPOSURE_PCT,20);
@@ -37,6 +37,31 @@ test("fees are charged from fill notional",()=>{assert.equal(calculateFee(100,2,
 test("stale data is rejected, fresh data accepted",()=>{assert.equal(isStale(1000,61001,60000),true);assert.equal(isStale(2000,61001,60000),false);assert.equal(isStale(NaN,61001,60000),true)});
 test("stop geometry follows side",()=>{assert.equal(validateStops("LONG",100,95,110),true);assert.equal(validateStops("LONG",100,105,110),false);assert.equal(validateStops("SHORT",100,105,90),true)});
 test("stop wins if stop and target both hit in one candle",()=>{const result=resolveStopTarget({open:100,high:112,low:94},"LONG",95,110);assert.equal(result.exit,"STOP");assert.equal(result.ambiguous,true)});
+test("target-only observation ignores a stop touch and waits for profit target",()=>{
+ const stoppedOnly=resolveTargetOnlyObservation({open:100,high:104,low:94},"LONG",95,110);
+ assert.equal(stoppedOnly.exit,null);
+ assert.equal(stoppedOnly.stopTouched,true);
+ assert.equal(stoppedOnly.targetTouched,false);
+ const targetOnly=resolveTargetOnlyObservation({open:106,high:111,low:101},"LONG",95,110);
+ assert.equal(targetOnly.exit,"TARGET");
+ assert.equal(targetOnly.price,110);
+ assert.equal(targetOnly.stopTouched,false);
+});
+test("target-only observation stays open when stop and target touch in the same candle",()=>{
+ const result=resolveTargetOnlyObservation({open:100,high:112,low:94},"LONG",95,110);
+ assert.equal(result.exit,null);
+ assert.equal(result.ambiguous,true);
+ assert.equal(result.stopTouched,true);
+ assert.equal(result.targetTouched,true);
+});
+test("target-only observation supports short-side target hits without stop-outs",()=>{
+ const stoppedOnly=resolveTargetOnlyObservation({open:100,high:106,low:98},"SHORT",105,90);
+ assert.equal(stoppedOnly.exit,null);
+ assert.equal(stoppedOnly.stopTouched,true);
+ const targetOnly=resolveTargetOnlyObservation({open:94,high:102,low:89},"SHORT",105,90);
+ assert.equal(targetOnly.exit,"TARGET");
+ assert.equal(targetOnly.price,90);
+});
 test("gap through a long stop exits at worse opening price",()=>{const result=resolveStopTarget({open:90,high:105,low:88},"LONG",95,110);assert.equal(result.price,90)});
 test("invalid fees and fill inputs are rejected",()=>{assert.throws(()=>applySlippage("BUY",100,999));assert.throws(()=>calculateFee(100,0,5))});
 
