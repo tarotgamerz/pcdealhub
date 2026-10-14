@@ -14,7 +14,7 @@ export async function GET(req:Request){
   if(!process.env.TAROTAI_ACCESS_CODE)return NextResponse.json({error:"Private access is not configured"},{status:503});
   if(!isAuthorized(req))return NextResponse.json({error:"Authentication required"},{status:401});
  }
- const venue=(q.get("venue")||"binance").toLowerCase(),symbol=(q.get("symbol")||"BTCUSDT").toUpperCase(),interval=q.get("interval")||"1m",limit=Math.min(500,Math.max(20,Math.floor(Number(q.get("limit")||100))));
+ const venue=(q.get("venue")||"okx").toLowerCase(),symbol=(q.get("symbol")||"BTCUSDT").toUpperCase(),interval=q.get("interval")||"1m",limit=Math.min(500,Math.max(20,Math.floor(Number(q.get("limit")||100))));
  const beforeRaw=q.get("before"),before=beforeRaw===null?null:Number(beforeRaw);
  if(beforeRaw!==null&&(before===null||!Number.isFinite(before)||before<=0))return NextResponse.json({error:"Invalid historical candle cursor"},{status:400});
  const historyPage=before!==null;

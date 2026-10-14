@@ -512,7 +512,8 @@ test("all live chart panels share one OKX swap symbol/timeframe and current WebS
   assert.match(futuresDesk, /function updateTradingViewChart\(source="tv"\)/);
   assert.match(futuresDesk, /IN-APP CHARTS SYNCED/);
   assert.match(futuresDesk, /window\.tarotaiReloadLiveChart=/);
-  assert.match(futuresDesk, /wss:\/\/ws\.okx\.com:8443\/ws\/v5\/public/);
+  assert.match(futuresDesk, /wss:\/\/ws\.okx\.com\/ws\/v5\/business/);
+  assert.match(futuresDesk, /wss:\/\/ws\.okx\.com\/ws\/v5\/public/);
   assert.match(futuresDesk, /candleChannel="candle"\+/);
   assert.match(futuresDesk, /for\(const venue of \[marketVenue\]\)/);
   assert.match(parallelAgentsRoute, /const venues=\[preferred\],failures:string\[\]=\[\]/);
@@ -551,14 +552,14 @@ test("continuous local rule roles refresh every second and paper entries use the
 
 test("strategy chart, agent context and paper checks stay on the same selected live venue", () => {
   assert.match(futuresDesk, /marketVenue="okx"/);
-  assert.match(futuresDesk, /const sourceVenue=marketVenue\|\|'binance'/);
+  assert.match(futuresDesk, /const sourceVenue=window\.tarotaiMarketVenue\|\|'okx'/);
   assert.match(futuresDesk, /Research venue is separate/);
   assert.match(futuresDesk, /venue:marketVenue/);
   assert.match(paperRoute, /const symbol=String\(b\.symbol\|\|"BTCUSDT"\)\.toUpperCase\(\),venue=String\(b\.venue\|\|"okx"\)/);
 });
 
 test("paper entry checks a live OKX last-trade ticker and blocks material quote drift", () => {
-  assert.match(paperRoute, /api\.v5\/market\/ticker/);
+  assert.match(paperRoute, /api\/v5\/market\/ticker/);
   assert.match(paperRoute, /action==="OPEN"&&priceDrift>0\.002/);
   assert.match(paperRoute, /executionReferencePrice=action==="CLOSE"\?verifiedMarketPrice:price/);
   assert.match(paperRoute, /marketSource,/);
@@ -574,10 +575,34 @@ test("continuous local agents veto missing or stale last-trade ticks", () => {
 
 test("OKX is the canonical live chart source because its production market endpoint is reachable", () => {
   assert.match(futuresDesk, /marketVenue="okx"/);
-  assert.match(futuresDesk, /wss:\/\/ws\.okx\.com:8443\/ws\/v5\/public/);
+  assert.match(futuresDesk, /wss:\/\/ws\.okx\.com\/ws\/v5\/business/);
+  assert.match(futuresDesk, /wss:\/\/ws\.okx\.com\/ws\/v5\/public/);
   assert.match(futuresDesk, /channel:"trades",instId/);
   assert.match(source, /https:\/\/www\.okx\.com\/api\/v5\/market\/candles/);
   assert.match(parallelAgentsRoute, /www\.okx\.com\/api\/v5\/market\/candles/);
   assert.match(paperRoute, /https:\/\/www\.okx\.com\/api\/v5\/market\/ticker/);
   assert.match(paperRoute, /https:\/\/www\.okx\.com\/api\/v5\/market\/candles/);
+});
+
+
+test("strategy fallback and both in-app charts use the same reachable OKX venue", () => {
+  assert.match(futuresDesk, /window\.tarotaiMarketVenue=marketVenue/);
+  assert.match(futuresDesk, /const sourceVenue=window\.tarotaiMarketVenue\|\|'okx'/);
+  assert.match(futuresDesk, /const tvExchange=\(\{binance:'BINANCE',bybit:'BYBIT',okx:'OKX'\}\)\[window\.tarotaiMarketVenue\]\|\|'OKX'/);
+  assert.doesNotMatch(futuresDesk, /const tvSymbol='BINANCE:'/);
+  const updateFn=futuresDesk.slice(futuresDesk.indexOf('function updateTradingViewChart'),futuresDesk.indexOf('$("tvRefresh")'));
+  assert.equal((updateFn.match(/window\.tarotaiReloadLiveChart\(\)/g)||[]).length,1);
+});
+
+test("OKX candles and trade ticks use their correct WebSocket services", () => {
+  assert.match(futuresDesk, /wss:\/\/ws\.okx\.com\/ws\/v5\/business/);
+  assert.match(futuresDesk, /wss:\/\/ws\.okx\.com\/ws\/v5\/public/);
+  assert.match(futuresDesk, /channel:"trades",instId/);
+  assert.match(futuresDesk, /channel:candleChannel,instId/);
+  assert.match(futuresDesk, /msg\?\.event==="error"/);
+});
+
+test("market data and agent APIs default to the reachable OKX swap feed", () => {
+  assert.match(source, /const venue=\(q\.get\("venue"\)\|\|"okx"\)\.toLowerCase\(\)/);
+  assert.match(parallelAgentsRoute, /preferred=String\(body\?\.venue\|\|"okx"\)\.toLowerCase\(\) as Venue/);
 });

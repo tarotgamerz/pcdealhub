@@ -192,7 +192,7 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
  let rawBody:string;try{rawBody=await request.text();}catch{return jsonError("Could not read request body.",400);}
  if(Buffer.byteLength(rawBody,"utf8")>12000)return jsonError("Request body exceeds 12 KB.",413);
  let body:any;try{body=JSON.parse(rawBody);}catch{return jsonError("Malformed JSON request body.",400);}
- const symbol=String(body?.symbol||"BTCUSDT").toUpperCase(),interval=String(body?.interval||"15m") as Interval,preferred=String(body?.venue||"binance").toLowerCase() as Venue;
+ const symbol=String(body?.symbol||"BTCUSDT").toUpperCase(),interval=String(body?.interval||"15m") as Interval,preferred=String(body?.venue||"okx").toLowerCase() as Venue;
  const roles=Array.isArray(body?.roles)?body.roles.map((v:any)=>String(v)):[];
  if(!/^[A-Z0-9]{4,20}$/.test(symbol))return jsonError("Invalid symbol.",400);
  if(!(ALLOWED_INTERVALS as readonly string[]).includes(interval))return jsonError("Unsupported timeframe.",400);
