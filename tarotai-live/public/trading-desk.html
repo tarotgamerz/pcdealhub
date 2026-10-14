@@ -101,8 +101,8 @@
 </style>
 </head>
 <body><main class="app">
-<header class="top"><button class="feature-trigger" id="featureTrigger" type="button" aria-label="Open TarotAI features" aria-haspopup="dialog" aria-expanded="false">⋮</button><div class="brand"><div class="logo">T</div><div><h1>TarotAI <span class="muted">/ Futures Lab</span></h1><div class="sub">Multi-agent research desk · Binance USDⓈ-M Futures concept</div></div></div><span class="pill">● LIVE TRADING DISABLED</span></header>
-<div class="notice"><strong>Paper-only safety mode:</strong> TarotAI reads public Binance USDⓈ-M Futures market data and can save simulated trades to its private persistent paper ledger. It never sends real exchange orders. The two in-dashboard charts share one feed; the official TradingView site is external. Never enter exchange API keys here.</div>
+<header class="top"><button class="feature-trigger" id="featureTrigger" type="button" aria-label="Open TarotAI features" aria-haspopup="dialog" aria-expanded="false">⋮</button><div class="brand"><div class="logo">T</div><div><h1>TarotAI <span class="muted">/ Futures Lab</span></h1><div class="sub">Multi-agent research desk · Bybit linear perpetual market data</div></div></div><span class="pill">● LIVE TRADING DISABLED</span></header>
+<div class="notice"><strong>Paper-only safety mode:</strong> TarotAI reads public Bybit linear-perpetual market data and can save simulated trades to its private persistent paper ledger. It never sends real exchange orders. The two in-dashboard charts share one feed; the official TradingView site is external. Never enter exchange API keys here.</div>
 <section class="stats"><div class="stat"><label>Environment</label><strong class="green">TEST MODE</strong></div><div class="stat"><label>Simulated equity</label><strong id="equity">$10,000.00</strong></div><div class="stat"><label>Open demo positions</label><strong id="openCount">0</strong></div><div class="stat"><label>Daily demo P&amp;L</label><strong id="pnl">$0.00</strong></div></section>
 <div class="grid">
 <section class="panel wide"><h2>Agent room</h2><div class="agents"><div class="agent"><div class="agenthead"><div class="ico">⌁</div><div><strong>Market Structure Analyst</strong><div class="sub">Trend, swing structure and higher-timeframe alignment</div></div></div><span class="tag">MARKET</span></div>
@@ -132,10 +132,10 @@
 <section class="panel wide"><h2>Demo trade journal</h2><div class="tablewrap"><table><thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Entry</th><th>Stop / Target</th><th>Risk</th><th>Status</th></tr></thead><tbody id="trades"><tr><td colspan="7" class="empty">No demo orders yet. Create a local demo record to begin.</td></tr></tbody></table></div></section>
 <section class="panel"><h2>Research pipeline</h2><div class="step"><span class="tag">01</span><div><strong>Market data</strong><div class="sub">Source + timestamp verification required</div></div></div><div class="step"><span class="tag">02</span><div><strong>Historical backtest</strong><div class="sub">Fees, funding, slippage, out-of-sample split</div></div></div><div class="step"><span class="tag">03</span><div><strong>Forward test</strong><div class="sub">Paper results across varied regimes</div></div></div><div class="step"><span class="tag">04</span><div><strong>Risk review</strong><div class="sub">Independent veto + exposure caps</div></div></div><div class="step"><span class="tag">05</span><div><strong>Human approval</strong><div class="sub">Required before any future live-trading feature</div></div></div></section>
 
-<section class="panel full" id="tradingview-panel"><div class="row" style="justify-content:space-between;margin-bottom:12px"><div><h2 style="margin:0">Synchronized market chart</h2><div class="sub">This chart and the live-analysis chart below share one Binance USDⓈ-M Futures candle array and the same live last-trade WebSocket quote.</div></div><span class="tag">ONE CANONICAL FEED</span></div>
+<section class="panel full" id="tradingview-panel"><div class="row" style="justify-content:space-between;margin-bottom:12px"><div><h2 style="margin:0">Synchronized market chart</h2><div class="sub">This chart and the live-analysis chart below share one Bybit linear-perpetual candle array and the same live last-trade WebSocket quote.</div></div><span class="tag">ONE CANONICAL FEED</span></div>
 <div class="row" style="margin-bottom:12px"><div class="field" style="flex:1;min-width:150px;margin:0"><label for="tvSymbol">Chart market</label><select id="tvSymbol"><option value="BTCUSDT">BTCUSDT perpetual</option><option value="ETHUSDT">ETHUSDT perpetual</option><option value="BNBUSDT">BNBUSDT perpetual</option><option value="SOLUSDT">SOLUSDT perpetual</option></select></div><div class="field" style="flex:1;min-width:120px;margin:0"><label for="tvInterval">Chart timeframe</label><select id="tvInterval"><option value="1">1 minute</option><option value="5">5 minutes</option><option value="15" selected>15 minutes</option><option value="60">1 hour</option><option value="240">4 hours</option></select></div><button class="btn" id="tvRefresh">Update chart</button></div>
-<div class="live-chart-shell" id="tvSyncedChartShell"><div id="tvSyncedChart" style="width:100%;height:100%"></div><div class="live-chart-overlay"><strong id="tvSyncedPrice">WAITING FOR SHARED LIVE PRICE</strong><span id="tvSyncedMeta">Waiting for Binance Futures last-trade stream…</span></div></div>
-<div class="row" style="margin-top:12px"><button class="btn primary" id="tvAskAgent">Run AI-enhanced 8-agent review</button><a class="btn" id="tvOpenExternal" href="https://www.tradingview.com/chart/?symbol=BINANCE%3ABTCUSDT.P" target="_blank" rel="noopener noreferrer" style="text-decoration:none">Open official TradingView (external)</a><span class="muted" id="tvStatus" style="font-size:12px">Waiting for shared Binance feed…</span></div>
+<div class="live-chart-shell" id="tvSyncedChartShell"><div id="tvSyncedChart" style="width:100%;height:100%"></div><div class="live-chart-overlay"><strong id="tvSyncedPrice">WAITING FOR SHARED LIVE PRICE</strong><span id="tvSyncedMeta">Waiting for Bybit linear perpetual last-trade stream…</span></div></div>
+<div class="row" style="margin-top:12px"><button class="btn primary" id="tvAskAgent">Run AI-enhanced 8-agent review</button><a class="btn" id="tvOpenExternal" href="https://www.tradingview.com/chart/?symbol=BYBIT%3ABTCUSDT.P" target="_blank" rel="noopener noreferrer" style="text-decoration:none">Open official TradingView (external)</a><span class="muted" id="tvStatus" style="font-size:12px">Waiting for shared Bybit feed…</span></div>
 <p class="muted" style="font-size:11px;margin-bottom:0">Both charts inside TarotAI display the same candles and exact same live quote. The official TradingView website is external and may have independent feed latency; its quote is not used for paper execution.</p></section>
 
 
@@ -185,13 +185,13 @@
 <section class="panel full" id="visual-strategy-panel"><div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px"><div><h2 style="margin:0">Visual strategy annotations</h2><div class="sub">Multi-factor live setup · EMA trend · RSI momentum · ATR/structure stop · 2R target</div></div><span class="tag">READ-ONLY</span></div><div class="row" style="margin-bottom:10px"><div class="field" style="flex:1;min-width:150px;margin:0"><label for="strategySymbol">Market</label><select id="strategySymbol"><option value="BTCUSDT">BTC/USDT</option><option value="ETHUSDT">ETH/USDT</option><option value="BNBUSDT">BNB/USDT</option><option value="SOLUSDT">SOL/USDT</option></select></div><div class="field" style="flex:1;min-width:130px;margin:0"><label for="strategyInterval">Timeframe</label><select id="strategyInterval"><option value="1m">1 minute</option><option value="5m" selected>5 minutes</option><option value="15m">15 minutes</option><option value="1h">1 hour</option><option value="4h">4 hours</option></select></div><button class="btn primary" id="drawStrategy">Analyze live market</button></div><div class="strategy-metrics"><div class="strategy-metric"><label>Latest close</label><strong id="strategyPrice">—</strong></div><div class="strategy-metric"><label>Latest signal</label><strong id="strategySignal">WAIT</strong></div><div class="strategy-metric"><label>Stop loss</label><strong id="strategyStop">—</strong></div><div class="strategy-metric"><label>Take profit</label><strong id="strategyTarget">—</strong></div></div><div class="strategy-chart-wrap"><canvas id="strategyCanvas" width="1200" height="440" role="img" aria-label="Candlestick chart with EMA crossover entries, stop loss and take profit annotations"></canvas><iframe id="strategyFallbackChart" title="Live TradingView chart fallback; no strategy annotations when exchange candles are unavailable" loading="lazy" allowfullscreen referrerpolicy="origin"></iframe></div><div class="strategy-legend"><span><i class="swatch" style="background:#65e6ad"></i>Bull candle / LONG</span><span><i class="swatch" style="background:#ff7b83"></i>Bear candle / SHORT</span><span><i class="swatch" style="background:#7eafff"></i>EMA 9</span><span><i class="swatch" style="background:#f2c46f"></i>EMA 21</span><span><i class="swatch" style="background:#ff7b83"></i>Stop loss</span><span><i class="swatch" style="background:#65e6ad"></i>Take profit</span></div><div class="muted" id="strategyStatus" style="font-size:11px">Waiting for live exchange candles. Auto-refreshes every 30 seconds while this page is visible. No orders are sent.</div></section>
 <section class="panel full"><h2>Connected research services</h2>
 <div class="row"><div class="field" style="flex:1;min-width:160px"><label>Private access code</label><input id="accessCode" type="password" autocomplete="current-password" placeholder="App access code"></div><button class="btn primary" id="loginBtn">Unlock private APIs</button><button class="btn" id="logoutBtn">Lock</button></div>
-<div class="row"><div class="field" style="flex:1;min-width:120px"><label>Venue</label><select id="venue"><option value="binance">Binance Futures demo</option><option value="bybit">Bybit testnet market data</option><option value="okx">OKX market data</option></select></div><div class="field" style="flex:1;min-width:120px"><label>Symbol</label><input id="marketSymbol" value="BTCUSDT"></div><div class="field" style="flex:1;min-width:100px"><label>Interval</label><select id="marketInterval"><option>1m</option><option>5m</option><option selected>15m</option><option>1h</option><option>4h</option><option>1d</option></select></div><button class="btn" id="marketBtn">Fetch market data</button></div>
+<div class="row"><div class="field" style="flex:1;min-width:120px"><label>Venue</label><select id="venue"><option value="binance">Binance USDⓈ-M Futures</option><option value="bybit">Bybit linear market data</option><option value="okx">OKX market data</option></select></div><div class="field" style="flex:1;min-width:120px"><label>Symbol</label><input id="marketSymbol" value="BTCUSDT"></div><div class="field" style="flex:1;min-width:100px"><label>Interval</label><select id="marketInterval"><option>1m</option><option>5m</option><option selected>15m</option><option>1h</option><option>4h</option><option>1d</option></select></div><button class="btn" id="marketBtn">Fetch market data</button></div>
 <div id="marketResult" class="log">Not connected. Unlock to fetch verified exchange response data.</div>
 <div class="row" style="margin-top:12px"><div class="field" style="flex:1"><label>Fast SMA period</label><input id="fastPeriod" type="number" value="9" min="2" max="99"></div><div class="field" style="flex:1"><label>Slow SMA period</label><input id="slowPeriod" type="number" value="21" min="3" max="100"></div><div class="field" style="flex:1"><label>Fee (bps/turn)</label><input id="feeBps" type="number" value="5" min="0" max="50"></div><div class="field" style="flex:1"><label>Slippage (bps/turn)</label><input id="slippageBps" type="number" value="2" min="0" max="50"></div><button class="btn primary" id="backtestBtn">Run backtest</button></div>
 <div id="backtestResult" class="log">Backtest has not been run. Results are research-only and do not place orders.</div>
 <div class="row" style="margin-top:12px"><button class="btn" id="ledgerBtn">Load paper ledger</button><input id="closeTradeId" placeholder="Open trade ID to close" style="padding:9px;background:#080e16;border:1px solid #334153;border-radius:8px;color:var(--text)"><button class="btn" id="closePaperBtn">Close paper position</button><button class="btn" id="replayBtn">Save market replay</button><button class="btn" id="signalsBtn">Check TradingView signals</button><button class="btn" id="stopCheckBtn">Evaluate paper stops</button></div>
 <div id="ledgerResult" class="log">Persistent paper ledger and signal queue require configured server-side Upstash Redis.</div>
-</section>\n<section class="panel full"><h2>Binance Futures demo order test</h2>
+</section>\n<section class="panel full"><h2>Bybit linear perpetual demo order test</h2>
 <div class="notice">This sends orders only to Binance's fixed demo/testnet host. Configure demo API credentials as server environment variables; never paste keys into this page or chat. OKX swap size is measured in contracts, not base-coin units.</div>
 <div class="row"><div class="field" style="flex:1"><label>Order side</label><select id="tnSide"><option>BUY</option><option>SELL</option></select></div><div class="field" style="flex:1"><label>Order type</label><select id="tnType"><option>LIMIT</option><option>MARKET</option></select></div><div class="field" style="flex:1"><label>Quantity</label><input id="tnQty" type="number" min="0" step="any" value="0.001"></div><div class="field" style="flex:1"><label>Limit price (LIMIT only)</label><input id="tnPrice" type="number" min="0" step="any"></div></div>
 <div class="field"><label>Client order ID (reuse this if the request times out)</label><input id="tnClientId" maxlength="36" autocomplete="off"></div><label style="display:flex;gap:8px;align-items:center;margin:8px 0 12px"><input id="tnConfirm" type="checkbox"> I understand this sends a real order to the demo/testnet account only.</label>
@@ -238,7 +238,7 @@ let strategyRefreshTimer=null;function startStrategyAutoRefresh(){if(strategyRef
 function tradingViewInterval(){return $('tvInterval').value}
 const tvToLiveInterval={"1":"1m","5":"5m","15":"15m","60":"1h","240":"4h"};
 const liveToTvInterval={"1m":"1","5m":"5","15m":"15","1h":"60","4h":"240"};
-function tradingViewSymbol(){const base=$("liveSymbol")?.value||$("tvSymbol").value;return "BINANCE:"+base+".P";}
+function tradingViewSymbol(){const base=$("liveSymbol")?.value||$("tvSymbol").value;return "BYBIT:"+base+".P";}
 function updateTradingViewChart(source="tv"){
   let base,interval;
   if(source==="strategy"){base=$("strategySymbol").value;interval=$("strategyInterval").value;}
@@ -251,13 +251,13 @@ function updateTradingViewChart(source="tv"){
   if($("marketInterval"))$("marketInterval").value=interval;
   const symbol=tradingViewSymbol();
   $("tvOpenExternal").href="https://www.tradingview.com/chart/?symbol="+encodeURIComponent(symbol);
-  $("tvStatus").textContent="IN-APP CHARTS SYNCED · "+symbol+" · "+interval+" · shared Binance Futures candles and last-trade quote.";
+  $("tvStatus").textContent="IN-APP CHARTS SYNCED · "+symbol+" · "+interval+" · shared Bybit linear-perpetual candles and last-trade quote.";
   if(source!=="live"&&typeof window.tarotaiReloadLiveChart==="function")window.tarotaiReloadLiveChart();  if(source!=="live"&&typeof window.tarotaiReloadLiveChart==="function")window.tarotaiReloadLiveChart();
 }
 $("tvRefresh").addEventListener("click",()=>updateTradingViewChart("tv"));
 $("tvSymbol").addEventListener("change",()=>updateTradingViewChart("tv"));
 $("tvInterval").addEventListener("change",()=>updateTradingViewChart("tv"));
-$("venue").addEventListener("change",()=>{$("tvStatus").textContent="The research venue changed. All linked live charts remain on Binance USDⓈ-M perpetual to avoid cross-exchange price mismatches.";});
+$("venue").addEventListener("change",()=>{$("tvStatus").textContent="Research venue is separate. All linked live charts use the same Bybit linear perpetual symbol and live tick."});
 $("tvAskAgent").addEventListener("click",()=>{updateTradingViewChart("tv");if($("liveAgentPanel")?.hidden){$("liveAgentPanel").hidden=false;$("toggleLiveAgentTeam").textContent="Hide 8-agent trading team";$("toggleLiveAgentTeam").setAttribute("aria-expanded","true");}$("live-agent-chart").scrollIntoView({behavior:"smooth",block:"start"});$("runLiveAgentTeam").click();});
 updateTradingViewChart();
 
@@ -290,7 +290,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   const higherMap={"1m":"15m","5m":"1h","15m":"4h","1h":"1d","4h":"1d"};
   let chart=null,candleSeries=null,ema9Series=null,ema21Series=null,ema50Series=null,socketReconnectTimer=null;let lastMarketUpdateAt=0;
   let mirrorChart=null,mirrorCandleSeries=null,mirrorEma9Series=null,mirrorEma21Series=null,mirrorEma50Series=null,mirrorResizeObserver=null,rangeSyncLock=false,mirrorPriceLines=[],mainLivePriceLine=null,mirrorLivePriceLine=null,lastLiveLineUpdateAt=0;
-  let rows=[],marketVenue="binance",feedSocket=null,quoteSocket=null,quoteReconnectTimer=null,quoteSymbol="",lastTradePrice=NaN,lastTradeAt=0,lastQuoteRenderAt=0,pollTimer=null,resizeObserver=null;
+  let rows=[],marketVenue="bybit",feedSocket=null,quoteSocket=null,quoteReconnectTimer=null,quoteSymbol="",lastTradePrice=NaN,lastTradeAt=0,lastQuoteRenderAt=0,pollTimer=null,resizeObserver=null;
   let currentSymbol="",currentInterval="",higherCache=[],higherCacheKey="",higherCacheAt=0,priceLines=[],busy=false,firstRender=true,lastWsCandleTime=0,historyBusy=false,historyExhausted=false,historyPages=0,historyLoadAllowedAt=0;
   const fmt=(n)=>Number.isFinite(n)?n.toLocaleString("en-US",{maximumFractionDigits:n>=1000?2:n>=1?4:7}):"—";
   const msFor=i=>intervalMs[i]||300000;
@@ -327,8 +327,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       byId("livePrice").textContent=fmt(price);
       const badge=byId("tvSyncedPrice"),meta=byId("tvSyncedMeta");
       if(badge)badge.textContent=currentSymbol+" · "+fmt(price)+" USDT";
-      if(meta)meta.textContent=fresh?"Same Binance Futures last-trade tick in both charts · "+new Date(lastTradeAt).toLocaleTimeString():"Last-trade socket stale; showing latest candle close. Paper entries are blocked until live ticks resume.";
-      byId("tvStatus").textContent=fresh?"IN-APP CHARTS SYNCED · "+currentSymbol+" "+currentInterval+" · last trade "+fmt(price)+" · one Binance feed.":"IN-APP CHARTS SYNCED · waiting for fresh Binance last-trade tick; entries stay blocked.";
+      if(meta)meta.textContent=fresh?"Same Bybit linear perpetual last-trade tick in both charts · "+new Date(lastTradeAt).toLocaleTimeString():"Last-trade socket stale; showing latest candle close. Paper entries are blocked until live ticks resume.";
+      byId("tvStatus").textContent=fresh?"IN-APP CHARTS SYNCED · "+currentSymbol+" "+currentInterval+" · last trade "+fmt(price)+" · one Bybit feed.":"IN-APP CHARTS SYNCED · waiting for fresh Bybit last-trade tick; entries stay blocked.";
       lastQuoteRenderAt=now;
     }
     if(now-lastLiveLineUpdateAt>=350){
@@ -340,19 +340,20 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     }
   }
   function connectQuoteSocket(force=false){
-    if(!currentSymbol||marketVenue!=="binance"){if(quoteSocket){quoteSocket.onclose=null;try{quoteSocket.close();}catch(e){}quoteSocket=null;}quoteSymbol="";lastTradePrice=NaN;lastTradeAt=0;return;}
+    if(!currentSymbol||marketVenue!=="bybit"){if(quoteSocket){quoteSocket.onclose=null;try{quoteSocket.close();}catch(e){}quoteSocket=null;}quoteSymbol="";lastTradePrice=NaN;lastTradeAt=0;return;}
     if(!force&&quoteSocket&&quoteSymbol===currentSymbol&&(quoteSocket.readyState===WebSocket.CONNECTING||quoteSocket.readyState===WebSocket.OPEN))return;
     if(quoteReconnectTimer)clearTimeout(quoteReconnectTimer);quoteReconnectTimer=null;
     if(quoteSocket){quoteSocket.onclose=null;try{quoteSocket.close();}catch(e){}quoteSocket=null;}
     quoteSymbol=currentSymbol;
     try{
-      quoteSocket=new WebSocket("wss://fstream.binance.com/market/ws/"+currentSymbol.toLowerCase()+"@aggTrade");
-      quoteSocket.onopen=()=>renderSharedQuote(currentMarketPrice());
-      quoteSocket.onmessage=event=>{if(quoteSymbol!==currentSymbol)return;let tick;try{tick=JSON.parse(event.data);}catch(e){return;}const price=Number(tick&&tick.p),eventTime=Number(tick&&tick.T);if(tick?.e!=="aggTrade"||!Number.isFinite(price)||price<=0||!Number.isFinite(eventTime))return;lastTradePrice=price;lastTradeAt=Date.now();renderSharedQuote(price);};
-      quoteSocket.onerror=()=>{const meta=byId("tvSyncedMeta");if(meta)meta.textContent="Last-trade WebSocket reconnecting; paper entries are blocked while live ticks are stale.";};
-      quoteSocket.onclose=()=>{if(quoteSymbol===currentSymbol&&marketVenue==="binance"){if(quoteReconnectTimer)clearTimeout(quoteReconnectTimer);quoteReconnectTimer=setTimeout(()=>connectQuoteSocket(true),1500);}};
+      quoteSocket=new WebSocket("wss://stream.bybit.com/v5/public/linear");
+      quoteSocket.onopen=()=>{quoteSocket.send(JSON.stringify({op:"subscribe",args:["publicTrade."+currentSymbol]}));renderSharedQuote(currentMarketPrice());};
+      quoteSocket.onmessage=event=>{if(quoteSymbol!==currentSymbol)return;let msg;try{msg=JSON.parse(event.data);}catch(e){return;}if(msg.topic!=="publicTrade."+currentSymbol||!Array.isArray(msg.data))return;for(const tick of msg.data){const price=Number(tick.p);if(!Number.isFinite(price)||price<=0)continue;lastTradePrice=price;lastTradeAt=Date.now();renderSharedQuote(price);}};
+      quoteSocket.onerror=()=>{const meta=byId("tvSyncedMeta");if(meta)meta.textContent="Bybit live-trade stream reconnecting; paper entries are blocked while live ticks are stale.";};
+      quoteSocket.onclose=()=>{if(quoteSymbol===currentSymbol&&marketVenue==="bybit"&&document.visibilityState==="visible"){if(quoteReconnectTimer)clearTimeout(quoteReconnectTimer);quoteReconnectTimer=setTimeout(()=>connectQuoteSocket(true),1500);}};
     }catch(e){if(quoteReconnectTimer)clearTimeout(quoteReconnectTimer);quoteReconnectTimer=setTimeout(()=>connectQuoteSocket(true),2000);}
   }
+
   function ema(values,period){if(!values.length)return[];const k=2/(period+1),out=[values[0]];for(let i=1;i<values.length;i++)out.push(values[i]*k+out[i-1]*(1-k));return out;}
   function rsi(values,period){const out=Array(values.length).fill(NaN);if(values.length<=period)return out;let gain=0,loss=0;for(let i=1;i<=period;i++){const d=values[i]-values[i-1];gain+=Math.max(d,0);loss+=Math.max(-d,0);}gain/=period;loss/=period;out[period]=loss===0?100:100-100/(1+gain/loss);for(let i=period+1;i<values.length;i++){const d=values[i]-values[i-1];gain=(gain*(period-1)+Math.max(d,0))/period;loss=(loss*(period-1)+Math.max(-d,0))/period;out[i]=loss===0?100:100-100/(1+gain/loss);}return out;}
   function atr(candles,period){const tr=candles.map((c,i)=>i===0?c.high-c.low:Math.max(c.high-c.low,Math.abs(c.high-candles[i-1].close),Math.abs(c.low-candles[i-1].close)));if(tr.length<period)return tr.map(()=>NaN);const out=Array(tr.length).fill(NaN);let v=tr.slice(0,period).reduce((a,b)=>a+b,0)/period;out[period-1]=v;for(let i=period;i<tr.length;i++){v=(v*(period-1)+tr[i])/period;out[i]=v;}return out;}
@@ -764,9 +765,9 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const sym=byId("liveSymbol").value,interval=byId("liveInterval").value,changed=sym!==currentSymbol||interval!==currentInterval;
       if(changed){currentSymbol=sym;currentInterval=interval;higherCache=[];higherCacheKey="";higherCacheAt=0;firstRender=true;rows=[];historyExhausted=false;historyPages=0;lastWsCandleTime=0;}
       const data=await fetchMarketWithFallback(currentSymbol,currentInterval,250);
-      const nextVenue=data.venue||"binance",venueChanged=marketVenue!==nextVenue;
+      const nextVenue=data.venue||"bybit",venueChanged=marketVenue!==nextVenue;
       marketVenue=nextVenue;
-      if(venueChanged)connectSocket();
+      if(venueChanged||changed)connectSocket();
       rows=changed?orderedCandles(data.candles):orderedCandles([...rows,...data.candles]);lastMarketUpdateAt=Date.now();updateHistoryStatus("Loaded "+rows.length.toLocaleString()+" candles. Pan left or tap Load older candles to inspect older patterns.");
       if(rows.length<80)throw new Error("Only "+rows.length+" valid candles were returned; need at least 80.");
       renderRows(firstRender);
@@ -774,7 +775,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const last=rows[rows.length-1],age=Math.max(0,Date.now()-last.time);
       const venueLabel=({binance:"BINANCE FUTURES",bybit:"BYBIT LINEAR FUTURES",okx:"OKX SWAP"})[marketVenue]||String(marketVenue).toUpperCase();
       setFeed(venueLabel+" · "+(marketVenue==="binance"&&feedSocket&&feedSocket.readyState===1?"LIVE STREAM":"REST REFRESH"),marketVenue==="binance"&&feedSocket&&feedSocket.readyState===1?"good":"neutral");
-      status("Source: "+(data.sourceHost||"Binance Futures")+". Last bar opened "+Math.round(age/1000)+"s ago; REST snapshot fetched "+new Date(data.fetchedAt||Date.now()).toLocaleTimeString()+". "+(feedSocket&&feedSocket.readyState===1?"WebSocket candle updates active.":"Polling fallback active (refresh every 15s).")+" No orders are sent.");
+      status("Source: "+(data.sourceHost||"Bybit linear perpetual")+". Last bar opened "+Math.round(age/1000)+"s ago; REST snapshot fetched "+new Date(data.fetchedAt||Date.now()).toLocaleTimeString()+". "+(feedSocket&&feedSocket.readyState===1?"WebSocket candle updates active.":"Polling fallback active (refresh every 15s).")+" No orders are sent.");
     }catch(e){
       setFeed("MARKET DATA ERROR","bad");
       byId("liveHtf").textContent="UNAVAILABLE";
@@ -784,31 +785,27 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     }finally{busy=false;byId("liveRefresh").disabled=false;}
   }
   function connectSocket(){
-    if(feedSocket){try{feedSocket.close();}catch(e){}feedSocket=null;}
+    if(feedSocket){feedSocket.onclose=null;try{feedSocket.close();}catch(e){}feedSocket=null;}
     if(!currentSymbol||!currentInterval)return;
-    if(marketVenue!=="binance"){setFeed((({bybit:"BYBIT",okx:"OKX"})[marketVenue]||String(marketVenue).toUpperCase())+" · REST REFRESH","neutral");connectQuoteSocket();return;}
+    if(marketVenue!=="bybit"){setFeed(String(marketVenue).toUpperCase()+" · REST REFRESH","neutral");connectQuoteSocket();return;}
     try{
-      const url="wss://fstream.binance.com/market/ws/"+currentSymbol.toLowerCase()+"@kline_"+currentInterval;
-      feedSocket=new WebSocket(url);
-      feedSocket.onopen=()=>{if(socketReconnectTimer)clearTimeout(socketReconnectTimer);if(marketVenue==="binance")setFeed("BINANCE FUTURES · LIVE STREAM","good");};
+      feedSocket=new WebSocket("wss://stream.bybit.com/v5/public/linear");
+      feedSocket.onopen=()=>{if(socketReconnectTimer)clearTimeout(socketReconnectTimer);setFeed("BYBIT LINEAR · LIVE STREAM","good");feedSocket.send(JSON.stringify({op:"subscribe",args:["kline."+({"1m":"1","3m":"3","5m":"5","15m":"15","30m":"30","1h":"60","2h":"120","4h":"240","1d":"D"}[currentInterval]||"1")+"."+currentSymbol]}));};
       feedSocket.onmessage=event=>{
-        if(marketVenue!=="binance")return;
-        let msg;try{msg=JSON.parse(event.data);}catch(e){return;}
-        const k=msg&&msg.k;if(!k||!Number.isFinite(Number(k.t)))return;
-        const bar={time:Number(k.t),open:Number(k.o),high:Number(k.h),low:Number(k.l),close:Number(k.c),volume:Number(k.v),closeTime:Number(k.T)};
+        if(marketVenue!=="bybit")return;let msg;try{msg=JSON.parse(event.data);}catch(e){return;}
+        if(!String(msg.topic||"").startsWith("kline.")||!Array.isArray(msg.data)||!msg.data.length)return;
+        const k=msg.data[msg.data.length-1],bar={time:Number(k.start),open:Number(k.open),high:Number(k.high),low:Number(k.low),close:Number(k.close),volume:Number(k.volume),closeTime:Number(k.end)};
         if(!validateCandle(bar))return;const visibleBefore=chart.timeScale().getVisibleLogicalRange(),stickAtRealtime=!visibleBefore||visibleBefore.to>=rows.length-8;lastMarketUpdateAt=Date.now();
-        if(!rows.length||bar.time>rows[rows.length-1].time)rows.push(bar);
-        else{const idx=rows.findIndex(x=>x.time===bar.time);if(idx>=0)rows[idx]=bar;}
+        if(!rows.length||bar.time>rows[rows.length-1].time)rows.push(bar);else{const idx=rows.findIndex(x=>x.time===bar.time);if(idx>=0)rows[idx]=bar;}
         if(rows.length>5000)rows=rows.slice(-5000);
-        try{const point=plotCandle(bar);candleSeries.update(point);if(mirrorCandleSeries)mirrorCandleSeries.update(point);const cls=rows.map(c=>c.close),e9Data=lineData(ema(cls,9),rows),e21Data=lineData(ema(cls,21),rows),e50Data=lineData(ema(cls,50),rows);ema9Series.setData(e9Data);ema21Series.setData(e21Data);ema50Series.setData(e50Data);if(mirrorEma9Series){mirrorEma9Series.setData(e9Data);mirrorEma21Series.setData(e21Data);mirrorEma50Series.setData(e50Data);}renderSharedQuote(currentMarketPrice());if(stickAtRealtime){chart.timeScale().scrollToRealTime();if(mirrorChart)mirrorChart.timeScale().scrollToRealTime();}}catch(e){}
-        if(k.x&&Number(k.T)!==lastWsCandleTime){lastWsCandleTime=Number(k.T);analyze();runContinuousAgentCycle();void refresh(false);}
+        try{const point=plotCandle(bar);candleSeries.update(point);if(mirrorCandleSeries)mirrorCandleSeries.update(point);const cls=rows.map(c=>c.close),e9Data=lineData(ema(cls,9),rows),e21Data=lineData(ema(cls,21),rows),e50Data=lineData(ema(cls,50),rows);ema9Series.setData(e9Data);ema21Series.setData(e21Data);ema50Series.setData(e50Data);if(mirrorEma9Series){mirrorEma9Series.setData(e9Data);mirrorEma21Series.setData(e21Data);mirrorEma50Series.setData(e50Data);}renderSharedQuote(currentMarketPrice());if(stickAtRealtime){chart.timeScale().scrollToRealTime();if(mirrorChart)mirrorChart.timeScale().scrollToRealTime();}if(k.confirm){analyze();runContinuousAgentCycle();}else analyze();
+        }catch(e){}
       };
-      feedSocket.onerror=()=>setFeed("WEBSOCKET UNAVAILABLE · POLLING","neutral");
-      feedSocket.onclose=()=>{if(marketVenue==="binance"&&currentSymbol&&currentInterval){setFeed("REST REFRESH · RECONNECTING","neutral");if(socketReconnectTimer)clearTimeout(socketReconnectTimer);socketReconnectTimer=setTimeout(()=>{if(marketVenue==="binance"&&currentSymbol&&currentInterval&&(!feedSocket||feedSocket.readyState===WebSocket.CLOSED))connectSocket();},5000);}};
-    }catch(e){setFeed("REST REFRESH MODE","neutral");}
-    connectQuoteSocket();
-  }
-  async function reloadAll(force){await refresh(true);connectSocket();connectQuoteSocket(true);}
+      feedSocket.onerror=()=>setFeed("BYBIT LIVE STREAM RECONNECTING","bad");
+      feedSocket.onclose=()=>{if(marketVenue==="bybit"&&document.visibilityState==="visible"){if(socketReconnectTimer)clearTimeout(socketReconnectTimer);socketReconnectTimer=setTimeout(()=>connectSocket(),1200);}};
+    }catch(e){setFeed("BYBIT STREAM UNAVAILABLE · REST FALLBACK","bad");if(socketReconnectTimer)clearTimeout(socketReconnectTimer);socketReconnectTimer=setTimeout(()=>connectSocket(),2500);}
+    connectQuoteSocket(true);
+  }  async function reloadAll(force){await refresh(true);connectSocket();connectQuoteSocket(true);}
   if(!window.LightweightCharts){
     setFeed("CHART LIBRARY UNAVAILABLE","bad");
     status("Interactive chart library did not load. Check access to the chart CDN; no fake chart or signals will be shown.");
@@ -889,8 +886,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     try{
       let d=await paperRequest("/api/trading/paper"),ledger=Array.isArray(d.ledger)?d.ledger:[];paperStoreReady=true;
       if(checkStops){
-        const symbols=[...new Set(paperOpened(ledger).map(t=>t.symbol).filter(Boolean))],warnings=[];
-        for(const symbol of symbols){try{const result=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"STOP_CHECK",symbol,venue:"binance"})});if(result.historyGaps?.length)warnings.push(symbol+": "+result.historyGaps.length+" position(s) predate available candle history");}catch(e){warnings.push(symbol+": stop check failed ("+e.message+")");}}
+        const positions=paperOpened(ledger).filter(t=>t.symbol),checks=[...new Map(positions.map(t=>[(t.venue||"binance")+"|"+t.symbol,{symbol:t.symbol,venue:t.venue||"binance"}])).values()],warnings=[];
+        for(const {symbol,venue} of checks){try{const result=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"STOP_CHECK",symbol,venue})});if(result.historyGaps?.length)warnings.push(symbol+": "+result.historyGaps.length+" position(s) predate available candle history");}catch(e){warnings.push(symbol+" ("+venue+"): stop check failed ("+e.message+")");}}
         if(symbols.length){d=await paperRequest("/api/trading/paper");ledger=Array.isArray(d.ledger)?d.ledger:[];}
         window.tarotaiPaperWarnings=warnings;
       }
@@ -930,7 +927,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const review=await paperRequest("/api/trading/review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({entry,stop,target,side,riskPct,paperBalance:balance,dataAgeMs:age,spreadBps:0})});
       if(review.combinedVerdict!=="PAPER_ONLY_APPROVAL")throw new Error("Independent risk review veto: "+(review.strategyAgent?.issues||review.riskAgent?.issues||[]).join("; "));
       byId("livePaperOpen").textContent="Saving paper trade…";
-      const opened=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"OPEN",symbol:d.symbol,side:long?"BUY":"SELL",quantity,price:entry,stopPrice:stop,targetPrice:target,feeBps:Number(byId("feeBps")?.value??5),slippageBps:Number(byId("slippageBps")?.value??2),marketTime:Date.now(),decisionSource:approval.source,signalCandleTime:Number(approval.candleTime),decisionAction:d.action,agentTeamModel:approval.model||"local-rules-v1",agentVotes:Array.isArray(approval.agentVotes)?approval.agentVotes.slice(0,8):Array.isArray(window.tarotaiContinuousAgentReports)?window.tarotaiContinuousAgentReports.slice(0,8).map(r=>({role:r.role,bias:r.bias,veto:r.veto,model:r.model,fallback:r.fallback})):[]})});
+      const opened=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"OPEN",symbol:d.symbol,venue:marketVenue,side:long?"BUY":"SELL",quantity,price:entry,stopPrice:stop,targetPrice:target,feeBps:Number(byId("feeBps")?.value??5),slippageBps:Number(byId("slippageBps")?.value??2),marketTime:Date.now(),decisionSource:approval.source,signalCandleTime:Number(approval.candleTime),decisionAction:d.action,agentTeamModel:approval.model||"local-rules-v1",agentVotes:Array.isArray(approval.agentVotes)?approval.agentVotes.slice(0,8):Array.isArray(window.tarotaiContinuousAgentReports)?window.tarotaiContinuousAgentReports.slice(0,8).map(r=>({role:r.role,bias:r.bias,veto:r.veto,model:r.model,fallback:r.fallback})):[]})});
       paperStatus("Opened "+d.symbol+" "+side+" in persistent paper ledger · fill "+paperFmt(opened.trade?.fillPrice??entry)+" · planned risk ≤ "+paperFmt(quantity*distance)+" USDT. No exchange order was sent.");
       if(autoPaperEnabled)byId("livePaperAutoStatus").textContent="AUTO PAPER: ON · opened a "+(approval.source==="ai-eight-agent-review"?"AI-reviewed":"continuous-rule-approved")+" simulated "+side+" on "+d.symbol+". Source and role votes are saved with the trade; results update after exit. No real order.";
       log("Opened persistent paper position "+d.symbol+" "+side+". PAPER ONLY; no exchange order sent.");
@@ -945,7 +942,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       if(t.symbol===currentSymbol&&Number.isFinite(lastTradePrice)&&Date.now()-lastTradeAt<=3000)price=Number(lastTradePrice);
       if(!Number.isFinite(price)||price<=0){const q=await paperRequest("/api/exchanges/market?"+new URLSearchParams({venue:"binance",symbol:t.symbol,interval:"1m",limit:"3",public:"1"}));price=Number(q.candles?.[q.candles.length-1]?.close);}
       if(!Number.isFinite(price)||price<=0)throw new Error("No fresh live price available");
-      const result=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"CLOSE",parentTradeId:t.id,symbol:t.symbol,side:t.side==="BUY"?"SELL":"BUY",quantity:Number(t.quantity),price,feeBps:Number(t.feeBps??5),slippageBps:Number(t.slippageBps??2),marketTime:Date.now()})});
+      const result=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"CLOSE",parentTradeId:t.id,symbol:t.symbol,venue:t.venue||"binance",side:t.side==="BUY"?"SELL":"BUY",quantity:Number(t.quantity),price,feeBps:Number(t.feeBps??5),slippageBps:Number(t.slippageBps??2),marketTime:Date.now()})});
       paperStatus("Paper position closed at simulated fill "+paperFmt(result.trade?.fillPrice??price)+". Net result includes modeled trading costs; no exchange order was sent.");
       log("Closed paper position "+t.id+". No exchange order sent.");await paperRefresh(false);
     }catch(e){paperStatus("Paper close failed: "+e.message,true);button.disabled=false;button.textContent="Close at verified live price";}
