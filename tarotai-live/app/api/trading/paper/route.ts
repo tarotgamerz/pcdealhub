@@ -19,10 +19,16 @@ export async function POST(req:Request){
  try{
   const d=store();
   if(action==="REPLAY"){
-   const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),venue=String(b.venue||"bybit").toLowerCase(),interval=String(b.interval||"1m"),limit=Math.min(500,Math.max(20,Math.floor(Number(b.limit)||100)));
-   if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["bybit","binance"].includes(venue)||!["1m","3m","5m","15m","30m","1h","2h","4h","1d"].includes(interval))return NextResponse.json({error:"Invalid venue, symbol or interval"},{status:400});
+   const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),venue=String(b.venue||"okx").toLowerCase(),interval=String(b.interval||"1m"),limit=Math.min(500,Math.max(20,Math.floor(Number(b.limit)||100)));
+   if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["okx","bybit","binance"].includes(venue)||!["1m","3m","5m","15m","30m","1h","2h","4h","1d"].includes(interval))return NextResponse.json({error:"Invalid venue, symbol or interval"},{status:400});
    let candles:any[]=[];
-   if(venue==="bybit"){
+   if(venue==="okx"){
+    const instId=symbol.endsWith("USDT")?symbol.slice(0,-4)+"-USDT-SWAP":symbol,map:any={"1m":"1m","3m":"3m","5m":"5m","15m":"15m","30m":"30m","1h":"1H","2h":"2H","4h":"4H","1d":"1D"};
+    const u=new URL("https://www.okx.com/api/v5/market/candles");u.searchParams.set("instId",instId);u.searchParams.set("bar",map[interval]);u.searchParams.set("limit",String(Math.min(limit,300)));
+    const r=await fetch(u,{cache:"no-store",signal:AbortSignal.timeout(8000)}),raw=await r.json();
+    if(!r.ok||raw?.code!=="0"||!Array.isArray(raw?.data)||!raw.data.length)return NextResponse.json({error:"OKX market replay request failed",detail:raw?.msg||"No candles"},{status:502});
+    candles=raw.data.slice().reverse().map((k:any[])=>({time:+k[0],open:+k[1],high:+k[2],low:+k[3],close:+k[4],volume:+k[5],closeTime:+k[0]+({"1m":60000,"3m":180000,"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"2h":7200000,"4h":14400000,"1d":86400000}[interval]||60000)-1}));
+   }else if(venue==="bybit"){
     const map:any={"1m":"1","3m":"3","5m":"5","15m":"15","30m":"30","1h":"60","2h":"120","4h":"240","1d":"D"};
     const u=new URL("https://api.bybit.com/v5/market/kline");u.searchParams.set("category","linear");u.searchParams.set("symbol",symbol);u.searchParams.set("interval",map[interval]);u.searchParams.set("limit",String(Math.min(limit,1000)));
     const r=await fetch(u,{cache:"no-store",signal:AbortSignal.timeout(8000)}),raw=await r.json();
@@ -40,7 +46,7 @@ export async function POST(req:Request){
    return NextResponse.json({mode:"PAPER_ONLY",replayId:replay.id,venue,candles,stored:true,liveTradingEnabled:false});
   }
   if(action==="STOP_CHECK"){
-   const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),venue=String(b.venue||"bybit").toLowerCase();
+   const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),venue=String(b.venue||"okx").toLowerCase();
    if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["binance","bybit","okx"].includes(venue))return NextResponse.json({error:"Unsupported symbol or venue"},{status:400});
    let url:URL,raw:any,closedCandles:any[]=[];
    try{
@@ -84,13 +90,19 @@ export async function POST(req:Request){
    return NextResponse.json({mode:"PAPER_ONLY",checkedSymbol:symbol,venue,sourceCandle:latest.candle,sourceCandleTime:latest.time,sourceCandleCloseTime:latest.closeTime,sourceCandleClosed:true,triggered,historyGaps,liveTradingEnabled:false,stopFirstOnAmbiguousCandle:true,note:"Only fully closed candles beginning after paper entry are evaluated; the first stop/target event is recorded."});
   }
   if(!["OPEN","CLOSE"].includes(action))return NextResponse.json({error:"action must be OPEN, CLOSE, REPLAY, or STOP_CHECK"},{status:400});
-  const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),venue=String(b.venue||"bybit").toLowerCase(),side=String(b.side||"").toUpperCase(),qty=Number(b.quantity),price=Number(b.price),feeBps=Number(b.feeBps??5),slipBps=Number(b.slippageBps??2),marketTime=Number(b.marketTime);
-  if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["bybit","binance"].includes(venue)||!["BUY","SELL"].includes(side)||![qty,price,feeBps,slipBps,marketTime].every(Number.isFinite)||qty<=0||price<=0||feeBps<0||feeBps>50||slipBps<0||slipBps>50)return NextResponse.json({error:"Invalid trade inputs; include marketTime and costs 0-50 bps"},{status:400});
+  const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),venue=String(b.venue||"okx").toLowerCase(),side=String(b.side||"").toUpperCase(),qty=Number(b.quantity),price=Number(b.price),feeBps=Number(b.feeBps??5),slipBps=Number(b.slippageBps??2),marketTime=Number(b.marketTime);
+  if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["okx","bybit","binance"].includes(venue)||!["BUY","SELL"].includes(side)||![qty,price,feeBps,slipBps,marketTime].every(Number.isFinite)||qty<=0||price<=0||feeBps<0||feeBps>50||slipBps<0||slipBps>50)return NextResponse.json({error:"Invalid trade inputs; include marketTime and costs 0-50 bps"},{status:400});
   if(isStale(marketTime))return NextResponse.json({error:"Stale or missing market timestamp; refresh market data before paper trading"},{status:409});
   let verifiedMarketPrice:number,executionReferencePrice=price,marketSource="";
   try{
    let marketResponse:Response,marketQuote:any;
-   if(venue==="bybit"){
+   if(venue==="okx"){
+    const instId=symbol.endsWith("USDT")?symbol.slice(0,-4)+"-USDT-SWAP":symbol;
+    const marketUrl=new URL("https://www.okx.com/api/v5/market/ticker");marketUrl.searchParams.set("instId",instId);
+    marketResponse=await fetch(marketUrl,{cache:"no-store",signal:AbortSignal.timeout(6000)});marketQuote=await marketResponse.json();
+    if(!marketResponse.ok||marketQuote?.code!=="0"||!Number.isFinite(Number(marketQuote?.data?.[0]?.last)))return NextResponse.json({error:"Fresh OKX swap last-trade price could not be verified; paper trade blocked"},{status:502});
+    verifiedMarketPrice=Number(marketQuote.data[0].last);marketSource="OKX public swap last-trade ticker";
+   }else if(venue==="bybit"){
     const marketUrl=new URL("https://api.bybit.com/v5/market/tickers");marketUrl.searchParams.set("category","linear");marketUrl.searchParams.set("symbol",symbol);
     marketResponse=await fetch(marketUrl,{cache:"no-store",signal:AbortSignal.timeout(6000)});marketQuote=await marketResponse.json();
     if(!marketResponse.ok||marketQuote?.retCode!==0||!Number.isFinite(Number(marketQuote?.result?.list?.[0]?.lastPrice)))return NextResponse.json({error:"Fresh Bybit linear last-trade price could not be verified; paper trade blocked"},{status:502});
