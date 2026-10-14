@@ -538,8 +538,8 @@ test("in-dashboard charts use one candle source plus a shared live OKX swap last
   assert.match(futuresDesk, /function createMirrorChart\(\)/);
   assert.match(futuresDesk, /mirrorCandleSeries\.setData\(candleData\)/);
   assert.match(futuresDesk, /channel:"trades",instId/);
-  assert.match(futuresDesk, /function currentMarketPrice\(\)/);
-  assert.match(futuresDesk, /function renderSharedQuote\(price\)/);
+  assert.match(futuresDesk, /function hasFreshLiveQuote\(now=Date\.now\(\)\)/);\n  assert.match(futuresDesk, /function currentMarketPrice\(\)/);
+  assert.match(futuresDesk, /function renderSharedQuote\(_price\)/);
   assert.match(futuresDesk, /Open official TradingView \(external\)/);
 });
 
@@ -568,7 +568,7 @@ test("paper entry checks a live OKX last-trade ticker and blocks material quote 
 });
 
 test("continuous local agents veto missing or stale last-trade ticks", () => {
-  assert.match(futuresDesk, /quoteFresh=Number\.isFinite\(lastTradePrice\)&&quoteAgeMs<=3000/);
+  assert.match(futuresDesk, /quoteFresh=hasFreshLiveQuote\(now\)/);
   assert.match(futuresDesk, /const stale=now-end>msFor\(currentInterval\)\*2\+60000\|\|!quoteFresh/);
   assert.match(futuresDesk, /livePrice=Number\(currentMarketPrice\(\)\)/);
   assert.match(futuresDesk, /STALE QUOTE — ENTRIES BLOCKED/);
@@ -674,4 +674,13 @@ test("document extraction regression guards the earlier DOMMatrix runtime failur
   assert.match(documentExtract, /PDFParse\.setWorker\(worker\.getData\(\)\)/);
   assert.match(documentsRoute, /await extractPdfText\(buffer\)/);
   assert.match(readFileSync(new URL("./documents.test.mjs", import.meta.url), "utf8"), /await extractPdfText\(createPdfFixture\(\)\)/);
+});
+
+
+test("stale last-trade feed is never relabeled as a live quote", () => {
+  assert.match(futuresDesk, /byId\("livePrice"\)\.textContent=fresh\?fmt\(price\):"STALE"/);
+  assert.match(futuresDesk, /LIVE PRICE STALE/);
+  assert.match(futuresDesk, /window\.tarotaiSharedLastPrice=price/);
+  assert.match(futuresDesk, /if\(fresh\)\{/);
+  assert.match(futuresDesk, /function hasFreshLiveQuote\(now=Date\.now\(\)\)/);
 });
