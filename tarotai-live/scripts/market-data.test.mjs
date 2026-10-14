@@ -421,6 +421,7 @@ test("parallel specialist API performs distinct authenticated AI calls with inde
   assert.match(parallelAgentsRoute,/roles\.length!==8/);
   assert.match(parallelAgentsRoute,/vetoDeclared:!!v/);
   assert.match(parallelAgentsRoute,/role==="sizing"&&!vetoDeclared\?true:parsedVote\.veto/);
+  assert.ok(parallelAgentsRoute.includes('if(!monitorBias.vetoDeclared)throw new Error("Supervisor report omitted required VETO field.");'));
   assert.match(parallelAgentsRoute,/Market Structure Analyst/);
   assert.match(parallelAgentsRoute,/Entry Setup Specialist/);
   assert.match(parallelAgentsRoute,/Stop-Loss & Take-Profit Planner/);
