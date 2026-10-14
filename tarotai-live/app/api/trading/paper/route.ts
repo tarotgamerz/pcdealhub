@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
 import { isAuthorized } from "../../../../lib/auth";
-import { applySlippage, calculateFee, isStale, validateStops, resolveStopTarget, validatePaperExposure, PAPER_MAX_POSITION_EXPOSURE_PCT, PAPER_MAX_PORTFOLIO_EXPOSURE_PCT } from "../../../../lib/trading-rules.mjs";
+import { applySlippage, calculateFee, isStale, validateStops, resolveStopTarget, resolveTargetOnlyObservation, validatePaperExposure, PAPER_MAX_POSITION_EXPOSURE_PCT, PAPER_MAX_PORTFOLIO_EXPOSURE_PCT } from "../../../../lib/trading-rules.mjs";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 function store(){const url=process.env.UPSTASH_REDIS_REST_URL,token=process.env.UPSTASH_REDIS_REST_TOKEN;if(!url||!token)throw new Error("STORE_OFF");return new Redis({url,token});}
@@ -70,24 +70,28 @@ export async function POST(req:Request){
    if(Date.now()-latest.closeTime>120000||latest.closeTime>Date.now())return NextResponse.json({error:"Closed stop-check candles are stale or malformed"},{status:409});
    const rows=(await d.lrange("tarotai:paper:ledger",0,999)).map((x:any)=>typeof x==="string"?JSON.parse(x):x);
    const closed=new Set(rows.filter((x:any)=>x.parentTradeId&&["PAPER_CLOSE","PAPER_STOP","PAPER_TARGET"].includes(x.status)).map((x:any)=>x.parentTradeId));
-   const triggered:any[]=[],historyGaps:any[]=[];
+   const triggered:any[]=[],historyGaps:any[]=[],ambiguousObservationCandles:any[]=[];
    for(const trade of rows.filter((x:any)=>x.status==="PAPER_OPEN"&&x.symbol===symbol&&(x.venue||"binance")===venue&&!closed.has(x.id)&&x.stopPrice&&x.targetPrice)){
-    const openedAt=Date.parse(trade.createdAt);
+    const openedAt=Date.parse(trade.createdAt),targetOnlyObservation=trade.experimentMode==="target-only-observation";
     if(!Number.isFinite(openedAt))continue;
-    if(openedAt<closedCandles[0].time){historyGaps.push({tradeId:trade.id,createdAt:trade.createdAt,oldestAvailableCandleTime:closedCandles[0].time});continue;}
-    // Replay each fully closed candle after entry, in chronological order, so a temporary stop touch cannot be missed.
+    // Normal strategy positions require complete post-entry history. Target-only observations may scan the latest
+    // available candles even after older history ages out because every returned candle is newer than that entry.
+    if(openedAt<closedCandles[0].time&&!targetOnlyObservation){historyGaps.push({tradeId:trade.id,createdAt:trade.createdAt,oldestAvailableCandleTime:closedCandles[0].time});continue;}
     const eligible=closedCandles.filter((bar:any)=>bar.time>openedAt);
     for(const bar of eligible){
-     const result=resolveStopTarget(bar.candle,trade.side==="BUY"?"LONG":"SHORT",Number(trade.stopPrice),Number(trade.targetPrice));
+     const result=targetOnlyObservation
+      ?resolveTargetOnlyObservation(bar.candle,trade.side==="BUY"?"LONG":"SHORT",Number(trade.stopPrice),Number(trade.targetPrice))
+      :resolveStopTarget(bar.candle,trade.side==="BUY"?"LONG":"SHORT",Number(trade.stopPrice),Number(trade.targetPrice));
+     if(targetOnlyObservation&&result.ambiguous)ambiguousObservationCandles.push({tradeId:trade.id,candleTime:bar.time});
      if(!result.exit||result.price===null)continue;
      const closeSide=trade.side==="BUY"?"SELL":"BUY",fill=applySlippage(closeSide,Number(result.price),Number(trade.slippageBps)),fee=calculateFee(fill,Number(trade.quantity),Number(trade.feeBps));
      const gross=trade.side==="BUY"?(fill-Number(trade.fillPrice))*Number(trade.quantity):(Number(trade.fillPrice)-fill)*Number(trade.quantity);
-     const closedTrade={id:crypto.randomUUID(),parentTradeId:trade.id,createdAt:new Date().toISOString(),symbol,side:closeSide,quantity:trade.quantity,requestedPrice:result.price,fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),pnlGross:Number(gross.toFixed(8)),pnlNet:Number((gross-fee-Number(trade.fee||0)).toFixed(8)),feeBps:trade.feeBps,slippageBps:trade.slippageBps,status:result.exit==="STOP"?"PAPER_STOP":"PAPER_TARGET",ambiguousCandle:result.ambiguous,sourceCandleTime:bar.time,sourceCandleCloseTime:bar.closeTime,mode:"PAPER_ONLY",sourceVenue:venue};
+     const closedTrade={id:crypto.randomUUID(),parentTradeId:trade.id,createdAt:new Date().toISOString(),symbol,side:closeSide,quantity:trade.quantity,requestedPrice:result.price,fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),pnlGross:Number(gross.toFixed(8)),pnlNet:Number((gross-fee-Number(trade.fee||0)).toFixed(8)),feeBps:trade.feeBps,slippageBps:trade.slippageBps,status:result.exit==="STOP"?"PAPER_STOP":"PAPER_TARGET",ambiguousCandle:result.ambiguous,sourceCandleTime:bar.time,sourceCandleCloseTime:bar.closeTime,mode:"PAPER_ONLY",experimentMode:trade.experimentMode||null,sourceVenue:venue};
      await d.lpush("tarotai:paper:ledger",JSON.stringify(closedTrade));triggered.push(closedTrade);closed.add(trade.id);break;
     }
    }
    await d.ltrim("tarotai:paper:ledger",0,999);
-   return NextResponse.json({mode:"PAPER_ONLY",checkedSymbol:symbol,venue,sourceCandle:latest.candle,sourceCandleTime:latest.time,sourceCandleCloseTime:latest.closeTime,sourceCandleClosed:true,triggered,historyGaps,liveTradingEnabled:false,stopFirstOnAmbiguousCandle:true,note:"Only fully closed candles beginning after paper entry are evaluated; the first stop/target event is recorded."});
+   return NextResponse.json({mode:"PAPER_ONLY",checkedSymbol:symbol,venue,sourceCandle:latest.candle,sourceCandleTime:latest.time,sourceCandleCloseTime:latest.closeTime,sourceCandleClosed:true,triggered,historyGaps,ambiguousObservationCandles,liveTradingEnabled:false,stopFirstOnAmbiguousCandle:true,note:"Strategy positions use stop-first exits on closed candles. Target-only observation trades ignore stop touches, close only when a profit target is confirmed without an ambiguous stop touch, and remain open otherwise."});
   }
   if(!["OPEN","CLOSE"].includes(action))return NextResponse.json({error:"action must be OPEN, CLOSE, REPLAY, or STOP_CHECK"},{status:400});
   const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),venue=String(b.venue||"binance").toLowerCase(),side=String(b.side||"").toUpperCase(),qty=Number(b.quantity),price=Number(b.price),feeBps=Number(b.feeBps??5),slipBps=Number(b.slippageBps??2),marketTime=Number(b.marketTime);
@@ -170,13 +174,18 @@ export async function POST(req:Request){
   const fill=applySlippage(side,executionReferencePrice,slipBps),fee=calculateFee(fill,qty,feeBps);
   const grossPnl=parentTrade?(parentTrade.side==="BUY"?(fill-Number(parentTrade.fillPrice))*qty:(Number(parentTrade.fillPrice)-fill)*qty):null;
   const suppliedSource=String(b.decisionSource||"");
-  const decisionSource=["continuous-local-team","ai-eight-agent-review"].includes(suppliedSource)?suppliedSource:"manual-chart-signal";
-  const signalCandleTime=Number.isFinite(Number(b.signalCandleTime))&&Number(b.signalCandleTime)>0?Number(b.signalCandleTime):null;
-  const decisionAction=["BUY / LONG","SELL / SHORT"].includes(String(b.decisionAction||""))?String(b.decisionAction):null;
+  const experimentMode=action==="OPEN"&&b.experimentMode==="target-only-observation"?"target-only-observation":parentTrade?.experimentMode==="target-only-observation"?"target-only-observation":null;
+  const decisionSource=experimentMode?"target-only-observation":["continuous-local-team","ai-eight-agent-review"].includes(suppliedSource)?suppliedSource:"manual-chart-signal";
+  const signalCandleTime=experimentMode?null:(Number.isFinite(Number(b.signalCandleTime))&&Number(b.signalCandleTime)>0?Number(b.signalCandleTime):null);
+  const decisionAction=experimentMode?null:(["BUY / LONG","SELL / SHORT"].includes(String(b.decisionAction||""))?String(b.decisionAction):null);
   const agentTeamModel=String(b.agentTeamModel||"unreported").slice(0,100);
+  const observationAgentAction=["BUY / LONG","SELL / SHORT","HOLD / WAIT"].includes(String(b.observationAgentAction||""))?String(b.observationAgentAction):null;
+  const observationCandleTime=Number.isFinite(Number(b.observationCandleTime))&&Number(b.observationCandleTime)>0?Number(b.observationCandleTime):null;
+  const observationCycle=Number.isFinite(Number(b.observationCycle))?Math.max(0,Math.min(100000000,Math.floor(Number(b.observationCycle)))):null;
+  const experimentObservation=parentTrade?.experimentObservation||(experimentMode?{agentDecisionAtEntry:observationAgentAction,candleTime:observationCandleTime,cycle:observationCycle,note:"Operator-directed paper observation; not an agent-generated trading signal."}:null);
   const roles=["market","entry","exits","sizing","discipline","position","journal","supervisor"];
   const agentVotes=Array.isArray(b.agentVotes)?b.agentVotes.slice(0,8).filter((v:any)=>v&&roles.includes(String(v.role))).map((v:any)=>({role:String(v.role),bias:["LONG","SHORT","WAIT"].includes(String(v.bias))?String(v.bias):"WAIT",veto:Boolean(v.veto),model:String(v.model||"unreported").slice(0,100),fallback:Boolean(v.fallback)})):[];
-  const trade={id:crypto.randomUUID(),parentTradeId:parentTrade?.id||null,createdAt:new Date().toISOString(),symbol,side,quantity:qty,requestedPrice:price,verifiedMarketPrice,marketDataCheckedAt:new Date().toISOString(),venue,marketSource,fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),pnlGross:grossPnl===null?null:Number(grossPnl.toFixed(8)),pnlNet:grossPnl===null?null:Number((grossPnl-fee-Number(parentTrade.fee||0)).toFixed(8)),feeBps,slippageBps:slipBps,spreadBps:Number.isFinite(verifiedSpreadBps)?Number(verifiedSpreadBps.toFixed(4)):null,fillNotional:Number((qty*fill).toFixed(8)),paperBalance:action==="OPEN"?paperBalance:(parentTrade?.paperBalance??null),riskPct:action==="OPEN"?riskPct:(parentTrade?.riskPct??null),maxExposurePct:action==="OPEN"?maxExposurePct:(parentTrade?.maxExposurePct??null),plannedRisk:action==="OPEN"?Number((qty*Math.abs(executionReferencePrice-Number(stopPrice))).toFixed(8)):(parentTrade?.plannedRisk??null),stopPrice,targetPrice,status:"PAPER_"+action,mode:"PAPER_ONLY",
+  const trade={id:crypto.randomUUID(),parentTradeId:parentTrade?.id||null,createdAt:new Date().toISOString(),symbol,side,quantity:qty,requestedPrice:price,verifiedMarketPrice,marketDataCheckedAt:new Date().toISOString(),venue,marketSource,fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),pnlGross:grossPnl===null?null:Number(grossPnl.toFixed(8)),pnlNet:grossPnl===null?null:Number((grossPnl-fee-Number(parentTrade.fee||0)).toFixed(8)),feeBps,slippageBps:slipBps,spreadBps:Number.isFinite(verifiedSpreadBps)?Number(verifiedSpreadBps.toFixed(4)):null,fillNotional:Number((qty*fill).toFixed(8)),paperBalance:action==="OPEN"?paperBalance:(parentTrade?.paperBalance??null),riskPct:action==="OPEN"?riskPct:(parentTrade?.riskPct??null),maxExposurePct:action==="OPEN"?maxExposurePct:(parentTrade?.maxExposurePct??null),plannedRisk:action==="OPEN"?Number((qty*Math.abs(executionReferencePrice-Number(stopPrice))).toFixed(8)):(parentTrade?.plannedRisk??null),stopPrice,targetPrice,status:"PAPER_"+action,mode:"PAPER_ONLY",experimentMode:experimentMode||null,experimentObservation,
     decisionSource:parentTrade?.decisionSource||decisionSource,signalCandleTime:parentTrade?.signalCandleTime??signalCandleTime,decisionAction:parentTrade?.decisionAction||decisionAction,agentTeamModel:parentTrade?.agentTeamModel||agentTeamModel,agentVotes:parentTrade?.agentVotes||agentVotes};
   if([trade.stopPrice,trade.targetPrice].some((x:any)=>x!==null&&(!Number.isFinite(x)||x<=0)))return NextResponse.json({error:"Stop/target must be positive numbers"},{status:400});
   await d.lpush("tarotai:paper:ledger",JSON.stringify(trade));await d.ltrim("tarotai:paper:ledger",0,999);
