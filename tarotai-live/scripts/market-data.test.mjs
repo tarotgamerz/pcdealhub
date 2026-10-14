@@ -593,8 +593,8 @@ test("Binance Futures is the canonical live chart source selected by the user", 
   assert.match(futuresDesk, /wss:\/\/fstream\.binance\.com\/ws\//);
   assert.match(source, /https:\/\/fapi\.binance\.com\/fapi\/v1\/klines/);
   assert.match(parallelAgentsRoute, /fapi\/v1\/klines/);
-  assert.match(paperRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/24hr/);
-  assert.match(liveQuoteRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/24hr/);
+  assert.match(paperRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/bookTicker/);
+  assert.match(liveQuoteRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/bookTicker/);
   assert.match(liveQuoteRoute, /fapi\.binance\.com\/fapi\/v1\/ticker\/bookTicker/);
   assert.match(liveQuoteRoute, /priceBasis: "best-bid\/ask midpoint"/);
   assert.match(liveQuoteRoute, /payload\?\.time/);
@@ -701,7 +701,7 @@ test("Binance live chart renders automatic support, resistance, trendlines and s
   assert.match(futuresDesk, /mirrorRisingTrendSeries/);
   assert.match(futuresDesk, /lastQuoteSource===marketVenue\+"-websocket"/);
   assert.match(source, /https:\/\/fapi\.binance\.com\/fapi\/v1\/klines/);
-  assert.match(paperRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/24hr/);
+  assert.match(paperRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/bookTicker/);
 });
 
 
