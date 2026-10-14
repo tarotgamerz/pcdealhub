@@ -476,7 +476,7 @@ test("live chart retains historical candles, loads older pages on left-scroll, a
   assert.match(futuresDesk, /setVisibleLogicalRange\(\{from:rangeBefore\.from\+added,to:rangeBefore\.to\+added\}\)/);
   assert.match(futuresDesk, /slice\(-5000\)/);
   assert.match(futuresDesk, /orderedCandles\(\[\.\.\.rows,\.\.\.data\.candles\]\)/);
-  assert.match(futuresDesk, /if\(stickAtRealtime\)chart\.timeScale\(\)\.scrollToRealTime\(\)/);
+  assert.match(futuresDesk, /if\(stayAtRealtime\)\{chart\.timeScale\(\)\.scrollToRealTime\(\);if\(mirrorChart\)mirrorChart\.timeScale\(\)\.scrollToRealTime\(\)\}/);
 });
 
 test("multi-agent panel recovers missing or expired signed sessions without bypassing API authentication", () => {
