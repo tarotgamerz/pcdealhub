@@ -61,7 +61,7 @@ export async function POST(req:Request){
     await d.ltrim("tarotai:paper:ledger",0,999);
     return NextResponse.json({mode:"PAPER_ONLY",checkedSymbol:symbol,verifiedLastTradePrice:livePrice,checkedAt:new Date().toISOString(),triggered,liveTradingEnabled:false,note:"Stop/target exits are checked against a server-verified Binance Futures last-trade quote. Modeled slippage and fees apply; no real exchange order is sent."});
    }finally{
-    try{await d.eval<number>("if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",[lockKey],[lockToken]);}catch{}
+    try{await d.eval("if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",[lockKey],[lockToken]);}catch{}
    }
   }
   if(action==="STOP_CHECK"){
