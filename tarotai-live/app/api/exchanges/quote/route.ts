@@ -38,7 +38,7 @@ export async function GET(request: Request) {
       if (!response.ok || payload?.symbol !== symbol || !Number.isFinite(spread.bid) || !Number.isFinite(spread.ask) || !Number.isFinite(timestamp) || timestamp <= 0 || ageMs < -1500 || ageMs > 5000) {
         return NextResponse.json({ error: "Binance order-book ticker is stale or invalid.", detail: payload?.msg || "Need a valid bid, ask and exchange timestamp from one snapshot.", venue, symbol, ageMs: Number.isFinite(ageMs) ? ageMs : null, stale: true, readOnly: true, orderPlacement: false }, { status: 502, headers: { "Cache-Control": "no-store" } });
       }
-      const price = (spread.bid + spread.ask) / 2;
+      const price = (Number(spread.bid) + Number(spread.ask)) / 2;
       return NextResponse.json({ ok: true, venue: "binance", symbol, price, priceBasis: "best-bid/ask midpoint", ...spread, spreadAvailable: Number.isFinite(spread.spreadBps), timestamp, ageMs, source: "binance-usdm-book-ticker-mid", stale: false, readOnly: true, orderPlacement: false }, { headers: { "Cache-Control": "no-store" } });
     } catch (error) {
       return NextResponse.json({ error: "Binance live order-book ticker unavailable.", detail: error instanceof Error ? error.message : "Unknown error.", venue, symbol, readOnly: true, orderPlacement: false }, { status: 502, headers: { "Cache-Control": "no-store" } });
