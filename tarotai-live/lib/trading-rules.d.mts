@@ -11,6 +11,12 @@ export function resolveStopTarget(
   stop: number,
   target: number
 ): { exit: "STOP" | "TARGET"; price: number; ambiguous: boolean } | { exit: null; price: null; ambiguous: false };
+export function resolveTargetOnlyObservation(
+  candle: { open: number; high: number; low: number },
+  side: PositionSide,
+  stop: number,
+  target: number
+): { exit: "TARGET"; price: number; ambiguous: false; stopTouched: false; targetTouched: true } | { exit: null; price: null; ambiguous: boolean; stopTouched: boolean; targetTouched: boolean };
 export function validateOrderRequest(input: {
   symbol: string;
   side: string;
