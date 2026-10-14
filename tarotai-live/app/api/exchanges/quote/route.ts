@@ -7,7 +7,7 @@ const SUPPORTED = new Set(["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT"
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const venue = (url.searchParams.get("venue") || "okx").toLowerCase();
+  const venue = (url.searchParams.get("venue") || "binance").toLowerCase();
   const symbol = (url.searchParams.get("symbol") || "BTCUSDT").toUpperCase();
 
   if (!["okx", "binance"].includes(venue) || !SUPPORTED.has(symbol)) {
