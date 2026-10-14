@@ -658,7 +658,7 @@ test("demo order ticket uses live agent decision and persistent paper execution,
 
 
 test("strategy chart uses the shared live quote and refreshes automatically", () => {
-  assert.match(futuresDesk, /<label>Live last trade<\/label><strong id="strategyPrice"/);
+  assert.match(futuresDesk, /<label>Live bid\/ask midpoint<\/label><strong id="strategyPrice"/);
   assert.match(futuresDesk, /window\.tarotaiSharedLastPrice=price/);
   assert.match(futuresDesk, /window\.tarotaiUpdateStrategyLiveQuote\(price,now\)/);
   assert.match(futuresDesk, /quoteFresh\?quote\.toLocaleString/);
@@ -738,14 +738,15 @@ test("stale last-trade feed is never relabeled as a live quote", () => {
 });
 
 
-test("live last-trade tick updates the in-progress candle on both in-app price charts", () => {
-  assert.match(futuresDesk, /function syncLiveQuoteToCurrentCandle\(price,exchangeTimestamp,now=Date\.now\(\)\)/);
-  assert.match(futuresDesk, /candleSeries\.update\(point\);[\s\S]*?mirrorCandleSeries\.update\(point\)/);
-  assert.match(futuresDesk, /priceLineVisible:false,lastValueVisible:false/);
-  assert.match(futuresDesk, /function drawStrategyChart\(candles,symbol,interval,higherCandles=\[\],liveCandle=null\)/);
-  assert.match(futuresDesk, /window\.tarotaiStrategyLiveCandle=liveCandle/);
-  assert.match(futuresDesk, /drawStrategyChart\(candles,symbol,interval,higherCandles,liveCandle\)/);
+test("live quote marker stays synchronized across charts without rewriting traded candle OHLC", () => {
+  assert.match(futuresDesk, /currentSymbol\.toLowerCase\(\)+"@bookTicker"/);
+  assert.match(futuresDesk, /const bid=Number\(tick\.b\),ask=Number\(tick\.a\),price=\(bid\+ask\)\/2/);
+  assert.match(futuresDesk, /mainLivePriceLine=candleSeries\.createPriceLine\(\{price,color:"#54c8ff"/);
+  assert.match(futuresDesk, /mirrorLivePriceLine=mirrorCandleSeries\.createPriceLine\(\{price,color:"#54c8ff"/);
   assert.match(futuresDesk, /liveP=Number\(window\.tarotaiSharedLastPrice\)/);
+  assert.match(futuresDesk, /if\(liveQuoteFresh&&liveP>=min&&liveP<=max\)/);
+  assert.doesNotMatch(futuresDesk, /syncLiveQuoteToCurrentCandle/);
+  assert.doesNotMatch(futuresDesk, /forming\.close=quote/);
   assert.match(futuresDesk, /streamWasStale=Date\.now\(\)-lastMarketUpdateAt>5000/);
   assert.match(futuresDesk, /pollTimer=setInterval\(\(\)=>\{if\(document\.visibilityState==="visible"&&Date\.now\(\)-lastMarketUpdateAt>5000\)void refresh\(true\);\},5000\)/);
 });
