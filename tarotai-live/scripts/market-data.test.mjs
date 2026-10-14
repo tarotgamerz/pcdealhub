@@ -527,3 +527,23 @@ test("automatic paper trading is opt-in, persistent-ledger gated, and records on
   assert.match(futuresDesk, /PAPER_ONLY/);
   assert.match(futuresDesk, /No exchange order was sent/);
 });
+
+
+test("strategy chart never silently falls back to a different exchange than the live chart", () => {
+  assert.match(futuresDesk, /const sourceVenue=marketVenue\|\|'binance'/);
+  assert.match(futuresDesk, /Alternate exchanges are disabled to prevent mismatched prices/);
+  assert.doesNotMatch(futuresDesk, /api\.bybit\.com\/v5\/market\/kline/);
+  assert.doesNotMatch(futuresDesk, /www\.okx\.com\/api\/v5\/market\/candles/);
+});
+
+test("paper fills use a server-verified live last-trade quote and reject price drift", () => {
+  assert.match(paperRoute, /fapi\.binance\.com\/fapi\/v1\/ticker\/price/);
+  assert.match(paperRoute, /priceDrift>0\.002/);
+  assert.match(paperRoute, /maxAllowedDriftPct:0\.2/);
+});
+
+test("continuous team refreshes every second and vetoes stale live quotes", () => {
+  assert.match(futuresDesk, /continuousTeamTimer=setInterval\(runContinuousAgentCycle,1000\)/);
+  assert.match(futuresDesk, /quoteAgeMs>quoteFreshnessLimit/);
+  assert.match(futuresDesk, /STALE FEED — ENTRIES BLOCKED/);
+});
