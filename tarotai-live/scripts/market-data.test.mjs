@@ -527,3 +527,23 @@ test("automatic paper trading is opt-in, persistent-ledger gated, and records on
   assert.match(futuresDesk, /PAPER_ONLY/);
   assert.match(futuresDesk, /No exchange order was sent/);
 });
+
+
+test("in-dashboard charts use one candle source plus a shared live Binance Futures last-trade quote", () => {
+  assert.match(futuresDesk, /id="tvSyncedChart"/);
+  assert.doesNotMatch(futuresDesk, /<iframe id="tvChart"/);
+  assert.match(futuresDesk, /function createMirrorChart\(\)/);
+  assert.match(futuresDesk, /mirrorCandleSeries\.setData\(candleData\)/);
+  assert.match(futuresDesk, /@aggTrade/);
+  assert.match(futuresDesk, /function currentMarketPrice\(\)/);
+  assert.match(futuresDesk, /function renderSharedQuote\(price\)/);
+  assert.match(futuresDesk, /Open official TradingView \(external\)/);
+});
+
+test("continuous local rule roles refresh every second and paper entries use the shared verified last trade", () => {
+  assert.match(futuresDesk, /continuousTeamTimer=setInterval\(runContinuousAgentCycle,1000\)/);
+  assert.match(futuresDesk, /const entry=Number\(currentMarketPrice\(\)\)/);
+  assert.match(futuresDesk, /source:"continuous-local-team"/);
+  assert.match(futuresDesk, /PAPER_ONLY_APPROVAL/);
+  assert.match(paperRoute, /liveTradingEnabled:false/);
+});
