@@ -140,6 +140,11 @@ export async function POST(req:Request){
    const closedIds=new Set(existingRows.filter((x:any)=>x.parentTradeId&&["PAPER_CLOSE","PAPER_STOP","PAPER_TARGET"].includes(x.status)).map((x:any)=>x.parentTradeId));
    const openRows=existingRows.filter((x:any)=>x.status==="PAPER_OPEN"&&!closedIds.has(x.id));
    if(openRows.some((x:any)=>x.symbol===symbol))return NextResponse.json({error:"A paper position for this symbol is already open; close it before opening another"},{status:409});
+   if(openRows.some((x:any)=>!Number.isFinite(Number(x.paperBalance))||Number(x.paperBalance)<=0))return NextResponse.json({error:"A legacy open paper position has no recorded starting balance. Close legacy positions before opening another trade."},{status:409});
+   const openBalances=openRows.map((x:any)=>Number(x.paperBalance));
+   if(openBalances.some((value:number)=>Math.abs(value-openBalances[0])>Math.max(0.01,openBalances[0]*1e-9)))return NextResponse.json({error:"Open paper positions have inconsistent recorded balances. Close all open positions before continuing."},{status:409});
+   const requestedBalance=Number(b.paperBalance);
+   if(openBalances.length&&Number.isFinite(requestedBalance)&&Math.abs(requestedBalance-openBalances[0])>Math.max(0.01,openBalances[0]*1e-9))return NextResponse.json({error:"Paper starting balance is locked while positions are open. Use "+openBalances[0].toFixed(2)+" USDT or close all open positions first."},{status:409});
    existingOpenExposure=openRows.reduce((sum:number,x:any)=>sum+Number(x.fillPrice||x.verifiedMarketPrice||x.requestedPrice)*Number(x.quantity),0);
    if(!Number.isFinite(existingOpenExposure)||existingOpenExposure<0)return NextResponse.json({error:"Existing paper exposure is malformed; opening another position is blocked"},{status:409});
   }
