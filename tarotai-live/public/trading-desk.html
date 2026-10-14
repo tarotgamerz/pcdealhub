@@ -338,6 +338,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       }catch(e){}
     lastLiveLineUpdateAt=now;
     }
+    void checkPaperTickExit(price);
   }
   function connectQuoteSocket(force=false){
     if(!currentSymbol||marketVenue!=="binance"){if(quoteSocket){quoteSocket.onclose=null;try{quoteSocket.close();}catch(e){}quoteSocket=null;}quoteSymbol="";lastTradePrice=NaN;lastTradeAt=0;return;}
@@ -842,7 +843,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   });
   updateLiveAgentSlotOptions();
 
-  let paperBusy=false,paperOpening=false,paperStoreReady=false,autoPaperEnabled=false,lastAutoPaperCandleKey="";
+  let paperBusy=false,paperOpening=false,paperStoreReady=false,autoPaperEnabled=false,lastAutoPaperCandleKey="",paperTickCheckInFlight=false,pendingPaperTickPrice=NaN,lastPaperTickCheckAt=0;
   const paperClosedStatuses=new Set(["PAPER_CLOSE","PAPER_STOP","PAPER_TARGET"]);
   const paperNum=v=>Number.isFinite(Number(v))?Number(v):NaN;
   const paperFmt=v=>Number.isFinite(v)?v.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
@@ -850,6 +851,25 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   function paperOpened(ledger){const closed=new Set(ledger.filter(t=>t.parentTradeId&&paperClosedStatuses.has(t.status)).map(t=>t.parentTradeId));return ledger.filter(t=>t.status==="PAPER_OPEN"&&!closed.has(t.id));}
   async function paperRequest(url,options={}){
     const r=await fetch(url,{cache:"no-store",...options});let d={};try{d=await r.json();}catch(e){d={error:"Invalid server response"};}if(!r.ok)throw new Error(d.error||d.detail||("HTTP "+r.status));return d;
+  }
+  async function checkPaperTickExit(price){
+    if(!paperStoreReady||!Number.isFinite(price)||price<=0||!Number.isFinite(lastTradeAt)||Date.now()-lastTradeAt>3000)return;
+    const ledger=Array.isArray(window.tarotaiPaperLedger)?window.tarotaiPaperLedger:[],opened=paperOpened(ledger).filter(t=>t.symbol===currentSymbol);
+    const crossing=opened.some(t=>Number.isFinite(Number(t.stopPrice))&&Number.isFinite(Number(t.targetPrice))&&(t.side==="BUY"?(price<=Number(t.stopPrice)||price>=Number(t.targetPrice)):(price>=Number(t.stopPrice)||price<=Number(t.targetPrice))));
+    if(!crossing)return;
+    if(paperBusy||paperTickCheckInFlight){pendingPaperTickPrice=price;return;}
+    if(Date.now()-lastPaperTickCheckAt<500)return;
+    paperTickCheckInFlight=true;lastPaperTickCheckAt=Date.now();
+    try{
+      const checked=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"TICK_CHECK",symbol:currentSymbol})});
+      if(Array.isArray(checked.triggered)&&checked.triggered.length){
+        const summary=checked.triggered.map(t=>t.symbol+" "+String(t.status).replace("PAPER_","")+" @ "+paperFmt(Number(t.fillPrice))+" · net "+(Number(t.pnlNet)>=0?"+":"")+paperFmt(Number(t.pnlNet))+" USDT").join("; ");
+        paperStatus("LIVE PAPER EXIT · "+summary+". Server-verified last trade; no exchange order was sent.");
+        log("Server-verified live-tick paper exit: "+summary);
+        const latest=await paperRequest("/api/trading/paper");paperRender(Array.isArray(latest.ledger)?latest.ledger:[]);
+      }
+    }catch(e){paperStatus("Live-tick paper stop/target check failed: "+e.message+". Closed-candle reconciliation remains active.",true);}
+    finally{paperTickCheckInFlight=false;if(Number.isFinite(pendingPaperTickPrice)){const nextPrice=pendingPaperTickPrice;pendingPaperTickPrice=NaN;void checkPaperTickExit(nextPrice);}}
   }
   function paperRender(ledger){
     const opened=paperOpened(ledger),closed=ledger.filter(t=>t.parentTradeId&&paperClosedStatuses.has(t.status));
@@ -884,7 +904,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     if(opened.some(t=>t.symbol===byId("liveSymbol").value))paperStatus("A paper position for this market is already open. Close it before opening another.");
   }
   async function paperRefresh(checkStops=true){
-    if(paperBusy)return;paperBusy=true;
+    if(paperBusy||paperTickCheckInFlight)return;paperBusy=true;
     try{
       let d=await paperRequest("/api/trading/paper"),ledger=Array.isArray(d.ledger)?d.ledger:[];paperStoreReady=true;
       if(checkStops){
@@ -902,7 +922,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       ["livePaperOpenCount","livePaperClosedCount","livePaperNetPnl","livePaperWinRate","livePaperAiWinRate","livePaperLocalWinRate"].forEach(id=>byId(id).textContent="—");
       byId("livePaperPositions").textContent="Ledger unavailable. Unlock private APIs and configure Upstash Redis. No paper trade was created.";
       byId("livePaperOpen").disabled=true;paperStatus("Paper ledger unavailable: "+e.message+". Authentication and persistent storage must work before entry.",true);
-    }finally{paperBusy=false;}
+    }finally{paperBusy=false;if(Number.isFinite(pendingPaperTickPrice)){const nextPrice=pendingPaperTickPrice;pendingPaperTickPrice=NaN;void checkPaperTickExit(nextPrice);}}
   }
   async function paperOpenSignal(){
     if(paperOpening)return;
@@ -960,7 +980,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       if(!paperStoreReady){status.textContent="AUTO PAPER BLOCKED: private authentication or persistent Upstash Redis ledger is unavailable. No simulated entry was created.";status.style.color="var(--red)";button.setAttribute("aria-pressed","false");return;}
       autoPaperEnabled=true;lastAutoPaperCandleKey="";
       button.textContent="Disable auto paper trading";button.setAttribute("aria-pressed","true");
-      status.textContent="AUTO PAPER: ON · the 8-role local rule team checks the same closed candle every second and opens a simulated position only after exact-candle approval, position sizing and server-side risk review. Stop/target monitoring uses live last-trade ticks plus closed Binance 1-minute candle reconciliation. No real orders. Keep this tab open and visible.";
+      status.textContent="AUTO PAPER: ON · the 8-role local rule team checks the same closed candle every second and opens a simulated position only after exact-candle approval, position sizing and server-side risk review. Stop/target exits use a server-verified live last-trade quote and closed 1-minute candle reconciliation. No real orders. Keep this tab open and visible.";
       status.style.color="var(--green)";runContinuousAgentCycle();
     }else{
       autoPaperEnabled=false;button.textContent="Enable auto paper trading";button.setAttribute("aria-pressed","false");

@@ -30,6 +30,40 @@ export async function POST(req:Request){
    await d.lpush("tarotai:paper:replays",JSON.stringify(replay));await d.ltrim("tarotai:paper:replays",0,19);
    return NextResponse.json({mode:"PAPER_ONLY",replayId:replay.id,candles,stored:true,liveTradingEnabled:false});
   }
+  if(action==="TICK_CHECK"){
+   const symbol=String(b.symbol||"BTCUSDT").toUpperCase();
+   if(!/^[A-Z0-9]{4,20}$/.test(symbol))return NextResponse.json({error:"Unsupported symbol"},{status:400});
+   const lockKey="tarotai:paper:ticklock:"+symbol,lockToken=crypto.randomUUID();
+   const acquired=await d.set(lockKey,lockToken,{nx:true,ex:5});
+   if(!acquired)return NextResponse.json({mode:"PAPER_ONLY",checkedSymbol:symbol,triggered:[],lockBusy:true,liveTradingEnabled:false});
+   try{
+    let livePrice:number;
+    try{
+     const url=new URL("https://fapi.binance.com/fapi/v1/ticker/price");url.searchParams.set("symbol",symbol);
+     const response=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(2500)}),raw=await response.json();
+     livePrice=Number(raw?.price);
+     if(!response.ok||String(raw?.symbol||"").toUpperCase()!==symbol||!Number.isFinite(livePrice)||livePrice<=0)throw new Error("ticker unavailable");
+    }catch{return NextResponse.json({error:"Binance Futures live price could not be verified; tick exit was not applied"},{status:502});}
+    const rows=(await d.lrange("tarotai:paper:ledger",0,999)).map((x:any)=>typeof x==="string"?JSON.parse(x):x);
+    const closed=new Set(rows.filter((x:any)=>x.parentTradeId&&["PAPER_CLOSE","PAPER_STOP","PAPER_TARGET"].includes(x.status)).map((x:any)=>x.parentTradeId));
+    const triggered:any[]=[];
+    for(const trade of rows.filter((x:any)=>x.status==="PAPER_OPEN"&&x.symbol===symbol&&!closed.has(x.id))){
+     const stop=Number(trade.stopPrice),target=Number(trade.targetPrice),qty=Number(trade.quantity),entry=Number(trade.fillPrice);
+     if(![stop,target,qty,entry].every(Number.isFinite)||stop<=0||target<=0||qty<=0)continue;
+     const isLong=trade.side==="BUY",stopHit=isLong?livePrice<=stop:livePrice>=stop,targetHit=isLong?livePrice>=target:livePrice<=target;
+     if(!stopHit&&!targetHit)continue;
+     const kind=stopHit?"STOP":"TARGET",requestedPrice=stopHit?livePrice:target,closeSide=isLong?"SELL":"BUY",feeBps=Number(trade.feeBps??5),slipBps=Number(trade.slippageBps??2);
+     const fill=applySlippage(closeSide,requestedPrice,slipBps),fee=calculateFee(fill,qty,feeBps);
+     const gross=isLong?(fill-entry)*qty:(entry-fill)*qty;
+     const closedTrade={id:crypto.randomUUID(),parentTradeId:trade.id,createdAt:new Date().toISOString(),symbol,side:closeSide,quantity:qty,requestedPrice,liveTickPrice:livePrice,fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),pnlGross:Number(gross.toFixed(8)),pnlNet:Number((gross-fee-Number(trade.fee||0)).toFixed(8)),feeBps,slippageBps:slipBps,status:kind==="STOP"?"PAPER_STOP":"PAPER_TARGET",exitTrigger:"BINANCE_FUTURES_LAST_TRADE",exitTriggerAt:new Date().toISOString(),mode:"PAPER_ONLY",decisionSource:trade.decisionSource,signalCandleTime:trade.signalCandleTime,decisionAction:trade.decisionAction,agentTeamModel:trade.agentTeamModel,agentVotes:trade.agentVotes};
+     await d.lpush("tarotai:paper:ledger",JSON.stringify(closedTrade));triggered.push(closedTrade);closed.add(trade.id);
+    }
+    await d.ltrim("tarotai:paper:ledger",0,999);
+    return NextResponse.json({mode:"PAPER_ONLY",checkedSymbol:symbol,verifiedLastTradePrice:livePrice,checkedAt:new Date().toISOString(),triggered,liveTradingEnabled:false,note:"Stop/target exits are checked against a server-verified Binance Futures last-trade quote. Modeled slippage and fees apply; no real exchange order is sent."});
+   }finally{
+    try{await d.eval<number>("if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",[lockKey],[lockToken]);}catch{}
+   }
+  }
   if(action==="STOP_CHECK"){
    const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),venue=String(b.venue||"binance").toLowerCase();
    if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["binance","bybit","okx"].includes(venue))return NextResponse.json({error:"Unsupported symbol or venue"},{status:400});
@@ -74,7 +108,7 @@ export async function POST(req:Request){
    await d.ltrim("tarotai:paper:ledger",0,999);
    return NextResponse.json({mode:"PAPER_ONLY",checkedSymbol:symbol,venue,sourceCandle:latest.candle,sourceCandleTime:latest.time,sourceCandleCloseTime:latest.closeTime,sourceCandleClosed:true,triggered,historyGaps,liveTradingEnabled:false,stopFirstOnAmbiguousCandle:true,note:"Only fully closed candles beginning after paper entry are evaluated; the first stop/target event is recorded."});
   }
-  if(!["OPEN","CLOSE"].includes(action))return NextResponse.json({error:"action must be OPEN, CLOSE, REPLAY, or STOP_CHECK"},{status:400});
+  if(!["OPEN","CLOSE"].includes(action))return NextResponse.json({error:"action must be OPEN, CLOSE, REPLAY, STOP_CHECK, or TICK_CHECK"},{status:400});
   const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),side=String(b.side||"").toUpperCase(),qty=Number(b.quantity),price=Number(b.price),feeBps=Number(b.feeBps??5),slipBps=Number(b.slippageBps??2),marketTime=Number(b.marketTime);
   if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["BUY","SELL"].includes(side)||![qty,price,feeBps,slipBps,marketTime].every(Number.isFinite)||qty<=0||price<=0||feeBps<0||feeBps>50||slipBps<0||slipBps>50)return NextResponse.json({error:"Invalid trade inputs; include marketTime and costs 0-50 bps"},{status:400});
   if(isStale(marketTime))return NextResponse.json({error:"Stale or missing market timestamp; refresh market data before paper trading"},{status:409});

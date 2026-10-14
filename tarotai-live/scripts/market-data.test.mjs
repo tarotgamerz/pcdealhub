@@ -547,3 +547,14 @@ test("continuous local rule roles refresh every second and paper entries use the
   assert.match(futuresDesk, /PAPER_ONLY_APPROVAL/);
   assert.match(paperRoute, /liveTradingEnabled:false/);
 });
+
+
+test("paper live-tick exits are server-verified, deduplicated, and never submit exchange orders", () => {
+  assert.match(paperRoute, /if\(action==="TICK_CHECK"\)/);
+  assert.match(paperRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/price/);
+  assert.match(paperRoute, /d\.set\(lockKey,lockToken,\{nx:true,ex:5\}\)/);
+  assert.match(paperRoute, /exitTrigger:"BINANCE_FUTURES_LAST_TRADE"/);
+  assert.match(paperRoute, /liveTradingEnabled:false/);
+  assert.match(futuresDesk, /async function checkPaperTickExit\(price\)/);
+  assert.match(futuresDesk, /action:"TICK_CHECK",symbol:currentSymbol/);
+});
