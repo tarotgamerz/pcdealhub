@@ -194,8 +194,8 @@
 <div id="backtestResult" class="log">Backtest has not been run. Results are research-only and do not place orders.</div>
 <div class="row" style="margin-top:12px"><button class="btn" id="ledgerBtn">Load paper ledger</button><input id="closeTradeId" placeholder="Open trade ID to close" style="padding:9px;background:#080e16;border:1px solid #334153;border-radius:8px;color:var(--text)"><button class="btn" id="closePaperBtn">Close paper position</button><button class="btn" id="replayBtn">Save market replay</button><button class="btn" id="signalsBtn">Check TradingView signals</button><button class="btn" id="stopCheckBtn">Evaluate paper stops</button></div>
 <div id="ledgerResult" class="log">Persistent paper ledger and signal queue require configured server-side Upstash Redis.</div>
-</section>\n<section class="panel full"><h2>OKX perpetual swap demo order test</h2>
-<div class="notice">This sends orders only to Binance's fixed demo/testnet host. Configure demo API credentials as server environment variables; never paste keys into this page or chat. OKX swap size is measured in contracts, not base-coin units.</div>
+</section>\n<section class="panel full"><h2>Exchange demo/testnet order test</h2>
+<div class="notice">This panel routes only to the selected exchange demo/testnet endpoint; it never uses the live trading host. Configure demo API credentials server-side and never paste keys into this page or chat. OKX swap size is measured in contracts, not base-coin units.</div>
 <div class="row"><div class="field" style="flex:1"><label>Order side</label><select id="tnSide"><option>BUY</option><option>SELL</option></select></div><div class="field" style="flex:1"><label>Order type</label><select id="tnType"><option>LIMIT</option><option>MARKET</option></select></div><div class="field" style="flex:1"><label>Quantity</label><input id="tnQty" type="number" min="0" step="any" value="0.001"></div><div class="field" style="flex:1"><label>Limit price (LIMIT only)</label><input id="tnPrice" type="number" min="0" step="any"></div></div>
 <div class="field"><label>Client order ID (reuse this if the request times out)</label><input id="tnClientId" maxlength="36" autocomplete="off"></div><label style="display:flex;gap:8px;align-items:center;margin:8px 0 12px"><input id="tnConfirm" type="checkbox"> I understand this sends a real order to the demo/testnet account only.</label>
 <button class="btn primary" id="tnSubmit">Submit demo testnet order</button><input id="tnOrderId" placeholder="Exchange order ID or client order ID" style="margin-left:8px;padding:9px;background:#080e16;border:1px solid #334153;border-radius:8px;color:var(--text)"><button class="btn" id="tnVerify">Verify exchange order status</button>
@@ -255,13 +255,13 @@ function updateTradingViewChart(source="tv"){
   if($("marketInterval"))$("marketInterval").value=interval;
   const symbol=tradingViewSymbol();
   $("tvOpenExternal").href="https://www.tradingview.com/chart/?symbol="+encodeURIComponent(symbol);
-  $("tvStatus").textContent="IN-APP CHARTS SYNCED · "+symbol+" · "+interval+" · shared OKX swap candles and last-trade quote.";
+  $("tvStatus").textContent="IN-APP CHARTS SYNCED · "+symbol+" · "+interval+" · shared "+((window.tarotaiMarketVenue||"binance")==="binance"?"Binance Futures":"selected-exchange")+" candles and last-trade quote.";
   if(source!=="live"&&typeof window.tarotaiReloadLiveChart==="function")window.tarotaiReloadLiveChart();
 }
 $("tvRefresh").addEventListener("click",()=>updateTradingViewChart("tv"));
 $("tvSymbol").addEventListener("change",()=>updateTradingViewChart("tv"));
 $("tvInterval").addEventListener("change",()=>updateTradingViewChart("tv"));
-$("venue").addEventListener("change",()=>{$("tvStatus").textContent="Research venue is separate. All linked live charts use the same OKX perpetual swap symbol and live tick."});
+$("venue").addEventListener("change",()=>{$("tvStatus").textContent="Research venue is separate. The linked live charts stay on "+((window.tarotaiMarketVenue||"binance")==="binance"?"Binance Futures":"the selected live venue")+" and share the same live tick."});
 $("tvAskAgent").addEventListener("click",()=>{updateTradingViewChart("tv");if($("liveAgentPanel")?.hidden){$("liveAgentPanel").hidden=false;$("toggleLiveAgentTeam").textContent="Hide 8-agent trading team";$("toggleLiveAgentTeam").setAttribute("aria-expanded","true");}$("live-agent-chart").scrollIntoView({behavior:"smooth",block:"start"});$("runLiveAgentTeam").click();});
 updateTradingViewChart();
 
@@ -910,7 +910,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const sym=byId("liveSymbol").value,interval=byId("liveInterval").value,changed=sym!==currentSymbol||interval!==currentInterval,streamWasStale=Date.now()-lastMarketUpdateAt>5000;
       if(changed){currentSymbol=sym;currentInterval=interval;higherCache=[];higherCacheKey="";higherCacheAt=0;firstRender=true;rows=[];historyExhausted=false;historyPages=0;lastWsCandleTime=0;}
       const data=await fetchMarketWithFallback(currentSymbol,currentInterval,250);
-      const nextVenue=data.venue||"okx",venueChanged=marketVenue!==nextVenue;
+      const nextVenue=data.venue||"binance",venueChanged=marketVenue!==nextVenue;
       marketVenue=nextVenue;window.tarotaiMarketVenue=marketVenue;
       if(venueChanged||changed||streamWasStale||!feedSocket||feedSocket.readyState!==WebSocket.OPEN)connectSocket();
       rows=changed?orderedCandles(data.candles):orderedCandles([...rows,...data.candles]);lastMarketUpdateAt=Date.now();updateHistoryStatus("Loaded "+rows.length.toLocaleString()+" candles. Pan left or tap Load older candles to inspect older patterns.");
@@ -920,7 +920,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const last=rows[rows.length-1],age=Math.max(0,Date.now()-last.time);
       const venueLabel=({binance:"BINANCE USDⓈ-M FUTURES",bybit:"BYBIT LINEAR PERPETUAL",okx:"OKX USDT PERPETUAL"})[marketVenue]||String(marketVenue).toUpperCase();
       setFeed(venueLabel+" · "+(marketVenue==="binance"&&feedSocket&&feedSocket.readyState===1?"LIVE STREAM":"REST REFRESH"),marketVenue==="binance"&&feedSocket&&feedSocket.readyState===1?"good":"neutral");
-      status("Source: "+(data.sourceHost||"OKX perpetual swap")+". Last bar opened "+Math.round(age/1000)+"s ago; REST snapshot fetched "+new Date(data.fetchedAt||Date.now()).toLocaleTimeString()+". "+(feedSocket&&feedSocket.readyState===1?"WebSocket candle updates active.":"Polling fallback active (refresh every 15s).")+" No orders are sent.");
+      status("Source: "+(data.sourceHost||(marketVenue==="binance"?"Binance Futures":"OKX perpetual swap"))+". Latest candle timestamp age "+Math.round(age/1000)+"s; candle snapshot fetched "+new Date(data.fetchedAt||Date.now()).toLocaleTimeString()+". "+(marketVenue==="binance"?"Candles refresh via REST; individual trades update the forming candle via WebSocket.":feedSocket&&feedSocket.readyState===1?"WebSocket candle updates active.":"Polling fallback active.")+" No orders are sent.");
     }catch(e){
       setFeed("MARKET DATA ERROR","bad");
       byId("liveHtf").textContent="UNAVAILABLE";
@@ -1103,7 +1103,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     if(!Number.isFinite(balance)||balance<100||balance>10000000||!Number.isFinite(riskPct)||riskPct<0.1||riskPct>1){paperStatus("Balance must be 100–10,000,000 USDT and risk 0.1%–1%.",true);return;}
     const live=rows[rows.length-1],closed=closedOnly(rows,currentInterval).slice(-1)[0];
     if(!live||!closed||now-live.time>msFor(currentInterval)*2){paperStatus("Candles are stale. Refresh analysis before paper trading.",true);return;}
-    if(!hasFreshLiveQuote()){paperStatus("Paper entry blocked: no fresh validated live quote. Wait for the OKX WebSocket or REST ticker fallback; no delayed entry is allowed.",true);return;}
+    if(!hasFreshLiveQuote()){paperStatus("Paper entry blocked: no fresh validated live quote. Wait for the "+(marketVenue==="binance"?"Binance Futures":"OKX")+" WebSocket or REST ticker fallback; no delayed entry is allowed.",true);return;}
     const entry=Number(currentMarketPrice()),stop=Number(d.stop),long=d.action==="BUY / LONG";
     if(!Number.isFinite(entry)||entry<=0||!Number.isFinite(stop)||(long?stop>=entry:stop<=entry)){paperStatus("Price crossed the setup's invalidation level. Signal expired; re-analyze.",true);return;}
     const drift=Math.abs(entry-Number(d.entry))/Number(d.entry);
