@@ -348,7 +348,7 @@ test("backtest can collect a bounded multi-page OKX candle sample", () => {
 
 test("live chart offers eight trade-lifecycle agents including a supervisor", () => {
   assert.match(futuresDesk, /id="toggleLiveAgentTeam"/);
-  assert.match(futuresDesk, /id="liveAgentPanel" hidden/);
+  assert.match(futuresDesk, /id="liveAgentPanel" aria-label="Multi-agent market analysis team"/);
   for (const role of ["market","entry","exits","sizing","discipline","position","journal","supervisor"]) {
     assert.ok(futuresDesk.includes('value="'+role+'"'), "missing specialist role "+role);
   }
@@ -420,7 +420,8 @@ test("parallel specialist API performs distinct authenticated AI calls with inde
   assert.match(parallelAgentsRoute,/historicalAnalogueStudy/);
   assert.match(parallelAgentsRoute,/roles\.length!==8/);
   assert.match(parallelAgentsRoute,/vetoDeclared:!!v/);
-  assert.match(parallelAgentsRoute,/role==="sizing"&&!vetoDeclared\?true:parsedVote\.veto/);
+  assert.match(parallelAgentsRoute,/if\(!parsed\.vetoDeclared\)throw new Error\("Specialist report omitted required VETO field\."/);
+  assert.match(parallelAgentsRoute,/if\(!parsed\.biasDeclared\)throw new Error\("Specialist report omitted required BIAS field\."/);
   assert.ok(parallelAgentsRoute.includes('if(!monitorBias.vetoDeclared)throw new Error("Supervisor report omitted required VETO field.");'));
   assert.match(parallelAgentsRoute,/Market Structure Analyst/);
   assert.match(parallelAgentsRoute,/Entry Setup Specialist/);
@@ -486,4 +487,23 @@ test("multi-agent panel recovers missing or expired signed sessions without bypa
   assert.match(futuresDesk, /fetch\("\/api\/trading\/agents",\{method:"POST",cache:"no-store",credentials:"same-origin"/);
   assert.match(parallelAgentsRoute, /if\(!isAuthorized\(request\)\)return jsonError\("Authentication required\.",401\)/);
   assert.match(authRoute, /response\.cookies\.set\(COOKIE/);
+});
+
+
+test("live trading desk continuously runs eight distinct local roles while visible", () => {
+  assert.match(futuresDesk, /function runContinuousAgentCycle\(\)/);
+  assert.match(futuresDesk, /continuousTeamTimer=setInterval\(runContinuousAgentCycle,5000\)/);
+  assert.match(futuresDesk, /renderLiveAgentResults\(reports,"continuousAgentResults"\)/);
+  assert.match(futuresDesk, /source:"continuous-local"/);
+  assert.match(futuresDesk, /id="toggleContinuousTeam"/);
+  assert.match(futuresDesk, /id="continuousAgentResults"/);
+  assert.match(futuresDesk, /document\.visibilityState!=="visible"/);
+});
+
+test("AI provider failures produce explicit fallback reports and block AI-review approval", () => {
+  assert.match(parallelAgentsRoute, /function deterministicFallbackReport/);
+  assert.match(parallelAgentsRoute, /fallback:true,providerStatus:"degraded"/);
+  assert.match(parallelAgentsRoute, /providerDegraded\|\|results\.some\(r=>!r\.ok\)\|\|monitorBias\.veto/);
+  assert.match(parallelAgentsRoute, /fallbackAgents:fallbackCount,aiProviderStatus:fallbackCount\?"degraded":"ok"/);
+  assert.match(parallelAgentsRoute, /results\.length!==8\|\|failed!==0\|\|specialistOk!==7/);
 });

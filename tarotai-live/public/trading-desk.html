@@ -110,7 +110,7 @@
 <div class="agent"><div class="agenthead"><div class="ico">⇵</div><div><strong>Stop-Loss & Take-Profit Planner</strong><div class="sub">Evidence-based stop, target and reward-to-risk</div></div></div><span class="tag">EXITS</span></div>
 <div class="agent"><div class="agenthead"><div class="ico">◈</div><div><strong>Position Sizing & Risk Manager</strong><div class="sub">Paper equity, stop distance and capped cash risk</div></div></div><span class="tag">RISK</span></div>
 <div class="agent"><div class="agenthead"><div class="ico">✓</div><div><strong>Execution Discipline Agent</strong><div class="sub">Confirmation, slippage awareness and paper-only checklist</div></div></div><span class="tag">DISCIPLINE</span></div>
-<div class="agent"><div class="agenthead"><div class="ico">◉</div><div><strong>Live Position Manager</strong><div class="sub">Reviews explicitly supplied open paper positions only</div></div></div><span class="tag">POSITION</span></div>
+<div class="agent"><div class="agenthead"><div class="ico">◉</div><div><strong>Live Position Manager</strong><div class="sub">Checks paper-position stops and targets every five seconds while this chart is open</div></div></div><span class="tag">POSITION</span></div>
 <div class="agent"><div class="agenthead"><div class="ico">▤</div><div><strong>Trade Journal & Review Analyst</strong><div class="sub">Reviews completed paper trades without inventing history</div></div></div><span class="tag">JOURNAL</span></div>
 <div class="agent"><div class="agenthead"><div class="ico">🛡</div><div><strong>Agent Operations Supervisor</strong><div class="sub">Audits reports, contradictions and fail-closed risk controls</div></div></div><span class="tag">SUPERVISOR</span></div></div><div class="row" style="margin-top:13px"><button class="btn primary" id="runReview">Run paper risk review</button><span class="muted" id="reviewStatus">Paper-only review. No exchange order is sent.</span></div></section>
 <section class="panel"><h2>Demo order ticket</h2>
@@ -141,7 +141,7 @@
 
 <section class="panel full" id="live-agent-chart">
   <div class="live-trade-head">
-    <div><h2 class="live-trade-title">Live Market Chart &amp; Trading Agent</h2><div class="sub">Interactive candles · live exchange updates · EMA 9/21/50 · RSI 14 · ATR 14 · 20-bar structure · higher-timeframe confirmation</div></div>
+    <div><h2 class="live-trade-title">Live Market Chart &amp; 8 Continuous Agents</h2><div class="sub">Live exchange WebSocket · interactive candles · EMA 9/21/50 · RSI 14 · ATR 14 · 20-bar structure · higher-timeframe confirmation · eight continuous rule-based roles</div></div>
     <span id="liveFeedPill" class="live-feed-pill">CONNECTING TO MARKET</span>
   </div>
   <div class="live-controls">
@@ -150,17 +150,19 @@
     <button class="btn primary" id="liveRefresh" type="button">Analyze live market</button>
   </div>
   <div class="live-history-bar"><button class="btn" id="liveLoadOlder" type="button">Load older candles</button><span id="liveHistoryStatus" aria-live="polite">The chart will load older candles when you pan to the left.</span></div>
-  <div class="live-multi-actions"><button class="btn" id="toggleLiveAgentTeam" type="button" aria-expanded="false" aria-controls="liveAgentPanel">Open 8-agent trading team</button><span class="live-multi-hint">Run seven trade-lifecycle agents plus one operations supervisor against the same verified closed-candle snapshot.</span></div>
-  <section class="live-agent-panel" id="liveAgentPanel" hidden aria-label="Multi-agent market analysis team">
-    <div class="live-agent-panel-head"><div><h3>Live specialist team</h3><div class="sub">All eight roles are preloaded: seven trade-lifecycle specialists and one supervisor. Keep each role unique.</div></div><span class="tag">PARALLEL ANALYSIS · READ ONLY</span></div>
+  <div class="live-multi-actions"><button class="btn" id="toggleLiveAgentTeam" type="button" aria-expanded="true" aria-controls="liveAgentPanel">Hide 8-agent trading team</button><span class="live-multi-hint">Run seven trade-lifecycle agents plus one operations supervisor against the same verified closed-candle snapshot.</span></div>
+  <section class="live-agent-panel" id="liveAgentPanel" aria-label="Multi-agent market analysis team">
+    <div class="live-agent-panel-head"><div><h3>Live specialist team</h3><div class="sub">All eight roles are preloaded: seven trade-lifecycle specialists and one supervisor. Keep each role unique.</div></div><span class="tag">CONTINUOUS RULE AGENTS + ON-DEMAND AI REVIEW</span></div>
     <div class="live-agent-grid"><div class="live-agent-slot"><div class="live-agent-slot-head"><span class="live-agent-slot-number">SLOT 01</span><span class="live-agent-slot-state" id="liveAgentSlotState1">EMPTY</span></div><label for="liveAgentRole1">Specialist</label><select id="liveAgentRole1" class="live-agent-role" data-agent-role="1"><option value="">Select specialist</option><option value="market" selected>Market Structure Analyst</option><option value="entry">Entry Setup Specialist</option><option value="exits">Stop-Loss & Take-Profit Planner</option><option value="sizing">Position Sizing & Risk Manager</option><option value="discipline">Execution Discipline Agent</option><option value="position">Live Position Manager</option><option value="journal">Trade Journal & Review Analyst</option><option value="supervisor">Agent Operations Supervisor</option></select><p class="live-agent-slot-hint">Maps trend, swing structure, support/resistance and higher-timeframe alignment.</p></div><div class="live-agent-slot"><div class="live-agent-slot-head"><span class="live-agent-slot-number">SLOT 02</span><span class="live-agent-slot-state" id="liveAgentSlotState2">EMPTY</span></div><label for="liveAgentRole2">Specialist</label><select id="liveAgentRole2" class="live-agent-role" data-agent-role="2"><option value="">Select specialist</option><option value="market">Market Structure Analyst</option><option value="entry" selected>Entry Setup Specialist</option><option value="exits">Stop-Loss & Take-Profit Planner</option><option value="sizing">Position Sizing & Risk Manager</option><option value="discipline">Execution Discipline Agent</option><option value="position">Live Position Manager</option><option value="journal">Trade Journal & Review Analyst</option><option value="supervisor">Agent Operations Supervisor</option></select><p class="live-agent-slot-hint">Defines a confirmed trigger, invalidation and a strict no-chase price.</p></div><div class="live-agent-slot"><div class="live-agent-slot-head"><span class="live-agent-slot-number">SLOT 03</span><span class="live-agent-slot-state" id="liveAgentSlotState3">EMPTY</span></div><label for="liveAgentRole3">Specialist</label><select id="liveAgentRole3" class="live-agent-role" data-agent-role="3"><option value="">Select specialist</option><option value="market">Market Structure Analyst</option><option value="entry">Entry Setup Specialist</option><option value="exits" selected>Stop-Loss & Take-Profit Planner</option><option value="sizing">Position Sizing & Risk Manager</option><option value="discipline">Execution Discipline Agent</option><option value="position">Live Position Manager</option><option value="journal">Trade Journal & Review Analyst</option><option value="supervisor">Agent Operations Supervisor</option></select><p class="live-agent-slot-hint">Sets evidence-based stop/target geometry and checks for realistic reward-to-risk.</p></div><div class="live-agent-slot"><div class="live-agent-slot-head"><span class="live-agent-slot-number">SLOT 04</span><span class="live-agent-slot-state" id="liveAgentSlotState4">EMPTY</span></div><label for="liveAgentRole4">Specialist</label><select id="liveAgentRole4" class="live-agent-role" data-agent-role="4"><option value="">Select specialist</option><option value="market">Market Structure Analyst</option><option value="entry">Entry Setup Specialist</option><option value="exits">Stop-Loss & Take-Profit Planner</option><option value="sizing" selected>Position Sizing & Risk Manager</option><option value="discipline">Execution Discipline Agent</option><option value="position">Live Position Manager</option><option value="journal">Trade Journal & Review Analyst</option><option value="supervisor">Agent Operations Supervisor</option></select><p class="live-agent-slot-hint">Calculates paper quantity from balance, risk cap and stop distance.</p></div><div class="live-agent-slot"><div class="live-agent-slot-head"><span class="live-agent-slot-number">SLOT 05</span><span class="live-agent-slot-state" id="liveAgentSlotState5">EMPTY</span></div><label for="liveAgentRole5">Specialist</label><select id="liveAgentRole5" class="live-agent-role" data-agent-role="5"><option value="">Select specialist</option><option value="market">Market Structure Analyst</option><option value="entry">Entry Setup Specialist</option><option value="exits">Stop-Loss & Take-Profit Planner</option><option value="sizing">Position Sizing & Risk Manager</option><option value="discipline" selected>Execution Discipline Agent</option><option value="position">Live Position Manager</option><option value="journal">Trade Journal & Review Analyst</option><option value="supervisor">Agent Operations Supervisor</option></select><p class="live-agent-slot-hint">Checks confirmation, missed entries, modeled costs and paper-only execution discipline.</p></div><div class="live-agent-slot"><div class="live-agent-slot-head"><span class="live-agent-slot-number">SLOT 06</span><span class="live-agent-slot-state" id="liveAgentSlotState6">EMPTY</span></div><label for="liveAgentRole6">Specialist</label><select id="liveAgentRole6" class="live-agent-role" data-agent-role="6"><option value="">Select specialist</option><option value="market">Market Structure Analyst</option><option value="entry">Entry Setup Specialist</option><option value="exits">Stop-Loss & Take-Profit Planner</option><option value="sizing">Position Sizing & Risk Manager</option><option value="discipline">Execution Discipline Agent</option><option value="position" selected>Live Position Manager</option><option value="journal">Trade Journal & Review Analyst</option><option value="supervisor">Agent Operations Supervisor</option></select><p class="live-agent-slot-hint">Reviews supplied open paper positions; does not monitor continuously between runs.</p></div><div class="live-agent-slot"><div class="live-agent-slot-head"><span class="live-agent-slot-number">SLOT 07</span><span class="live-agent-slot-state" id="liveAgentSlotState7">EMPTY</span></div><label for="liveAgentRole7">Specialist</label><select id="liveAgentRole7" class="live-agent-role" data-agent-role="7"><option value="">Select specialist</option><option value="market">Market Structure Analyst</option><option value="entry">Entry Setup Specialist</option><option value="exits">Stop-Loss & Take-Profit Planner</option><option value="sizing">Position Sizing & Risk Manager</option><option value="discipline">Execution Discipline Agent</option><option value="position">Live Position Manager</option><option value="journal" selected>Trade Journal & Review Analyst</option><option value="supervisor">Agent Operations Supervisor</option></select><p class="live-agent-slot-hint">Reviews supplied completed paper trades; no records means no invented conclusions.</p></div><div class="live-agent-slot"><div class="live-agent-slot-head"><span class="live-agent-slot-number">SLOT 08</span><span class="live-agent-slot-state" id="liveAgentSlotState8">EMPTY</span></div><label for="liveAgentRole8">Specialist</label><select id="liveAgentRole8" class="live-agent-role" data-agent-role="8"><option value="">Select specialist</option><option value="market">Market Structure Analyst</option><option value="entry">Entry Setup Specialist</option><option value="exits">Stop-Loss & Take-Profit Planner</option><option value="sizing">Position Sizing & Risk Manager</option><option value="discipline">Execution Discipline Agent</option><option value="position">Live Position Manager</option><option value="journal">Trade Journal & Review Analyst</option><option value="supervisor" selected>Agent Operations Supervisor</option></select><p class="live-agent-slot-hint">Audits the other seven reports for failures, contradictions and risk-control violations.</p></div></div>
-    <div class="live-agent-runbar"><button class="btn primary" id="runLiveAgentTeam" type="button">Run selected agents simultaneously</button><button class="btn" id="clearLiveAgentTeam" type="button">Clear slots</button><span id="liveAgentRunStatus" class="live-multi-hint" aria-live="polite">No eight-agent run yet.</span></div>
+    <div class="live-agent-runbar"><button class="btn primary" id="runLiveAgentTeam" type="button">Run AI-enhanced 8-agent review</button><button class="btn" id="toggleContinuousTeam" type="button" aria-pressed="true">Pause continuous 8-agent monitor</button><button class="btn" id="clearLiveAgentTeam" type="button">Clear slots</button><span id="liveAgentRunStatus" class="live-multi-hint" aria-live="polite">Starting continuous 8-agent monitor when market candles load…</span></div>
     <div id="liveAgentAuthGate" class="live-agent-consensus warn" hidden><strong>Private session required</strong><span id="liveAgentAuthMessage">Your private session may have expired. Unlock to run the AI specialists.</span><div class="live-agent-auth-row"><input id="liveAgentAccessCode" type="password" autocomplete="current-password" placeholder="TarotAI private access code" aria-label="TarotAI private access code"><button id="liveAgentAuthButton" class="btn primary" type="button">Unlock &amp; continue</button></div></div>
-    <div id="liveAgentConsensus" class="live-agent-consensus warn" aria-live="polite"><strong>Team consensus: WAIT</strong><span>Select all eight distinct trade-lifecycle agents, then run the team on the latest verified closed candles.</span></div>
+    <div id="continuousTeamStatus" class="live-agent-consensus warn" aria-live="polite"><strong id="continuousTeamTitle">Continuous team: CONNECTING</strong><span id="continuousTeamDetails">Loading market candles before enabling all eight local rule agents.</span></div>
+    <div id="continuousAgentResults" class="live-agent-results"><div class="live-agent-result"><p>Eight local agents will continuously evaluate the live chart once market candles load.</p></div></div>
+    <div id="liveAgentConsensus" class="live-agent-consensus warn" aria-live="polite"><strong>AI review: NOT RUN</strong><span>The separate model-backed review runs only when requested. Provider failures are reported as degraded and veto that AI review.</span></div>
     <div id="livePatternStudy" class="live-agent-consensus warn" aria-live="polite"><strong id="livePatternTitle">Historical analogue study: not run</strong><span id="livePatternSummary">The seven trade-lifecycle specialists and supervisor use verified closed candles and earlier patterns from the same market and timeframe. Historical outcomes are descriptive, not guaranteed.</span></div>
     <div id="livePatternExamples" class="live-agent-results"><div class="live-agent-result"><p>Historical examples will appear here with similarity and their observed six-candle outcomes.</p></div></div>
     <div id="liveAgentResults" class="live-agent-results"><div class="live-agent-result"><p>Selected specialist agents will return independent AI analysis, historical context and counterarguments.</p></div></div>
-    <p class="live-agent-footnote">Exactly seven separate AI specialist calls run concurrently on the same server-verified closed candles and historical analogues. Macro feeds, news/social sentiment, Level-2 order book, VPIN, dark-pool data, options IV surfaces and live spread/depth are not connected; agents must mark these inputs unavailable rather than invent them. Consensus is research-only. No real exchange orders are sent.</p>
+    <p class="live-agent-footnote">Eight deterministic local agents refresh every five seconds against the latest verified closed candles and current quote while this tab is open and visible. The separate AI-enhanced review calls the model provider only when clicked. The local roles are not eight separate LLM calls. Macro/news, Level-2, options IV and live venue depth are not connected. Paper only; no real orders are sent.</p>
   </section>
   <div class="live-metrics">
     <div class="live-metric"><label>Agent decision · closed candles only</label><strong id="liveDecision" class="live-decision">HOLD / WAIT</strong></div>
@@ -393,8 +395,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
 
     status("Source: Binance USDⓈ-M Futures public market data · "+closed.length+" closed candles analyzed · latest closed candle "+new Date(last.time).toLocaleString()+" · EMA 9/21/50 · RSI "+rv[i].toFixed(1)+" · ATR "+fmt(av[i])+" · long score "+longScore+"/5 · short score "+shortScore+"/5 · HTF "+htf.direction+". Rules are deterministic and transparent; no profit guarantee.");
   }
-  function renderLiveAgentResults(results){
-    const box=byId("liveAgentResults");box.replaceChildren();
+  function renderLiveAgentResults(results,targetId="liveAgentResults"){
+    const box=byId(targetId);if(!box)return;box.replaceChildren();
     results.forEach(result=>{
       const card=document.createElement("article");card.className="live-agent-result";
       const head=document.createElement("div");head.className="live-agent-result-head";
@@ -406,6 +408,126 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       card.append(head,p);box.append(card);
     });
   }
+
+  const localAgentRoles=["market","entry","exits","sizing","discipline","position","journal","supervisor"];
+  const localRoleNames={market:"Market Structure Analyst",entry:"Entry Setup Specialist",exits:"Stop-Loss & Take-Profit Planner",sizing:"Position Sizing & Risk Manager",discipline:"Execution Discipline Agent",position:"Live Position Manager",journal:"Trade Journal & Review Analyst",supervisor:"Agent Operations Supervisor"};
+  let continuousTeamEnabled=true,continuousTeamTimer=null,continuousCycle=0;
+  function localReport(role,bias,veto,lines){return {role,name:localRoleNames[role],ok:true,bias,veto,text:lines.join("\n"),model:"local-rules-v1",source:"continuous-local",fallback:false,elapsedMs:0};}
+  function runContinuousAgentCycle(){
+    if(!continuousTeamEnabled||document.visibilityState!=="visible"||!rows.length||!candleSeries)return;
+    const closed=closedOnly(rows,currentInterval),live=rows[rows.length-1],statusPanel=byId("continuousTeamStatus"),title=byId("continuousTeamTitle"),detail=byId("continuousTeamDetails");
+    if(closed.length<80){statusPanel.className="live-agent-consensus warn";title.textContent="Continuous team: WAITING FOR DATA";detail.textContent="Need at least 80 closed candles; currently "+closed.length+". All entries remain blocked.";return;}
+    const now=Date.now(),i=closed.length-1,last=closed[i],end=Number.isFinite(last.closeTime)&&last.closeTime>last.time?last.closeTime:last.time+msFor(currentInterval)-1;
+    const stale=now-end>msFor(currentInterval)*2+60000,closes=closed.map(c=>c.close),e9=ema(closes,9),e21=ema(closes,21),e50=ema(closes,50),rsiValues=rsi(closes,14),atrValues=atr(closed,14);
+    const prior=closed.slice(Math.max(0,i-20),i),recent=closed.slice(Math.max(0,i-7),i+1),priorHigh=Math.max(...prior.map(c=>c.high)),priorLow=Math.min(...prior.map(c=>c.low));
+    const htf=trendFor(higherCache,higherMap[currentInterval]||"1d"),upBreak=last.close>priorHigh,downBreak=last.close<priorLow;
+    const longChecks=[e9[i]>e21[i],last.close>e50[i],rsiValues[i]>=52&&rsiValues[i]<=70,e9[i]>e9[Math.max(0,i-3)]&&last.close>closed[i-1].close,upBreak];
+    const shortChecks=[e9[i]<e21[i],last.close<e50[i],rsiValues[i]>=30&&rsiValues[i]<=48,e9[i]<e9[Math.max(0,i-3)]&&last.close<closed[i-1].close,downBreak];
+    const longScore=longChecks.filter(Boolean).length,shortScore=shortChecks.filter(Boolean).length;
+    const chartDecision=window.tarotaiLiveDecision||null;
+    const sameSnapshot=!!chartDecision&&chartDecision.symbol===currentSymbol&&chartDecision.interval===currentInterval&&Number(chartDecision.candleTime)===Number(last.time);
+    let action="HOLD / WAIT",entry=NaN,stop=NaN,target=NaN,rr=NaN;
+    if(!stale&&sameSnapshot&&htf.ready&&htf.up&&longScore>=4&&upBreak&&longScore>shortScore){action="BUY / LONG";entry=last.close;stop=Math.min(entry-atrValues[i]*1.5,Math.min(...recent.map(c=>c.low))-atrValues[i]*.1);const r=entry-stop;target=entry+r*2;rr=r>0?2:NaN;}
+    else if(!stale&&sameSnapshot&&htf.ready&&htf.down&&shortScore>=4&&downBreak&&shortScore>longScore){action="SELL / SHORT";entry=last.close;stop=Math.max(entry+atrValues[i]*1.5,Math.max(...recent.map(c=>c.high))+atrValues[i]*.1);const r=stop-entry;target=entry-r*2;rr=r>0?2:NaN;}
+    if(!sameSnapshot||!chartDecision||chartDecision.action!==action){action="HOLD / WAIT";entry=stop=target=rr=NaN;}
+    const bias=action==="BUY / LONG"?"LONG":action==="SELL / SHORT"?"SHORT":"WAIT",livePrice=Number(live.close),drift=Number.isFinite(entry)&&entry>0?Math.abs(livePrice-entry)/entry:NaN;
+    const balance=Number(byId("livePaperBalance")?.value),riskPct=Number(byId("livePaperRisk")?.value),dist=Math.abs(entry-stop);
+    const sizeReady=bias!=="WAIT"&&Number.isFinite(balance)&&balance>=100&&balance<=10000000&&Number.isFinite(riskPct)&&riskPct>=.1&&riskPct<=1&&Number.isFinite(dist)&&dist>0;
+    const qty=sizeReady?Math.min((balance*riskPct/100)/dist,balance/entry):NaN;
+    const ledger=Array.isArray(window.tarotaiPaperLedger)?window.tarotaiPaperLedger:[];
+    const terminal=new Set(["PAPER_CLOSE","PAPER_STOP","PAPER_TARGET"]),closedIds=new Set(ledger.filter(t=>t.parentTradeId&&terminal.has(t.status)).map(t=>t.parentTradeId));
+    const open=ledger.filter(t=>t.status==="PAPER_OPEN"&&!closedIds.has(t.id)),onSymbol=open.filter(t=>t.symbol===currentSymbol);
+    const alerts=onSymbol.filter(t=>Number.isFinite(Number(t.stopPrice))&&Number.isFinite(Number(t.targetPrice))&&(t.side==="BUY"?livePrice<=Number(t.stopPrice)||livePrice>=Number(t.targetPrice):livePrice>=Number(t.stopPrice)||livePrice<=Number(t.targetPrice)));
+    const finished=ledger.filter(t=>t.parentTradeId&&terminal.has(t.status)),pnl=finished.map(t=>Number(t.pnlNet)).filter(Number.isFinite),net=pnl.reduce((a,b)=>a+b,0),wins=pnl.filter(v=>v>0).length;
+    const reports=[];
+    const marketBias=stale||!htf.ready?"WAIT":htf.up&&e9[i]>e21[i]&&closes[i]>e50[i]?"LONG":htf.down&&e9[i]<e21[i]&&closes[i]<e50[i]?"SHORT":"WAIT";
+    reports.push(localReport("market",marketBias,stale||!htf.ready,[
+      "BIAS: "+marketBias,"VETO: "+(stale||!htf.ready?"YES":"NO"),
+      "EVIDENCE: close "+fmt(last.close)+" · EMA9 "+fmt(e9[i])+" · EMA21 "+fmt(e21[i])+" · EMA50 "+fmt(e50[i])+" · RSI14 "+(Number.isFinite(rsiValues[i])?rsiValues[i].toFixed(1):"unavailable")+".",
+      "HISTORICAL: "+closed.length+" closed candles are available; history alone is not a calibrated win probability.",
+      "TRIGGER: main trend "+(closes[i]>e50[i]?"above":"not above")+" EMA50; higher timeframe "+htf.direction+".",
+      "INVALIDATION: a fresh closed candle reverses the aligned EMA/structure context.",
+      "COUNTERARGUMENT: mixed regimes and false breakouts can invalidate directional trend readings."
+    ]));
+    reports.push(localReport("entry",bias,stale||!sameSnapshot||!htf.ready,[
+      "BIAS: "+bias,"VETO: "+(stale||!sameSnapshot||!htf.ready?"YES":"NO"),
+      "EVIDENCE: Long checks "+longScore+"/5; short checks "+shortScore+"/5; upside breakout "+upBreak+"; downside breakdown "+downBreak+".",
+      "HISTORICAL: Check historical analogues separately; their returns are descriptive only.",
+      "TRIGGER: "+(bias==="LONG"?"confirmed close above previous 20-bar high "+fmt(priorHigh):bias==="SHORT"?"confirmed close below previous 20-bar low "+fmt(priorLow):"WAIT for four-of-five checks plus matching higher-timeframe breakout."),
+      "INVALIDATION: no entry if this candle timestamp differs from the currently rendered chart.",
+      "COUNTERARGUMENT: a late breakout can reverse before any simulated fill."
+    ]));
+    const validLevels=bias!=="WAIT"&&Number.isFinite(entry)&&Number.isFinite(stop)&&Number.isFinite(target)&&stop>0&&target>0&&(bias==="LONG"?stop<entry&&target>entry:target<entry&&stop>entry);
+    reports.push(localReport("exits",validLevels?bias:"WAIT",bias!=="WAIT"&&!validLevels,[
+      "BIAS: "+(validLevels?bias:"WAIT"),"VETO: "+(bias!=="WAIT"&&!validLevels?"YES":"NO"),
+      "EVIDENCE: "+(validLevels?"entry "+fmt(entry)+" · stop "+fmt(stop)+" · target "+fmt(target)+" · "+rr.toFixed(2)+"R.":"No confirmed setup; entry, stop and target are withheld."),
+      "HISTORICAL: reward/risk geometry is not evidence of predictive edge.",
+      "TRIGGER: "+(validLevels?"keep the closed-candle setup valid and check entry drift before paper entry":"WAIT until the setup supplies valid protection levels."),
+      "INVALIDATION: stop crossing before entry invalidates the setup.",
+      "COUNTERARGUMENT: fees, funding and slippage can change realized paper outcomes."
+    ]));
+    reports.push(localReport("sizing",sizeReady?bias:"WAIT",bias!=="WAIT"&&!sizeReady,[
+      "BIAS: "+(sizeReady?bias:"WAIT"),"VETO: "+(bias!=="WAIT"&&!sizeReady?"YES":"NO"),
+      "EVIDENCE: "+(sizeReady?"paper equity "+fmt(balance)+" USDT · risk "+riskPct+"% · cash-risk cap "+fmt(balance*riskPct/100)+" · quantity cap "+qty.toPrecision(7)+".":"Sizing withheld until a valid signal, balance and stop distance exist."),
+      "HISTORICAL: sizing arithmetic does not imply a profitable strategy.",
+      "TRIGGER: "+(sizeReady?"use this quantity only for a manually confirmed paper trade":"WAIT; no quantity approved."),
+      "INVALIDATION: recompute if entry, stop, equity or risk percentage changes.",
+      "COUNTERARGUMENT: contract multipliers, fees and funding are not fully modeled."
+    ]));
+    const disciplineVeto=bias!=="WAIT"&&(!Number.isFinite(drift)||drift>.01);
+    reports.push(localReport("discipline",disciplineVeto?"WAIT":bias,stale||disciplineVeto,[
+      "BIAS: "+(disciplineVeto?"WAIT":bias),"VETO: "+(stale||disciplineVeto?"YES":"NO"),
+      "EVIDENCE: current quote "+fmt(livePrice)+" · signal entry "+fmt(entry)+" · drift "+(Number.isFinite(drift)?(drift*100).toFixed(3)+"%":"not applicable")+".",
+      "HISTORICAL: live spread, depth and realized slippage are not connected.",
+      "TRIGGER: "+(bias!=="WAIT"&&!disciplineVeto?"manual paper entry only; quote remains within 1% drift":"WAIT and do not chase a missed entry."),
+      "INVALIDATION: cancel when drift exceeds 1% or feed becomes stale.",
+      "COUNTERARGUMENT: transient price moves and fees can make the modeled fill unrealistic."
+    ]));
+    const positionVeto=stale||alerts.length>0||onSymbol.some(t=>!Number.isFinite(Number(t.stopPrice))||!Number.isFinite(Number(t.targetPrice)));
+    reports.push(localReport("position","WAIT",positionVeto,[
+      "BIAS: WAIT","VETO: "+(positionVeto?"YES":"NO"),
+      "EVIDENCE: "+onSymbol.length+" open paper position(s) for "+currentSymbol+"; latest quote "+fmt(livePrice)+"; stop/target alert(s) "+alerts.length+".",
+      "HISTORICAL: open-position monitoring tracks recorded states; it is not a forecast.",
+      "TRIGGER: "+(alerts.length?"STOP/TARGET ALERT — check the persistent paper ledger and close manually":onSymbol.length?"continue checking the recorded stop and target":"NO OPEN PAPER POSITION — nothing to manage"),
+      "INVALIDATION: any stop/target crossing or missing protective level is a risk incident.",
+      "COUNTERARGUMENT: five-second polling cannot observe every intrabar event."
+    ]));
+    reports.push(localReport("journal","WAIT",false,[
+      "BIAS: WAIT","VETO: NO",
+      "EVIDENCE: "+finished.length+" closed paper record(s); "+wins+" positive outcomes; modeled net P&L "+(net>=0?"+":"")+fmt(net)+" USDT.",
+      "HISTORICAL: "+(pnl.length>=20?"A larger recorded sample exists; test performance after realistic costs.":"Small or empty trade samples do not establish statistical edge."),
+      "TRIGGER: record setup, entry, stop, target, modeled costs, exit and rule adherence for each paper trade.",
+      "INVALIDATION: fix missing or duplicate ledger records before performance inference.",
+      "COUNTERARGUMENT: stored history may not cover every action or cost."
+    ]));
+    const localVeto=stale||!htf.ready||!sameSnapshot||reports.some(r=>r.veto)||onSymbol.length>0;
+    reports.push(localReport("supervisor","WAIT",localVeto,[
+      "BIAS: WAIT","VETO: "+(localVeto?"YES":"NO"),
+      "EVIDENCE: 8/8 local roles checked; candle "+new Date(last.time).toISOString()+"; stale="+stale+"; HTF="+htf.direction+"; specialist veto count "+reports.filter(r=>r.veto).length+".",
+      "HISTORICAL: these are explainable local rules, not eight LLM opinions.",
+      "TRIGGER: "+(localVeto?"WAIT until data, exact candle alignment and risk gates pass":bias==="WAIT"?"WAIT; no entry conditions currently align":"verify stop, target, size and quote before a manual paper entry"),
+      "INVALIDATION: stale data, mismatched candle, risk veto or an existing position blocks approval.",
+      "COUNTERARGUMENT: deterministic rules may fail and are not proof of a market edge."
+    ]));
+    continuousCycle++;
+    renderLiveAgentResults(reports,"continuousAgentResults");
+    const approve=!!validLevels&&!localVeto&&!disciplineVeto&&sizeReady&&onSymbol.length===0&&alerts.length===0&&Number.isFinite(drift)&&drift<=.01;
+    window.tarotaiAgentCommitteeApproval=approve?{symbol:currentSymbol,interval:currentInterval,candleTime:Number(last.time),action:action,source:"continuous-local-team",checkedAt:now}:null;
+    statusPanel.className="live-agent-consensus "+(localVeto?"warn":approve?"good":"warn");
+    title.textContent="Continuous local team: "+(localVeto?"8/8 CHECKED · VETO / WAIT":approve?"8/8 CHECKED · "+bias+" SETUP REVIEWED":"8/8 CHECKED · HOLD / WAIT");
+    detail.textContent="Cycle #"+continuousCycle+" · 8/8 deterministic role checks refreshed at "+new Date(now).toLocaleTimeString()+" · every 5 seconds while this tab is open and visible · no LLM calls in this loop.";
+    if(byId("liveAgentRunStatus")&&!byId("runLiveAgentTeam").disabled)byId("liveAgentRunStatus").textContent="Continuous monitoring active · 8/8 local roles checked · "+new Date(now).toLocaleTimeString()+". AI-enhanced review is separate.";
+  }
+  function startContinuousAgentMonitor(){
+    continuousTeamEnabled=true;const button=byId("toggleContinuousTeam");button.textContent="Pause continuous 8-agent monitor";button.setAttribute("aria-pressed","true");
+    if(continuousTeamTimer)clearInterval(continuousTeamTimer);continuousTeamTimer=setInterval(runContinuousAgentCycle,5000);runContinuousAgentCycle();
+  }
+  function stopContinuousAgentMonitor(){
+    continuousTeamEnabled=false;if(continuousTeamTimer)clearInterval(continuousTeamTimer);continuousTeamTimer=null;
+    const button=byId("toggleContinuousTeam");button.textContent="Start continuous 8-agent monitor";button.setAttribute("aria-pressed","false");
+    byId("continuousTeamStatus").className="live-agent-consensus warn";byId("continuousTeamTitle").textContent="Continuous team: PAUSED";byId("continuousTeamDetails").textContent="The local rule agents are paused. Start monitoring to resume five-second checks.";window.tarotaiAgentCommitteeApproval=null;
+  }
+
   function renderHistoricalStudy(study){
     const panel=byId("livePatternStudy"),title=byId("livePatternTitle"),summary=byId("livePatternSummary"),cases=byId("livePatternExamples");
     cases.replaceChildren();
@@ -480,13 +602,14 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const localStudy=window.TarotAIMarketPatterns?.findSimilarCases(closed,currentInterval,{horizon:6,maxExamples:8,maxDistance:0.34});
       if(localStudy)renderHistoricalStudy(localStudy);
       const response=await fetch("/api/trading/agents",{method:"POST",cache:"no-store",credentials:"same-origin",headers:{"Content-Type":"application/json"},signal:AbortSignal.timeout(40000),
-        body:JSON.stringify({symbol:currentSymbol,interval:currentInterval,venue:marketVenue,roles:selections,paperEquity:Number(byId("livePaperBalance")?.value),riskPct:Number(byId("livePaperRisk")?.value),paperLedger:(Array.isArray(window.tarotaiPaperLedger)?window.tarotaiPaperLedger:[]).slice(-20).map(t=>({id:t.id,status:t.status,symbol:t.symbol,side:t.side,quantity:t.quantity,fillPrice:t.fillPrice,stopPrice:t.stopPrice,targetPrice:t.targetPrice,pnlNet:t.pnlNet,createdAt:t.createdAt,closedAt:t.closedAt,parentTradeId:t.parentTradeId}))})});
+        body:JSON.stringify({symbol:currentSymbol,interval:currentInterval,venue:marketVenue,roles:selections,livePrice:Number(rows[rows.length-1]?.close),paperEquity:Number(byId("livePaperBalance")?.value),riskPct:Number(byId("livePaperRisk")?.value),paperLedger:(Array.isArray(window.tarotaiPaperLedger)?window.tarotaiPaperLedger:[]).slice(-20).map(t=>({id:t.id,status:t.status,symbol:t.symbol,side:t.side,quantity:t.quantity,fillPrice:t.fillPrice,stopPrice:t.stopPrice,targetPrice:t.targetPrice,pnlNet:t.pnlNet,createdAt:t.createdAt,closedAt:t.closedAt,parentTradeId:t.parentTradeId}))})});
       const data=await response.json().catch(()=>({}));
       if(Array.isArray(data.results))renderLiveAgentResults(data.results);
       if(data.historicalAnalogueStudy)renderHistoricalStudy(data.historicalAnalogueStudy);
       if(!response.ok)throw new Error(data.error||"AI specialist endpoint returned HTTP "+response.status);
       renderHistoricalStudy(data.historicalAnalogueStudy);
       renderLiveAgentResults(data.results||[]);
+      if(Number(data.fallbackAgents)>0){const warning=document.createElement("span");warning.textContent="AI provider degraded: "+data.fallbackAgents+" role(s) used deterministic fallback. All eight role reports returned, but the AI-review supervisor vetoes paper-entry approval until a clean provider-backed review succeeds.";summary.className="live-agent-consensus bad";summary.append(warning);}
       const results=data.results||[],directionalRoles=new Set(["market","entry","exits","sizing","discipline"]),directional=results.filter(r=>directionalRoles.has(r.role)),successful=directional.filter(r=>r.ok),longs=successful.filter(r=>r.bias==="LONG").length,shorts=successful.filter(r=>r.bias==="SHORT").length;
       const needed=4,failed=results.length!==selections.length||results.some(r=>!r.ok);
       const vetoes=results.filter(r=>r.ok&&r.veto),riskSelected=selections.includes("sizing"),supervisor=results.find(r=>r.role==="supervisor");
@@ -634,6 +757,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   });
   document.querySelectorAll("[data-agent-role]").forEach(select=>select.addEventListener("change",updateLiveAgentSlotOptions));
   byId("runLiveAgentTeam").addEventListener("click",runLiveAgentTeam);
+  byId("toggleContinuousTeam").addEventListener("click",()=>continuousTeamEnabled?stopContinuousAgentMonitor():startContinuousAgentMonitor());
   byId("liveAgentAuthButton").addEventListener("click",unlockAgentSession);
   byId("liveAgentAccessCode").addEventListener("keydown",event=>{if(event.key==="Enter")unlockAgentSession();});
   byId("clearLiveAgentTeam").addEventListener("click",()=>{
@@ -749,9 +873,10 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
 
   byId("liveSymbol").addEventListener("change",()=>{higherCache=[];higherCacheKey="";higherCacheAt=0;reloadAll(true);});
   byId("liveInterval").addEventListener("change",()=>{higherCache=[];higherCacheKey="";higherCacheAt=0;reloadAll(true);});
-  refresh(true).then(connectSocket);
+  startContinuousAgentMonitor();
+  refresh(true).then(()=>{connectSocket();runContinuousAgentCycle();});
   pollTimer=setInterval(()=>{if(document.visibilityState==="visible")refresh(false);},15000);
-  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")refresh(false);});
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){refresh(false);runContinuousAgentCycle();}});
   window.addEventListener("beforeunload",()=>{if(pollTimer)clearInterval(pollTimer);if(feedSocket)feedSocket.close();if(resizeObserver)resizeObserver.disconnect();});
 })();
 

@@ -87,8 +87,81 @@ function trendSummary(candles:Candle[]) {
  const closes=candles.map(c=>c.close),e20=ema(closes,20),e50=ema(closes,50),i=closes.length-1;
  return {direction:closes[i]>e50[i]&&e20[i]>e50[i]?"BULLISH":closes[i]<e50[i]&&e20[i]<e50[i]?"BEARISH":"MIXED / NEUTRAL",lastClose:closes[i],ema20:e20[i],ema50:e50[i],lastClosedAt:new Date(candles[i].time).toISOString()};
 }
+
+function seriesRsi(values:number[],period=14):number[] {
+ const out=Array(values.length).fill(NaN);if(values.length<=period)return out;
+ let gain=0,loss=0;for(let i=1;i<=period;i++){const d=values[i]-values[i-1];gain+=Math.max(d,0);loss+=Math.max(-d,0);}
+ gain/=period;loss/=period;out[period]=loss===0?100:100-100/(1+gain/loss);
+ for(let i=period+1;i<values.length;i++){const d=values[i]-values[i-1];gain=(gain*(period-1)+Math.max(d,0))/period;loss=(loss*(period-1)+Math.max(-d,0))/period;out[i]=loss===0?100:100-100/(1+gain/loss);}
+ return out;
+}
+function seriesAtr(candles:Candle[],period=14):number[] {
+ const tr=candles.map((c,i)=>i===0?c.high-c.low:Math.max(c.high-c.low,Math.abs(c.high-candles[i-1].close),Math.abs(c.low-candles[i-1].close)));
+ const out=Array(tr.length).fill(NaN);if(tr.length<period)return out;let v=tr.slice(0,period).reduce((a,b)=>a+b,0)/period;out[period-1]=v;
+ for(let i=period;i<tr.length;i++){v=(v*(period-1)+tr[i])/period;out[i]=v;}return out;
+}
+function deterministicFallbackReport(role:string,market:any,higherTrend:any,paperTradeContext:any,body:any,providerError:string,otherResults:any[]=[]) {
+ const candles:Candle[]=market.candles,closes=candles.map(c=>c.close),i=candles.length-1,last=candles[i],e9=ema(closes,9),e21=ema(closes,21),e50=ema(closes,50),rv=seriesRsi(closes,14),av=seriesAtr(candles,14);
+ const prior=candles.slice(Math.max(0,i-20),i),recent=candles.slice(Math.max(0,i-7),i+1),hi=prior.length?Math.max(...prior.map(c=>c.high)):NaN,lo=prior.length?Math.min(...prior.map(c=>c.low)):NaN;
+ const up=last.close>hi,down=last.close<lo,stale=Number(market.lastClosedCandleAgeMs)>INTERVAL_MS[market.interval as Interval]*2+60000;
+ const hUp=higherTrend.direction==="BULLISH",hDown=higherTrend.direction==="BEARISH";
+ const longChecks=[e9[i]>e21[i],last.close>e50[i],rv[i]>=52&&rv[i]<=70,e9[i]>e9[Math.max(0,i-3)]&&last.close>candles[i-1].close,up];
+ const shortChecks=[e9[i]<e21[i],last.close<e50[i],rv[i]>=30&&rv[i]<=48,e9[i]<e9[Math.max(0,i-3)]&&last.close<candles[i-1].close,down];
+ let bias="WAIT",entry=NaN,stop=NaN,target=NaN,rr=NaN;
+ if(!stale&&hUp&&longChecks.filter(Boolean).length>=4&&up){bias="LONG";entry=last.close;stop=Math.min(entry-av[i]*1.5,Math.min(...recent.map(c=>c.low))-av[i]*.1);target=entry+(entry-stop)*2;rr=2;}
+ else if(!stale&&hDown&&shortChecks.filter(Boolean).length>=4&&down){bias="SHORT";entry=last.close;stop=Math.max(entry+av[i]*1.5,Math.max(...recent.map(c=>c.high))+av[i]*.1);target=entry-(stop-entry)*2;rr=2;}
+ const liveRaw=Number(body?.livePrice),livePrice=Number.isFinite(liveRaw)&&liveRaw>0?liveRaw:last.close,drift=Number.isFinite(entry)?Math.abs(livePrice-entry)/entry:NaN;
+ const equity=Number(paperTradeContext?.paperEquity),riskPct=Number(paperTradeContext?.riskPct),distance=Math.abs(entry-stop);
+ const sizingReady=bias!=="WAIT"&&Number.isFinite(equity)&&equity>=100&&Number.isFinite(riskPct)&&riskPct>=.1&&riskPct<=2&&Number.isFinite(distance)&&distance>0;
+ const quantity=sizingReady?Math.min(equity*riskPct/100/distance,equity/entry):NaN;
+ const num=(n:number)=>Number.isFinite(n)?n.toPrecision(8):"unavailable";
+ const fail=String(providerError||"AI provider unavailable").replace(/sk-or-v1-[A-Za-z0-9_-]+/g,"[redacted key]").replace(/\s+/g," ").slice(0,180);
+ const open=Array.isArray(paperTradeContext?.openPositions)?paperTradeContext.openPositions.filter((t:any)=>t.symbol===market.symbol):[];
+ const records=Array.isArray(paperTradeContext?.recentRecords)?paperTradeContext.recentRecords:[];
+ let reportBias="WAIT",veto=false,evidence="",trigger="WAIT; no confirmed setup.",invalidation="A fresh candle that invalidates the stated structure.",history="Historical analogues are descriptive, not calibrated win probabilities.";
+ if(role==="market"){
+  reportBias=stale?"WAIT":hUp&&e9[i]>e21[i]&&last.close>e50[i]?"LONG":hDown&&e9[i]<e21[i]&&last.close<e50[i]?"SHORT":"WAIT";
+  evidence="Last close "+num(last.close)+" at "+new Date(last.time).toISOString()+"; EMA9/21/50 "+num(e9[i])+"/"+num(e21[i])+"/"+num(e50[i])+"; RSI14 "+(Number.isFinite(rv[i])?rv[i].toFixed(1):"unavailable")+".";
+  trigger="Main trend "+trendSummary(candles).direction+"; higher timeframe "+higherTrend.direction+"; 20-bar break "+(up?"up":down?"down":"not confirmed")+".";
+  veto=stale||!Number.isFinite(rv[i]);
+ } else if(role==="entry"){
+  reportBias=bias;evidence="Closed-candle confirmation checks: long "+longChecks.filter(Boolean).length+"/5; short "+shortChecks.filter(Boolean).length+"/5; HTF "+higherTrend.direction+".";
+  trigger=bias==="LONG"?"LONG only after confirmed close above previous 20-bar high "+num(hi)+".":bias==="SHORT"?"SHORT only after confirmed close below previous 20-bar low "+num(lo)+".":"WAIT for aligned trend, momentum and closed-candle breakout.";
+  veto=stale;
+ } else if(role==="exits"){
+  reportBias=bias;evidence=Number.isFinite(entry)&&Number.isFinite(stop)&&Number.isFinite(target)?"Entry "+num(entry)+", stop "+num(stop)+", target "+num(target)+", modeled "+rr+"R.":"No eligible entry; prices are withheld rather than invented.";
+  trigger=Number.isFinite(entry)&&Number.isFinite(stop)&&Number.isFinite(target)?"Require trigger to remain valid and verify current quote before paper entry.":"WAIT until a qualified setup supplies valid stop/target geometry.";
+  veto=bias!=="WAIT"&&(!Number.isFinite(entry)||!Number.isFinite(stop)||!Number.isFinite(target));
+ } else if(role==="sizing"){
+  reportBias=sizingReady?bias:"WAIT";evidence=sizingReady?"Equity "+num(equity)+" USDT, risk "+riskPct+"%, cash-risk cap "+num(equity*riskPct/100)+", max quantity "+num(quantity)+".":"Position size unavailable until valid balance, risk percentage, entry and stop distance are available.";
+  trigger=sizingReady?"Use the calculated quantity only in paper mode; recalculate if entry or stop changes.":"WAIT; no quantity is approved.";
+  veto=bias!=="WAIT"&&!sizingReady;
+ } else if(role==="discipline"){
+  reportBias=Number.isFinite(entry)&&(!Number.isFinite(drift)||drift>.01)?"WAIT":bias;evidence="Last server candle "+num(last.close)+"; latest browser quote "+num(livePrice)+"; entry drift "+(Number.isFinite(drift)?(drift*100).toFixed(3)+"%":"not applicable")+".";
+  trigger=bias!=="WAIT"&&Number.isFinite(drift)&&drift<=.01?"Paper entry only while drift remains within 1%; never chase.":"WAIT; require fresh quote and confirmed closed candle.";
+  veto=stale||bias!=="WAIT"&&(!Number.isFinite(drift)||drift>.01);
+ } else if(role==="position"){
+  const alert=open.some((t:any)=>t.side==="BUY"?livePrice<=Number(t.stop)||livePrice>=Number(t.target):livePrice>=Number(t.stop)||livePrice<=Number(t.target));
+  reportBias="WAIT";evidence=open.length?open.length+" open paper position(s) on "+market.symbol+"; live price "+num(livePrice)+".":"No open paper position on "+market.symbol+".";
+  trigger=alert?"STOP/TARGET ALERT: verify the persistent ledger and close manually in paper mode.":open.length?"Monitor recorded stop and target; no order is sent.":"NO OPEN PAPER POSITION; no position to manage.";
+  veto=stale||alert||open.some((t:any)=>!Number.isFinite(Number(t.stop))||!Number.isFinite(Number(t.target)));
+ } else if(role==="journal"){
+  const pnls=records.map((t:any)=>Number(t.pnlNet)).filter((n:number)=>Number.isFinite(n)),net=pnls.reduce((a:number,b:number)=>a+b,0),wins=pnls.filter((n:number)=>n>0).length;
+  evidence=records.length?"Reviewed "+records.length+" recent closed paper records; "+wins+" positive; modeled net P&L "+num(net)+" USDT.":"No completed paper records supplied; no outcome inference is possible.";
+  trigger="Record entry, stop, target, costs, exit price and reason for each completed paper trade.";
+ } else {
+  const degraded=otherResults.filter((r:any)=>r.fallback||!r.ok||r.veto).length;
+  reportBias="WAIT";veto=true;evidence="Supervisor reviewed "+otherResults.length+" specialist results; "+degraded+" failed, fallback or veto states; provider status degraded.";
+  trigger="VETO YES: AI provider health is degraded or a specialist raised a risk veto; do not approve paper entry.";
+  invalidation="Rerun all eight reports with healthy AI-provider responses against the same fresh candle timestamp.";
+ }
+ if(stale&&role!=="journal"){reportBias="WAIT";veto=true;trigger="WAIT: latest closed market candle is stale; refresh data before entry.";}
+ const text=["BIAS: "+reportBias,"VETO: "+(veto?"YES":"NO"),"EVIDENCE: "+evidence,"HISTORICAL: "+history,"TRIGGER: "+trigger,"INVALIDATION: "+invalidation,"COUNTERARGUMENT: Fees, slippage, unseen feeds and regime changes can invalidate deterministic analysis.","ENGINE: local deterministic fallback; AI request failed ("+fail+")."].join("\n");
+ return {bias:reportBias,veto,text,providerError:fail};
+}
+
 function compactCandles(candles:Candle[],count:number) {return candles.slice(-count).map(c=>({utc:new Date(c.time).toISOString(),o:Number(c.open.toPrecision(7)),h:Number(c.high.toPrecision(7)),l:Number(c.low.toPrecision(7)),c:Number(c.close.toPrecision(7)),v:Number(c.volume.toPrecision(5))}));}
-function parseBias(text:string) {const m=text.match(/^\s*(?:[-*]\s*)?(?:\*\*)?BIAS(?:\*\*)?\s*:\s*(LONG|SHORT|WAIT)\b/im),v=text.match(/^\s*(?:[-*]\s*)?(?:\*\*)?VETO(?:\*\*)?\s*:\s*(YES|NO)\b/im);return {bias:m?.[1]?.toUpperCase()||"WAIT",veto:v?.[1]?.toUpperCase()==="YES",vetoDeclared:!!v};}
+function parseBias(text:string) {const m=text.match(/^\s*(?:[-*]\s*)?(?:\*\*)?BIAS(?:\*\*)?\s*:\s*(LONG|SHORT|WAIT)\b/im),v=text.match(/^\s*(?:[-*]\s*)?(?:\*\*)?VETO(?:\*\*)?\s*:\s*(YES|NO)\b/im);return {bias:m?.[1]?.toUpperCase()||"WAIT",veto:v?.[1]?.toUpperCase()==="YES",vetoDeclared:!!v,biasDeclared:!!m};}
 function specialistSystem(role:string) {
  const s=SPECIALISTS[role];
  return [
@@ -170,17 +243,22 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
     throw new Error("OpenRouter HTTP "+response.status+(code?" · "+code:"")+(kind?" · "+kind:"")+": "+message);
    }
    const report=data?.choices?.[0]?.message?.content;if(typeof report!=="string"||!report.trim()){const reason=data?.choices?.[0]?.finish_reason;const usage=data?.usage||{};const reasoningTokens=usage?.completion_tokens_details?.reasoning_tokens;const completionTokens=usage?.completion_tokens;const routedModel=typeof data?.model==="string"?data.model:model;throw new Error("OpenRouter returned no visible report"+(reason?" (finish_reason: "+String(reason)+")":"")+(Number.isFinite(Number(completionTokens))?"; completion tokens: "+Number(completionTokens):"")+(Number.isFinite(Number(reasoningTokens))?"; reasoning tokens: "+Number(reasoningTokens):"")+"; routed model: "+routedModel+". Output budget was increased; check provider availability or free-tier rate limits if this persists.");}
-   const parsed=parseBias(report),{vetoDeclared,...parsedVote}=parsed;const result={role,name:SPECIALISTS[role].name,ok:true,...parsedVote,veto:role==="sizing"&&!vetoDeclared?true:parsedVote.veto,text:report.trim().slice(0,6000),elapsedMs:Date.now()-agentStarted,model:typeof data?.model==="string"?data.model:model};
+   const parsed=parseBias(report);if(!parsed.biasDeclared)throw new Error("Specialist report omitted required BIAS field.");if(!parsed.vetoDeclared)throw new Error("Specialist report omitted required VETO field.");const {vetoDeclared,biasDeclared,...parsedVote}=parsed;const result={role,name:SPECIALISTS[role].name,ok:true,...parsedVote,veto:parsedVote.veto,text:report.trim().slice(0,6000),elapsedMs:Date.now()-agentStarted,model:typeof data?.model==="string"?data.model:model};
    send({type:"agent",role,status:"complete",result});
    return result;
-  }catch(e){const result={role,name:SPECIALISTS[role].name,ok:false,bias:"WAIT",veto:role==="sizing",text:"This specialist did not return a verified analysis: "+(e instanceof Error?e.message:"provider error"),elapsedMs:Date.now()-agentStarted,model};send({type:"agent",role,status:"error",result});return result;}
+  }catch(e){
+   const providerError=e instanceof Error?e.message:"provider error";
+   const fallback=deterministicFallbackReport(role,market,higherTrend,paperTradeContext,body,providerError);
+   const result={role,name:SPECIALISTS[role].name,ok:true,bias:fallback.bias,veto:fallback.veto,text:fallback.text,elapsedMs:Date.now()-agentStarted,model:"local-deterministic-fallback-v1",fallback:true,providerStatus:"degraded",providerError:fallback.providerError};
+   send({type:"agent",role,status:"complete",result});return result;
+  }
  }));
 
  const monitorStarted=Date.now();
  send({type:"agent",role:"supervisor",status:"running",name:SPECIALISTS.supervisor.name,focus:SPECIALISTS.supervisor.focus});
  try {
-  const priorReports=results.map(r=>({role:r.role,name:r.name,status:r.ok?"complete":"failed",bias:r.bias,veto:r.veto,model:r.model,elapsedMs:r.elapsedMs,report:String(r.text||"").slice(0,1400)}));
-  const monitorPrompt="Audit these seven specialist results against their role responsibilities. Do not treat the supervisor as a directional voter. Flag failures, missing required facts, unsupported certainty, contradictory direction, unverified prices, missing stop/target, missing position-size inputs, missed-entry chasing, and false claims about journal/open-position context. Missing journal history or no open position is a valid N/A, not itself a veto. Return the standard seven-line report. Set VETO: YES if any specialist failed or any material safety/evidence issue exists; otherwise VETO: NO.\n\n"+JSON.stringify({symbol,interval,market:{venue:market.venue,host:market.host,lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),higherTrend:higherTrend.direction},agents:priorReports});
+  const priorReports=results.map(r=>({role:r.role,name:r.name,status:r.ok?"complete":"failed",bias:r.bias,veto:r.veto,model:r.model,fallback:Boolean(r.fallback),providerStatus:r.providerStatus||"ok",elapsedMs:r.elapsedMs,report:String(r.text||"").slice(0,1400)}));
+  const monitorPrompt="Audit these seven specialist results against their role responsibilities. Do not treat the supervisor as a directional voter. Flag failures, missing required facts, unsupported certainty, contradictory direction, unverified prices, missing stop/target, missing position-size inputs, missed-entry chasing, and false claims about journal/open-position context. Missing journal history or no open position is a valid N/A, not itself a veto. Return the standard seven-line report. Set VETO: YES if any specialist failed, used local fallback because the AI provider failed, or any material safety/evidence issue exists; otherwise VETO: NO.\n\n"+JSON.stringify({symbol,interval,market:{venue:market.venue,host:market.host,lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),higherTrend:higherTrend.direction},agents:priorReports});
   let monitorData:any,monitorResponse:any,monitorModel="openrouter/free";
   monitorResponse=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",cache:"no-store",signal:AbortSignal.timeout(12000),headers:{"Authorization":"Bearer "+process.env.OPENROUTER_API_KEY,"Content-Type":"application/json","HTTP-Referer":"https://tarotai-core.vercel.app","X-Title":"TarotAI Agent Operations Supervisor"},body:JSON.stringify({model:monitorModel,messages:[{role:"system",content:specialistSystem("supervisor")},{role:"user",content:monitorPrompt}],temperature:0.1,max_tokens:1000})});
   const monitorRaw=await monitorResponse.text();try{monitorData=JSON.parse(monitorRaw);}catch{throw new Error("Supervisor returned non-JSON provider output (HTTP "+monitorResponse.status+").");}
@@ -189,18 +267,22 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
   if(typeof monitorText!=="string"||!monitorText.trim())throw new Error("Supervisor returned no report.");
   const monitorBias=parseBias(monitorText);
   if(!monitorBias.vetoDeclared)throw new Error("Supervisor report omitted required VETO field.");
-  const supervisorResult={role:"supervisor",name:SPECIALISTS.supervisor.name,ok:true,bias:"WAIT",veto:results.some(r=>!r.ok)||monitorBias.veto,text:monitorText.trim().slice(0,6000),elapsedMs:Date.now()-monitorStarted,model:typeof monitorData?.model==="string"?monitorData.model:monitorModel};
+  if(!monitorBias.biasDeclared)throw new Error("Supervisor report omitted required BIAS field.");
+  const providerDegraded=results.some(r=>r.fallback||!r.ok);
+  const supervisorResult={role:"supervisor",name:SPECIALISTS.supervisor.name,ok:true,bias:"WAIT",veto:providerDegraded||results.some(r=>!r.ok)||monitorBias.veto,text:monitorText.trim().slice(0,6000)+(providerDegraded?"\n\nVETO ENFORCED: one or more specialists used local fallback because the AI provider failed.":""),elapsedMs:Date.now()-monitorStarted,model:typeof monitorData?.model==="string"?monitorData.model:monitorModel};
   results.push(supervisorResult);send({type:"agent",role:"supervisor",status:"complete",result:supervisorResult});
  } catch(e) {
-  const supervisorResult={role:"supervisor",name:SPECIALISTS.supervisor.name,ok:false,bias:"WAIT",veto:true,text:"Supervisor could not verify agent health: "+(e instanceof Error?e.message:"provider error"),elapsedMs:Date.now()-monitorStarted,model:"openrouter/free"};
-  results.push(supervisorResult);send({type:"agent",role:"supervisor",status:"error",result:supervisorResult});
+  const providerError=e instanceof Error?e.message:"provider error";
+  const fallback=deterministicFallbackReport("supervisor",market,higherTrend,paperTradeContext,body,providerError,results);
+  const supervisorResult={role:"supervisor",name:SPECIALISTS.supervisor.name,ok:true,bias:"WAIT",veto:true,text:fallback.text,elapsedMs:Date.now()-monitorStarted,model:"local-deterministic-fallback-v1",fallback:true,providerStatus:"degraded",providerError:fallback.providerError};
+  results.push(supervisorResult);send({type:"agent",role:"supervisor",status:"complete",result:supervisorResult});
  }
- const ok=results.filter(r=>r.ok).length; const failed=results.filter(r=>!r.ok).length; const specialistOk=results.filter(r=>r.role!=="supervisor"&&r.ok).length;
- if(!specialistOk)return jsonError("No trade-lifecycle specialist returned a valid analysis. Check OpenRouter model/provider configuration and retry.",502,{results,model,elapsedMs:Date.now()-started});
- return NextResponse.json({ok:true,mode:"parallel-llm-specialists",model,elapsedMs:Date.now()-started,
+ const ok=results.filter(r=>r.ok).length; const failed=results.filter(r=>!r.ok).length; const specialistOk=results.filter(r=>r.role!=="supervisor"&&r.ok).length; const fallbackCount=results.filter(r=>r.fallback).length;
+ if(results.length!==8||failed!==0||specialistOk!==7)return jsonError("The team did not return all eight usable role reports.",502,{results,model,elapsedMs:Date.now()-started,completedAgents:ok,requestedAgents:8});
+ return NextResponse.json({ok:true,mode:fallbackCount?"hybrid-ai-with-deterministic-fallback":"parallel-llm-specialists",model,elapsedMs:Date.now()-started,
   market:{venue:market.venue,host:market.host,symbol,interval,higherInterval:market.higherInterval,fetchedAt:market.fetchedAt,
    lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),lastClosedCandleAgeSeconds:Math.max(0,Math.round(market.lastClosedCandleAgeMs/1000)),higherTimeframeTrend:higherTrend.direction},
-  historicalAnalogueStudy:userContext.historicalAnalogueStudy,results,completedAgents:ok,requestedAgents:results.length,
+  historicalAnalogueStudy:userContext.historicalAnalogueStudy,results,completedAgents:ok,requestedAgents:8,fallbackAgents:fallbackCount,aiProviderStatus:fallbackCount?"degraded":"ok",
   safety:{readOnly:true,orderPlacement:false,paperTradingOnly:true}
  },{headers:{"Cache-Control":"no-store"}});
 }
