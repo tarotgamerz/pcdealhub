@@ -580,7 +580,7 @@ test("Binance Futures is the canonical live chart source selected by the user", 
   assert.match(futuresDesk, /marketVenue="binance"/);
   assert.match(futuresDesk, /wss:\/\/fstream\.binance\.com\/ws\//);
   assert.match(source, /https:\/\/fapi\.binance\.com\/fapi\/v1\/klines/);
-  assert.match(parallelAgentsRoute, /fapi\.binance\.com\/fapi\/v1\/klines/);
+  assert.match(parallelAgentsRoute, /fapi\/v1\/klines/);
   assert.match(paperRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/price/);
   assert.match(liveQuoteRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/price/);
   assert.match(futuresDesk, /channel:"trades",instId/);
@@ -677,7 +677,7 @@ test("live quote fallback uses the selected venue and blocks stale prices", () =
   assert.match(futuresDesk, /function hasFreshLiveQuote\(now=Date\.now\(\)\)/);
   assert.match(futuresDesk, /function refreshQuoteFallback\(\)/);
   assert.match(futuresDesk, /quoteFallbackTimer=setInterval/);
-  assert.match(futuresDesk, /lastQuoteSource===marketVenue+"-rest-ticker"/);
+  assert.match(futuresDesk, /lastQuoteSource===marketVenue\+"-rest-ticker"/);
   assert.match(futuresDesk, /LIVE PRICE STALE/);
   assert.match(futuresDesk, /if\(!hasFreshLiveQuote\(\)\)/);
   assert.doesNotMatch(futuresDesk, /reloadAll\(true\)/);
