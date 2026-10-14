@@ -689,6 +689,28 @@ test("paper UI measures current spread and passes server-enforced exposure input
   assert.match(futuresDesk, /5% notional per position/);
 });
 
+test("chart shows current activity of the eight continuous local rule roles",()=>{
+  assert.match(futuresDesk, /id="chartAgentCounter"/);
+  assert.match(futuresDesk, /function setChartAgentCounter\(value,detail,mode="warn"\)/);
+  assert.match(futuresDesk, /setChartAgentCounter\("8\/8 AGENTS ACTIVE"/);
+  assert.match(futuresDesk, /continuousTeamTimer=setInterval\(runContinuousAgentCycle,1000\)/);
+  assert.match(futuresDesk, /no LLM calls in this loop/);
+  assert.match(futuresDesk, /The local roles are not eight separate LLM calls/);
+});
+
+test("target-only observation trades ignore stop-only touches and stay outside signal accuracy metrics",()=>{
+  assert.match(paperRoute, /resolveTargetOnlyObservation/);
+  assert.match(paperRoute, /targetOnlyObservation=trade\.experimentMode==="target-only-observation"/);
+  assert.match(paperRoute, /openedAt<closedCandles\[0\]\.time&&!targetOnlyObservation/);
+  assert.match(paperRoute, /decisionSource=experimentMode\?"target-only-observation"/);
+  assert.match(paperRoute, /experimentMode:experimentMode\|\|null/);
+  assert.match(paperRoute, /experimentObservation/);
+  assert.match(paperRoute, /result=targetOnlyObservation[\s\S]*?resolveTargetOnlyObservation/);
+  assert.match(futuresDesk, /id="livePaperObservationOpen"/);
+  assert.match(futuresDesk, /async function paperOpenObservation\(\)/);
+  assert.match(futuresDesk, /strategyCloses=closed\.filter/);
+  assert.match(futuresDesk, /Observation trials are excluded from strategy win-rate stats/);
+});
 test("Binance live chart renders automatic support, resistance, trendlines and shared live ticks", () => {
   assert.match(futuresDesk, /marketVenue="binance"/);
   assert.match(futuresDesk, /wss:\/\/fstream\.binance\.com\/ws\//);
