@@ -44,9 +44,13 @@ test("market API is private-session protected and cannot submit exchange orders"
   assert.match(source, /if\(!process\.env\.TAROTAI_ACCESS_CODE\)/);
 });
 
-test("market API validates candle contents and reports stale data", () => {
+test("market API validates candle contents and computes freshness from closed candle time", () => {
   assert.match(source, /candles\.some\(c=>!\[c\.time,c\.open,c\.high,c\.low,c\.close\]\.every\(Number\.isFinite\)/);
-  assert.match(source, /const stale=ageMs>intervalMs\[interval\]\+60000/);
+  assert.match(source, /const candleEnd=\(c:any\)=>Number\.isFinite\(c\.closeTime\)/);
+  assert.match(source, /const closedCandles=candles\.filter\(c=>candleEnd\(c\)<now-300\)/);
+  assert.match(source, /const ageMs=latestClosed\?Math\.max\(0,now-candleEnd\(latestClosed\)\)/);
+  assert.match(source, /latestClosedCandleTime:latestClosed\?\.time\?\?null/);
+  assert.match(source, /stale=!Number\.isFinite\(ageMs\)\|\|ageMs>duration\+60000/);
   assert.match(source, /Cache-Control":"no-store"/);
 });
 
@@ -564,7 +568,11 @@ test("strategy chart, agent context and paper checks stay on the same selected l
 test("paper entry checks a live OKX last-trade ticker and blocks material quote drift", () => {
   assert.match(paperRoute, /api\/v5\/market\/ticker/);
   assert.match(paperRoute, /action==="OPEN"&&priceDrift>0\.002/);
-  assert.match(paperRoute, /executionReferencePrice=action==="CLOSE"\?verifiedMarketPrice:price/);
+  assert.match(paperRoute, /executionReferencePrice=verifiedMarketPrice/);
+  assert.match(paperRoute, /ticker\/bookTicker/);
+  assert.match(paperRoute, /verifiedSpreadBps<0\|\|verifiedSpreadBps>20/);
+  assert.match(paperRoute, /validatePaperExposure/);
+  assert.match(paperRoute, /maxTotalExposurePct:PAPER_MAX_PORTFOLIO_EXPOSURE_PCT/);
   assert.match(paperRoute, /marketSource,/);
 });
 
@@ -651,6 +659,23 @@ test("strategy chart uses the shared live quote and refreshes automatically", ()
 
 test("market-data status reports the actual selected venue rather than a hard-coded exchange", () => {
   assert.match(futuresDesk, /Source: "\+\(\{binance:"Binance USDⓈ-M Futures",bybit:"Bybit linear perpetual",okx:"OKX perpetual swap"\}\[marketVenue\]/);
+});
+
+test("Binance chart has a native interval-specific kline stream and only re-analyzes each closed bar once", () => {
+  assert.match(futuresDesk, /@kline_\"\+currentInterval/);
+  assert.match(futuresDesk, /message\?\.e!==\"kline\"/);
+  assert.match(futuresDesk, /confirmed:k\.x===true/);
+  assert.match(futuresDesk, /function analyzeNewClosedBar\(\)/);
+  assert.match(futuresDesk, /lastAnalyzedClosedCandleTime/);
+});
+
+test("paper UI measures current spread and passes server-enforced exposure inputs instead of pretending spread is zero", () => {
+  assert.match(futuresDesk, /spreadBps=Number\(quoteData\.spreadBps\)/);
+  assert.match(futuresDesk, /spreadBps\}\)/);
+  assert.match(futuresDesk, /maxExposurePct=5/);
+  assert.match(futuresDesk, /paperBalance:balance,riskPct,maxExposurePct/);
+  assert.doesNotMatch(futuresDesk, /spreadBps:0/);
+  assert.match(futuresDesk, /5% notional per position/);
 });
 
 test("Binance live chart renders automatic support, resistance, trendlines and shared live ticks", () => {
