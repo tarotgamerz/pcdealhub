@@ -550,7 +550,8 @@ test("in-dashboard charts use one candle source plus a shared live OKX swap last
 
 test("continuous local rule roles refresh every second and paper entries use the shared verified last trade", () => {
   assert.match(futuresDesk, /continuousTeamTimer=setInterval\(runContinuousAgentCycle,1000\)/);
-  assert.match(futuresDesk, /const entry=Number\(currentMarketPrice\(\)\)/);
+  assert.match(futuresDesk, /quoteData=await serverQuote\.json\(\)\.catch\(\(\)=>\(\{\}\)\)/);
+  assert.match(futuresDesk, /const quoteObservedAt=Date\.now\(\),quoteTimestamp=Number\(quoteData\.timestamp\),quoteAge=quoteObservedAt-quoteTimestamp,entry=Number\(quoteData\.price\)/);
   assert.match(futuresDesk, /source:"continuous-local-team"/);
   assert.match(futuresDesk, /PAPER_ONLY_APPROVAL/);
   assert.match(paperRoute, /liveTradingEnabled:false/);
@@ -639,7 +640,8 @@ test("demo order ticket uses live agent decision and persistent paper execution,
   assert.doesNotMatch(futuresDesk, /id="stop"/);
   assert.doesNotMatch(futuresDesk, /id="target"/);
   assert.match(futuresDesk, /byId\("demoAgentOpen"\)\.addEventListener\("click",paperOpenSignal\)/);
-  assert.match(futuresDesk, /const entry=Number\(currentMarketPrice\(\)\),stop=Number\(d\.stop\)/);
+  assert.match(futuresDesk, /const stop=Number\(d\.stop\),long=d\.action==="BUY \/ LONG"/);
+  assert.match(futuresDesk, /const distance=Math\.abs\(entry-stop\),riskBudget=balance\*riskPct\/100,notionalCap=balance\*maxExposurePct\/100/);
   assert.match(futuresDesk, /action:"OPEN",symbol:d\.symbol,venue:marketVenue/);
   assert.match(futuresDesk, /function updateDemoAgentTicket\(\)/);
   assert.match(futuresDesk, /if\(checks\.length\)\{d=await paperRequest/);
