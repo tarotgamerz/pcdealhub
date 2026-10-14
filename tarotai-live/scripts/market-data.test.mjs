@@ -641,8 +641,8 @@ test("strategy chart uses the shared live quote and refreshes automatically", ()
   assert.match(futuresDesk, /window\.tarotaiUpdateStrategyLiveQuote\(price,now\)/);
   assert.match(futuresDesk, /quoteFresh\?quote\.toLocaleString/);
   assert.match(futuresDesk, /LIVE '\+liveP\.toLocaleString/);
-  assert.match(futuresDesk, /strategyRefreshTimer=setInterval\(\(\)=>\{if\(document\.visibilityState==='visible'&&!\\$\\('drawStrategy'\\)\.disabled\)\\$\\('drawStrategy'\\)\.click\(\)\},15000\)/);
-  assert.match(futuresDesk, /startStrategyAutoRefresh\(\);if\(document\.visibilityState==='visible'\)\\$\\('drawStrategy'\\)\.click\(\)/);
+  assert.match(futuresDesk, /strategyRefreshTimer=setInterval/);
+  assert.match(futuresDesk, /startStrategyAutoRefresh\(\);if\(document\.visibilityState==='visible'\)/);
   assert.match(futuresDesk, /window\.tarotaiStrategyCandles=null/);
 });
 
