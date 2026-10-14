@@ -635,7 +635,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const ledger=Array.isArray(window.tarotaiPaperLedger)?window.tarotaiPaperLedger:[];
     const terminal=new Set(["PAPER_CLOSE","PAPER_STOP","PAPER_TARGET"]),closedIds=new Set(ledger.filter(t=>t.parentTradeId&&terminal.has(t.status)).map(t=>t.parentTradeId));
     const open=ledger.filter(t=>t.status==="PAPER_OPEN"&&!closedIds.has(t.id)),onSymbol=open.filter(t=>t.symbol===currentSymbol);
-    const alerts=onSymbol.filter(t=>Number.isFinite(Number(t.stopPrice))&&Number.isFinite(Number(t.targetPrice))&&(t.side==="BUY"?livePrice<=Number(t.stopPrice)||livePrice>=Number(t.targetPrice):livePrice>=Number(t.stopPrice)||livePrice<=Number(t.targetPrice)));
+    const alerts=onSymbol.filter(t=>Number.isFinite(Number(t.stopPrice))&&Number.isFinite(Number(t.targetPrice))&&(t.experimentMode==="target-only-observation"?(t.side==="BUY"?livePrice>=Number(t.targetPrice):livePrice<=Number(t.targetPrice)):(t.side==="BUY"?livePrice<=Number(t.stopPrice)||livePrice>=Number(t.targetPrice):livePrice>=Number(t.stopPrice)||livePrice<=Number(t.targetPrice))));
+    const observationStopTouches=onSymbol.filter(t=>t.experimentMode==="target-only-observation"&&Number.isFinite(Number(t.stopPrice))&&(t.side==="BUY"?livePrice<=Number(t.stopPrice):livePrice>=Number(t.stopPrice)));
     const finished=ledger.filter(t=>t.parentTradeId&&terminal.has(t.status)),pnl=finished.map(t=>Number(t.pnlNet)).filter(Number.isFinite),net=pnl.reduce((a,b)=>a+b,0),wins=pnl.filter(v=>v>0).length;
     const reports=[];
     const marketBias=stale||!htf.ready?"WAIT":htf.up&&e9[i]>e21[i]&&closes[i]>e50[i]?"LONG":htf.down&&e9[i]<e21[i]&&closes[i]<e50[i]?"SHORT":"WAIT";
@@ -686,8 +687,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       "BIAS: WAIT","VETO: "+(positionVeto?"YES":"NO"),
       "EVIDENCE: "+onSymbol.length+" open paper position(s) for "+currentSymbol+"; latest quote "+fmt(livePrice)+"; stop/target alert(s) "+alerts.length+".",
       "HISTORICAL: open-position monitoring tracks recorded states; it is not a forecast.",
-      "TRIGGER: "+(alerts.length?"STOP/TARGET ALERT — check the persistent paper ledger and close manually":onSymbol.length?"continue checking the recorded stop and target":"NO OPEN PAPER POSITION — nothing to manage"),
-      "INVALIDATION: any stop/target crossing or missing protective level is a risk incident.",
+      "TRIGGER: "+(observationStopTouches.length?"OBSERVATION REFERENCE STOP TOUCHED — target-only test intentionally remains open; keep recording drawdown and wait for its profit target":alerts.length?(onSymbol.some(t=>t.experimentMode==="target-only-observation")?"OBSERVATION PROFIT TARGET TOUCHED — verify the next closed candle before recording target exit":"STOP/TARGET ALERT — check the persistent paper ledger and close manually"):onSymbol.length?"continue checking the recorded stop and target":"NO OPEN PAPER POSITION — nothing to manage"),
+      "INVALIDATION: strategy-trade stop/target crossings are exit alerts; target-only observation stop references are recorded but do not auto-close the test.",
       "COUNTERARGUMENT: five-second polling cannot observe every intrabar event."
     ]));
     reports.push(localReport("journal","WAIT",false,[
@@ -1039,7 +1040,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const tag=document.createElement("span");tag.className="tag";tag.textContent=t.experimentMode==="target-only-observation"?"TARGET-ONLY TEST":"PAPER OPEN";head.append(name,tag);card.append(head);
       const facts=document.createElement("div");facts.className="facts";
       const fact=(label,value)=>{const el=document.createElement("div"),l=document.createElement("small"),v=document.createElement("b");l.textContent=label;v.textContent=value;el.append(l,v);facts.append(el);};
-      fact("Entry fill",paperFmt(paperNum(t.fillPrice)));fact("Signal source",t.experimentMode==="target-only-observation"?"Observation test · not a signal":t.decisionSource==="ai-eight-agent-review"?"AI review":t.decisionSource==="continuous-local-team"?"Continuous 8-role rules":"Manual chart");fact(t.experimentMode==="target-only-observation"?"Reference stop · no auto-exit":"Stop",paperFmt(paperNum(t.stopPrice)));fact("Target",paperFmt(paperNum(t.targetPrice)));
+      fact("Entry fill",paperFmt(paperNum(t.fillPrice)));fact("Signal source",t.experimentMode==="target-only-observation"?"Observation test · not a signal":t.decisionSource==="ai-eight-agent-review"?"AI review":t.decisionSource==="continuous-local-team"?"Continuous 8-role rules":"Manual chart");if(t.experimentMode==="target-only-observation")fact("Agent at entry",t.experimentObservation?.agentDecisionAtEntry||"HOLD / WAIT");fact(t.experimentMode==="target-only-observation"?"Reference stop · no auto-exit":"Stop",paperFmt(paperNum(t.stopPrice)));fact("Target",paperFmt(paperNum(t.targetPrice)));
       fact("Quantity",paperNum(t.quantity).toLocaleString("en-US",{maximumFractionDigits:8}));fact(t.experimentMode==="target-only-observation"?"Reference-stop distance · not max loss":"Risk at stop",paperFmt(Math.abs(paperNum(t.fillPrice)-paperNum(t.stopPrice))*paperNum(t.quantity)));fact("Entry fee",paperFmt(paperNum(t.fee)));card.append(facts);
       const close=document.createElement("button");close.className="btn";close.type="button";close.textContent="Close at verified live price";close.addEventListener("click",()=>paperClose(t,close));card.append(close);box.append(card);
     }
@@ -1184,7 +1185,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const balance=Number(byId("livePaperBalance").value),riskPct=Number(byId("livePaperRisk").value),maxExposurePct=5,riskBudget=balance*riskPct/100,notionalCap=balance*maxExposurePct/100;
       if(!Number.isFinite(balance)||balance<100||balance>10000000||!Number.isFinite(riskPct)||riskPct<0.1||riskPct>1)throw new Error("Balance or risk settings are outside the allowed paper-only range");
       if(stopPrice<=0||targetPrice<=0)throw new Error("Calculated stop/target levels are invalid for this market");
-      const quantity=Math.min(riskBudget/distance,notionalCap/entry);
+      const quantity=Math.min(riskBudget/distance,notionalCap/entry)*0.995;
       if(!Number.isFinite(quantity)||quantity<=0||quantity*entry>notionalCap+Math.max(1e-8,balance*1e-10)||quantity*distance>riskBudget+Math.max(1e-8,balance*1e-10))throw new Error("Observation position failed the stop-distance sizing or 5% notional cap");
       const observedDecision=window.tarotaiLiveDecision,agentAction=observedDecision&&observedDecision.symbol===symbol&&observedDecision.interval===currentInterval?observedDecision.action:"HOLD / WAIT";
       button.textContent="Saving paper test…";
