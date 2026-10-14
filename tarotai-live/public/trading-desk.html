@@ -293,7 +293,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   const higherMap={"1m":"15m","5m":"1h","15m":"4h","1h":"1d","4h":"1d"};
   let chart=null,candleSeries=null,ema9Series=null,ema21Series=null,ema50Series=null,supportSeries=null,resistanceSeries=null,risingTrendSeries=null,fallingTrendSeries=null,socketReconnectTimer=null;let lastMarketUpdateAt=0,lastLiveCandleSyncAt=0;
   let mirrorChart=null,mirrorCandleSeries=null,mirrorEma9Series=null,mirrorEma21Series=null,mirrorEma50Series=null,mirrorSupportSeries=null,mirrorResistanceSeries=null,mirrorRisingTrendSeries=null,mirrorFallingTrendSeries=null,mirrorResizeObserver=null,rangeSyncLock=false,mirrorPriceLines=[],mainLivePriceLine=null,mirrorLivePriceLine=null,lastLiveLineUpdateAt=0;
-  let rows=[],marketVenue="binance",feedSocket=null,quoteSocket=null,quoteReconnectTimer=null,quoteSymbol="",lastTradePrice=NaN,lastTradeAt=0,lastQuoteSource="none",lastQuoteSourceTimestamp=0,lastWsTradeAt=0,lastQuoteFallbackErrorAt=0,quoteFallbackTimer=null,quoteFallbackBusy=false,lastQuoteRenderAt=0,pollTimer=null,resizeObserver=null;window.tarotaiMarketVenue=marketVenue;
+  let rows=[],marketVenue="binance",feedSocket=null,quoteSocket=null,quoteReconnectTimer=null,quoteSymbol="",lastTradePrice=NaN,lastTradeAt=0,lastQuoteSource="none",lastQuoteSourceTimestamp=0,lastWsTradeAt=0,lastQuoteFallbackErrorAt=0,quoteFallbackTimer=null,quoteFallbackBusy=false,lastQuoteRenderAt=0,pollTimer=null,resizeObserver=null,lastAnalyzedClosedCandleTime=0;window.tarotaiMarketVenue=marketVenue;
   let currentSymbol="",currentInterval="",higherCache=[],higherCacheKey="",higherCacheAt=0,priceLines=[],busy=false,firstRender=true,lastWsCandleTime=0,historyBusy=false,historyExhausted=false,historyPages=0,historyLoadAllowedAt=0;
   const fmt=(n)=>Number.isFinite(n)?n.toLocaleString("en-US",{maximumFractionDigits:n>=1000?2:n>=1?4:7}):"—";
   const msFor=i=>intervalMs[i]||300000;
@@ -457,8 +457,9 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   function rsi(values,period){const out=Array(values.length).fill(NaN);if(values.length<=period)return out;let gain=0,loss=0;for(let i=1;i<=period;i++){const d=values[i]-values[i-1];gain+=Math.max(d,0);loss+=Math.max(-d,0);}gain/=period;loss/=period;out[period]=loss===0?100:100-100/(1+gain/loss);for(let i=period+1;i<values.length;i++){const d=values[i]-values[i-1];gain=(gain*(period-1)+Math.max(d,0))/period;loss=(loss*(period-1)+Math.max(-d,0))/period;out[i]=loss===0?100:100-100/(1+gain/loss);}return out;}
   function atr(candles,period){const tr=candles.map((c,i)=>i===0?c.high-c.low:Math.max(c.high-c.low,Math.abs(c.high-candles[i-1].close),Math.abs(c.low-candles[i-1].close)));if(tr.length<period)return tr.map(()=>NaN);const out=Array(tr.length).fill(NaN);let v=tr.slice(0,period).reduce((a,b)=>a+b,0)/period;out[period-1]=v;for(let i=period;i<tr.length;i++){v=(v*(period-1)+tr[i])/period;out[i]=v;}return out;}
   function validateCandle(c){return c&&[c.time,c.open,c.high,c.low,c.close].every(v=>Number.isFinite(Number(v)))&&c.time>0&&c.open>0&&c.close>0&&c.low>0&&c.high>=Math.max(c.open,c.close,c.low)&&c.low<=Math.min(c.open,c.close,c.high);}
-  function orderedCandles(input){const map=new Map();for(const c of input||[]){if(!validateCandle(c))continue;map.set(Number(c.time),{time:Number(c.time),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close),volume:Number(c.volume||0),closeTime:Number(c.closeTime||Number(c.time)+msFor(currentInterval)-1)});}return Array.from(map.values()).sort((a,b)=>a.time-b.time).slice(-5000);}
+  function orderedCandles(input){const map=new Map();for(const c of input||[]){if(!validateCandle(c))continue;const time=Number(c.time),closeTime=Number(c.closeTime||time+msFor(currentInterval)-1);map.set(time,{time,open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close),volume:Number(c.volume||0),closeTime,confirmed:c.confirmed===true||closeTime<Date.now()-300});}return Array.from(map.values()).sort((a,b)=>a.time-b.time).slice(-5000);}
   function closedOnly(input,interval){const now=Date.now(),dur=msFor(interval);return (input||[]).filter(c=>{const end=Number.isFinite(c.closeTime)&&c.closeTime>c.time?c.closeTime:c.time+dur-1;return end<now-300;});}
+  function analyzeNewClosedBar(){const latest=closedOnly(rows,currentInterval).slice(-1)[0];if(!latest||Number(latest.time)<=lastAnalyzedClosedCandleTime)return;lastAnalyzedClosedCandleTime=Number(latest.time);analyze();runContinuousAgentCycle();}
   function plotCandle(c){return {time:toSec(c.time),open:c.open,high:c.high,low:c.low,close:c.close};}
   function lineData(values,ts){const out=[];for(let i=0;i<values.length;i++)if(Number.isFinite(values[i]))out.push({time:toSec(ts[i].time),value:values[i]});return out;}
   function clearPlanLines(){if(candleSeries)for(const l of priceLines){try{candleSeries.removePriceLine(l);}catch(e){}}if(mirrorCandleSeries)for(const l of mirrorPriceLines){try{mirrorCandleSeries.removePriceLine(l);}catch(e){}}priceLines=[];mirrorPriceLines=[];}
@@ -525,6 +526,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   function analyze(){
     if(!rows.length||!candleSeries)return;
     const closed=closedOnly(rows,currentInterval),lastLive=rows[rows.length-1];
+    if(closed.length)lastAnalyzedClosedCandleTime=Number(closed[closed.length-1].time);
     if(lastLive)byId("livePrice").textContent=hasFreshLiveQuote()?fmt(lastTradePrice):"STALE";
     if(closed.length<80){
       drawStructureAnnotations(closed,NaN);
@@ -917,10 +919,10 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       if(rows.length<80)throw new Error("Only "+rows.length+" valid candles were returned; need at least 80.");
       renderRows(firstRender);
       try{await loadHigher(false);analyze();}catch(e){higherCache=[];higherCacheKey="";byId("liveHtf").textContent="UNAVAILABLE";analyze();status("Chart data loaded, but the higher-timeframe confirmation failed: "+e.message+". Signal stays HOLD until trend confirmation succeeds.");}
-      const last=rows[rows.length-1],age=Math.max(0,Date.now()-last.time);
+      const last=rows[rows.length-1],latestClosed=closedOnly(rows,currentInterval).slice(-1)[0],latestClosedEnd=latestClosed?(Number.isFinite(latestClosed.closeTime)&&latestClosed.closeTime>latestClosed.time?latestClosed.closeTime:latestClosed.time+msFor(currentInterval)-1):NaN,age=Number.isFinite(latestClosedEnd)?Math.max(0,Date.now()-latestClosedEnd):NaN;
       const venueLabel=({binance:"BINANCE USDⓈ-M FUTURES",bybit:"BYBIT LINEAR PERPETUAL",okx:"OKX USDT PERPETUAL"})[marketVenue]||String(marketVenue).toUpperCase();
       setFeed(venueLabel+" · "+(marketVenue==="binance"&&feedSocket&&feedSocket.readyState===1?"LIVE STREAM":"REST REFRESH"),marketVenue==="binance"&&feedSocket&&feedSocket.readyState===1?"good":"neutral");
-      status("Source: "+(data.sourceHost||(marketVenue==="binance"?"Binance Futures":"OKX perpetual swap"))+". Latest candle timestamp age "+Math.round(age/1000)+"s; candle snapshot fetched "+new Date(data.fetchedAt||Date.now()).toLocaleTimeString()+". "+(marketVenue==="binance"?"Candles refresh via REST; individual trades update the forming candle via WebSocket.":feedSocket&&feedSocket.readyState===1?"WebSocket candle updates active.":"Polling fallback active.")+" No orders are sent.");
+      status("Source: "+(data.sourceHost||(marketVenue==="binance"?"Binance Futures":"OKX perpetual swap"))+". Latest closed candle age "+(Number.isFinite(age)?Math.round(age/1000)+"s":"unavailable")+"; candle snapshot fetched "+new Date(data.fetchedAt||Date.now()).toLocaleTimeString()+". "+(marketVenue==="binance"&&feedSocket&&feedSocket.readyState===1?"Live Futures kline WebSocket and last-trade WebSocket active.":marketVenue==="binance"?"REST candle refresh plus live trade quote fallback.":feedSocket&&feedSocket.readyState===1?"WebSocket candle updates active.":"Polling fallback active.")+" No orders are sent.");
     }catch(e){
       setFeed("MARKET DATA ERROR","bad");
       byId("liveHtf").textContent="UNAVAILABLE";
@@ -932,6 +934,41 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   function connectSocket(){
     if(feedSocket){feedSocket.onclose=null;try{feedSocket.close();}catch(e){}feedSocket=null;}
     if(!currentSymbol||!currentInterval)return;
+    if(marketVenue==="binance"){
+      connectQuoteSocket();
+      setFeed("BINANCE USDⓈ-M FUTURES · CONNECTING CANDLES","neutral");
+      try{
+        const streamUrl="wss://fstream.binance.com/ws/"+currentSymbol.toLowerCase()+"@kline_"+currentInterval;
+        feedSocket=new WebSocket(streamUrl);
+        feedSocket.onopen=()=>{if(feedSocket&&marketVenue==="binance"){if(socketReconnectTimer)clearTimeout(socketReconnectTimer);setFeed("BINANCE USDⓈ-M FUTURES · LIVE KLINE STREAM","good");}};
+        feedSocket.onmessage=event=>{
+          if(marketVenue!=="binance"||!feedSocket)return;
+          let message;try{message=JSON.parse(event.data);}catch(e){return;}
+          const k=message?.k;
+          if(message?.e!=="kline"||String(message?.s||"").toUpperCase()!==currentSymbol||!k||k.i!==currentInterval)return;
+          const bar={time:Number(k.t),open:Number(k.o),high:Number(k.h),low:Number(k.l),close:Number(k.c),volume:Number(k.v),closeTime:Number(k.T),confirmed:k.x===true};
+          if(!validateCandle(bar)||!Number.isFinite(bar.closeTime)||bar.closeTime<bar.time)return;
+          const last=rows[rows.length-1];
+          if(last&&bar.time<last.time)return;
+          const logicalRange=chart?.timeScale().getVisibleLogicalRange(),stickAtRealtime=!logicalRange||logicalRange.to>=rows.length-8;
+          const index=rows.findIndex(c=>Number(c.time)===bar.time);
+          if(index<0)rows.push(bar);else rows[index]={...rows[index],...bar};
+          if(rows.length>5000)rows=rows.slice(-5000);
+          lastMarketUpdateAt=Date.now();
+          try{
+            const point=plotCandle(bar);
+            if(candleSeries)candleSeries.update(point);
+            if(mirrorCandleSeries)mirrorCandleSeries.update(point);
+            renderSharedQuote(currentMarketPrice());
+            if(stickAtRealtime){chart?.timeScale().scrollToRealTime();mirrorChart?.timeScale().scrollToRealTime();}
+            analyzeNewClosedBar();
+          }catch(e){}
+        };
+        feedSocket.onerror=()=>setFeed("BINANCE KLINE STREAM RECONNECTING","bad");
+        feedSocket.onclose=()=>{if(marketVenue==="binance"&&document.visibilityState==="visible"){if(socketReconnectTimer)clearTimeout(socketReconnectTimer);socketReconnectTimer=setTimeout(()=>connectSocket(),1500);}};
+      }catch(e){setFeed("BINANCE KLINE STREAM UNAVAILABLE · REST REFRESH","bad");if(socketReconnectTimer)clearTimeout(socketReconnectTimer);socketReconnectTimer=setTimeout(()=>connectSocket(),2500);}
+      return;
+    }
     if(marketVenue!=="okx"){setFeed(String(marketVenue).toUpperCase()+" · REST REFRESH","neutral");connectQuoteSocket();return;}
     const instId=currentSymbol.endsWith("USDT")?currentSymbol.slice(0,-4)+"-USDT-SWAP":currentSymbol;
     const candleChannel="candle"+({"1m":"1m","3m":"3m","5m":"5m","15m":"15m","30m":"30m","1h":"1H","2h":"2H","4h":"4H","1d":"1D"}[currentInterval]||"1m");
@@ -948,7 +985,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
         if(!validateCandle(bar))return;const visibleBefore=chart.timeScale().getVisibleLogicalRange(),stickAtRealtime=!visibleBefore||visibleBefore.to>=rows.length-8;lastMarketUpdateAt=Date.now();
         if(!rows.length||bar.time>rows[rows.length-1].time)rows.push(bar);else{const idx=rows.findIndex(x=>x.time===bar.time);if(idx>=0)rows[idx]=bar;}
         if(rows.length>5000)rows=rows.slice(-5000);
-        try{const point=plotCandle(bar);candleSeries.update(point);if(mirrorCandleSeries)mirrorCandleSeries.update(point);const cls=rows.map(c=>c.close),e9Data=lineData(ema(cls,9),rows),e21Data=lineData(ema(cls,21),rows),e50Data=lineData(ema(cls,50),rows);ema9Series.setData(e9Data);ema21Series.setData(e21Data);ema50Series.setData(e50Data);if(mirrorEma9Series){mirrorEma9Series.setData(e9Data);mirrorEma21Series.setData(e21Data);mirrorEma50Series.setData(e50Data);}renderSharedQuote(currentMarketPrice());if(stickAtRealtime){chart.timeScale().scrollToRealTime();if(mirrorChart)mirrorChart.timeScale().scrollToRealTime();}if(k[8]==="1"){analyze();runContinuousAgentCycle();}else analyze();
+        try{const point=plotCandle(bar);candleSeries.update(point);if(mirrorCandleSeries)mirrorCandleSeries.update(point);const cls=rows.map(c=>c.close),e9Data=lineData(ema(cls,9),rows),e21Data=lineData(ema(cls,21),rows),e50Data=lineData(ema(cls,50),rows);ema9Series.setData(e9Data);ema21Series.setData(e21Data);ema50Series.setData(e50Data);if(mirrorEma9Series){mirrorEma9Series.setData(e9Data);mirrorEma21Series.setData(e21Data);mirrorEma50Series.setData(e50Data);}renderSharedQuote(currentMarketPrice());if(stickAtRealtime){chart.timeScale().scrollToRealTime();if(mirrorChart)mirrorChart.timeScale().scrollToRealTime();}analyzeNewClosedBar();
         }catch(e){}
       };
       feedSocket.onerror=()=>setFeed("OKX LIVE STREAM RECONNECTING","bad");
