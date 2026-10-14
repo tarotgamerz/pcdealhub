@@ -16,6 +16,8 @@ const authRoute = readFileSync(new URL("../app/api/auth/route.ts", import.meta.u
 const stateRoute = readFileSync(new URL("../app/api/state/route.ts", import.meta.url), "utf8");
 const healthRoute = readFileSync(new URL("../app/api/health/route.ts", import.meta.url), "utf8");
 const tradingMarketRoute = readFileSync(new URL("../app/api/trading/market/route.ts", import.meta.url), "utf8");
+const liveQuoteRoute = readFileSync(new URL("../app/api/exchanges/quote/route.ts", import.meta.url), "utf8");
+const documentExtract = readFileSync(new URL("../lib/document-extract.mjs", import.meta.url), "utf8");
 const tradingViewRoute = readFileSync(new URL("../app/api/tradingview/route.ts", import.meta.url), "utf8");
 const binanceOrderRoute = readFileSync(new URL("../app/api/trading/testnet-order/route.ts", import.meta.url), "utf8");
 const binanceOrderStatusRoute = readFileSync(new URL("../app/api/trading/testnet-order-status/route.ts", import.meta.url), "utf8");
@@ -648,4 +650,28 @@ test("strategy chart uses the shared live quote and refreshes automatically", ()
 
 test("market-data status reports the actual selected venue rather than a hard-coded exchange", () => {
   assert.match(futuresDesk, /Source: "\+\(\{binance:"Binance USDⓈ-M Futures",bybit:"Bybit linear perpetual",okx:"OKX perpetual swap"\}\[marketVenue\]/);
+});
+
+
+test("live quote fallback uses the same validated OKX perpetual feed and blocks stale prices", () => {
+  assert.match(liveQuoteRoute, /api\/v5\/market\/ticker/);
+  assert.match(liveQuoteRoute, /new Set\(\["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT"\]\)/);
+  assert.match(liveQuoteRoute, /ageMs > 3000/);
+  assert.match(liveQuoteRoute, /"Cache-Control": "no-store"/);
+  assert.match(futuresDesk, /function hasFreshLiveQuote\(now=Date\.now\(\)\)/);
+  assert.match(futuresDesk, /function refreshQuoteFallback\(\)/);
+  assert.match(futuresDesk, /quoteFallbackTimer=setInterval/);
+  assert.match(futuresDesk, /lastQuoteSource==="okx-rest-ticker"/);
+  assert.match(futuresDesk, /LIVE PRICE STALE/);
+  assert.match(futuresDesk, /if\(!hasFreshLiveQuote\(\)\)/);
+  assert.doesNotMatch(futuresDesk, /reloadAll\(true\)/);
+});
+
+test("document extraction regression guards the earlier DOMMatrix runtime failure", () => {
+  const workerImport = documentExtract.indexOf('await import("pdf-parse/worker")');
+  const parserImport = documentExtract.indexOf('await import("pdf-parse")');
+  assert.ok(workerImport >= 0 && parserImport > workerImport, "load the Node worker before importing PDFParse");
+  assert.match(documentExtract, /PDFParse\.setWorker\(worker\.getData\(\)\)/);
+  assert.match(documentsRoute, /await extractPdfText\(buffer\)/);
+  assert.match(readFileSync(new URL("./documents.test.mjs", import.meta.url), "utf8"), /await extractPdfText\(createPdfFixture\(\)\)/);
 });

@@ -290,7 +290,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   const higherMap={"1m":"15m","5m":"1h","15m":"4h","1h":"1d","4h":"1d"};
   let chart=null,candleSeries=null,ema9Series=null,ema21Series=null,ema50Series=null,socketReconnectTimer=null;let lastMarketUpdateAt=0;
   let mirrorChart=null,mirrorCandleSeries=null,mirrorEma9Series=null,mirrorEma21Series=null,mirrorEma50Series=null,mirrorResizeObserver=null,rangeSyncLock=false,mirrorPriceLines=[],mainLivePriceLine=null,mirrorLivePriceLine=null,lastLiveLineUpdateAt=0;
-  let rows=[],marketVenue="okx",feedSocket=null,quoteSocket=null,quoteReconnectTimer=null,quoteSymbol="",lastTradePrice=NaN,lastTradeAt=0,lastQuoteRenderAt=0,pollTimer=null,resizeObserver=null;window.tarotaiMarketVenue=marketVenue;
+  let rows=[],marketVenue="okx",feedSocket=null,quoteSocket=null,quoteReconnectTimer=null,quoteSymbol="",lastTradePrice=NaN,lastTradeAt=0,lastQuoteSource="none",lastQuoteSourceTimestamp=0,lastWsTradeAt=0,lastQuoteFallbackErrorAt=0,quoteFallbackTimer=null,quoteFallbackBusy=false,lastQuoteRenderAt=0,pollTimer=null,resizeObserver=null;window.tarotaiMarketVenue=marketVenue;
   let currentSymbol="",currentInterval="",higherCache=[],higherCacheKey="",higherCacheAt=0,priceLines=[],busy=false,firstRender=true,lastWsCandleTime=0,historyBusy=false,historyExhausted=false,historyPages=0,historyLoadAllowedAt=0;
   const fmt=(n)=>Number.isFinite(n)?n.toLocaleString("en-US",{maximumFractionDigits:n>=1000?2:n>=1?4:7}):"—";
   const msFor=i=>intervalMs[i]||300000;
@@ -319,41 +319,105 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     if(window.ResizeObserver){mirrorResizeObserver=new ResizeObserver(entries=>{const box=entries[0]&&entries[0].contentRect;if(box&&mirrorChart)mirrorChart.applyOptions({width:Math.max(320,Math.floor(box.width)),height:Math.max(300,Math.floor(box.height))});});mirrorResizeObserver.observe(host);}
     mirrorChart.timeScale().subscribeVisibleLogicalRangeChange(range=>{if(!range||!chart||rangeSyncLock)return;rangeSyncLock=true;try{chart.timeScale().setVisibleLogicalRange(range);}catch(e){}finally{rangeSyncLock=false;}});
   }
-  function currentMarketPrice(){if(Number.isFinite(lastTradePrice)&&Date.now()-lastTradeAt<=3000)return lastTradePrice;return rows.length?Number(rows[rows.length-1].close):NaN;}
-  function renderSharedQuote(price){
-    if(!Number.isFinite(price)||price<=0)return;
-    const now=Date.now(),fresh=Number.isFinite(lastTradePrice)&&now-lastTradeAt<=3000;
-    window.tarotaiSharedMarketSymbol=currentSymbol;window.tarotaiSharedMarketInterval=currentInterval;window.tarotaiSharedLastPrice=lastTradePrice;window.tarotaiSharedLastTradeAt=lastTradeAt;
+  function hasFreshLiveQuote(now=Date.now()){
+    if(marketVenue!=="okx"||!currentSymbol||quoteSymbol!==currentSymbol||!Number.isFinite(lastTradePrice)||lastTradePrice<=0||!Number.isFinite(lastTradeAt))return false;
+    const localAge=now-lastTradeAt;
+    if(localAge<0||localAge>3000)return false;
+    if(lastQuoteSource==="okx-rest-ticker"){
+      const exchangeAge=now-Number(lastQuoteSourceTimestamp);
+      if(!Number.isFinite(exchangeAge)||exchangeAge < -1500 || exchangeAge > 3500)return false;
+    }
+    return lastQuoteSource==="okx-websocket"||lastQuoteSource==="okx-rest-ticker";
+  }
+  function currentMarketPrice(){if(hasFreshLiveQuote())return lastTradePrice;return rows.length?Number(rows[rows.length-1].close):NaN;}
+  function renderSharedQuote(_price){
+    const now=Date.now(),fresh=hasFreshLiveQuote(now),price=fresh?lastTradePrice:NaN;
+    window.tarotaiSharedMarketSymbol=currentSymbol;
+    window.tarotaiSharedMarketInterval=currentInterval;
+    window.tarotaiSharedLastPrice=price;
+    window.tarotaiSharedLastTradeAt=fresh?lastTradeAt:0;
+    window.tarotaiSharedQuoteSource=fresh?lastQuoteSource:"stale";
     if(typeof window.tarotaiUpdateStrategyLiveQuote==="function")window.tarotaiUpdateStrategyLiveQuote(price,now);
     updateDemoAgentTicket();
     if(now-lastQuoteRenderAt>=100){
-      byId("livePrice").textContent=fmt(price);
+      byId("livePrice").textContent=fresh?fmt(price):"STALE";
       const badge=byId("tvSyncedPrice"),meta=byId("tvSyncedMeta");
-      if(badge)badge.textContent=currentSymbol+" · "+fmt(price)+" USDT";
-      if(meta)meta.textContent=fresh?"Same OKX perpetual swap last-trade tick in both charts · "+new Date(lastTradeAt).toLocaleTimeString():"Last-trade socket stale; showing latest candle close. Paper entries are blocked until live ticks resume.";
-      byId("tvStatus").textContent=fresh?"IN-APP CHARTS SYNCED · "+currentSymbol+" "+currentInterval+" · last trade "+fmt(price)+" · one OKX feed.":"IN-APP CHARTS SYNCED · waiting for fresh OKX last-trade tick; entries stay blocked.";
+      if(badge)badge.textContent=fresh?currentSymbol+" · "+fmt(price)+" USDT":"LIVE PRICE STALE";
+      if(meta)meta.textContent=fresh
+        ?(lastQuoteSource==="okx-websocket"?"Same OKX perpetual last-trade tick in both charts · WebSocket · "+new Date(lastTradeAt).toLocaleTimeString():"Same OKX perpetual last-trade quote in both charts · REST fallback · source age "+Math.max(0,Math.round(now-lastQuoteSourceTimestamp))+" ms")
+        :"No verified live quote. Candles remain visible, but this is not a live price; paper entries are blocked.";
+      byId("tvStatus").textContent=fresh
+        ?"IN-APP CHARTS SYNCED · "+currentSymbol+" "+currentInterval+" · shared OKX last trade "+fmt(price)+" · "+(lastQuoteSource==="okx-websocket"?"WebSocket":"REST fallback")+"."
+        :"LIVE QUOTE STALE · internal charts are showing candles only; waiting for a verified OKX quote.";
       lastQuoteRenderAt=now;
     }
     if(now-lastLiveLineUpdateAt>=350){
       try{
-        if(candleSeries){if(mainLivePriceLine)candleSeries.removePriceLine(mainLivePriceLine);mainLivePriceLine=candleSeries.createPriceLine({price,color:"#54c8ff",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dotted,axisLabelVisible:true,title:"LAST TRADE"});}
-        if(mirrorCandleSeries){if(mirrorLivePriceLine)mirrorCandleSeries.removePriceLine(mirrorLivePriceLine);mirrorLivePriceLine=mirrorCandleSeries.createPriceLine({price,color:"#54c8ff",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dotted,axisLabelVisible:true,title:"LAST TRADE"});}
+        if(candleSeries&&mainLivePriceLine){candleSeries.removePriceLine(mainLivePriceLine);mainLivePriceLine=null;}
+        if(mirrorCandleSeries&&mirrorLivePriceLine){mirrorCandleSeries.removePriceLine(mirrorLivePriceLine);mirrorLivePriceLine=null;}
+        if(fresh){
+          if(candleSeries)mainLivePriceLine=candleSeries.createPriceLine({price,color:"#54c8ff",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dotted,axisLabelVisible:true,title:"LAST TRADE"});
+          if(mirrorCandleSeries)mirrorLivePriceLine=mirrorCandleSeries.createPriceLine({price,color:"#54c8ff",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dotted,axisLabelVisible:true,title:"LAST TRADE"});
+        }
       }catch(e){}
-    lastLiveLineUpdateAt=now;
+      lastLiveLineUpdateAt=now;
     }
   }
+  async function refreshQuoteFallback(){
+    if(quoteFallbackBusy||document.visibilityState!=="visible"||!currentSymbol||marketVenue!=="okx"||(hasFreshLiveQuote()&&lastQuoteSource==="okx-websocket"))return;
+    const symbol=currentSymbol,startedAt=Date.now();quoteFallbackBusy=true;
+    try{
+      const url="/api/exchanges/quote?"+new URLSearchParams({venue:"okx",symbol});
+      const response=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(3000)});
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok||!data.ok||data.stale)throw new Error(data.detail||data.error||("HTTP "+response.status));
+      if(symbol!==currentSymbol||marketVenue!=="okx")return;
+      if(lastWsTradeAt>=startedAt&&Date.now()-lastWsTradeAt<=3000)return;
+      const price=Number(data.price),timestamp=Number(data.timestamp),sourceAge=Number(data.ageMs);
+      if(!Number.isFinite(price)||price<=0||!Number.isFinite(timestamp)||timestamp<=0||!Number.isFinite(sourceAge)||sourceAge < -1500||sourceAge>3000)throw new Error("Exchange ticker is stale or invalid");
+      if(lastQuoteSource==="okx-rest-ticker"&&Number.isFinite(lastQuoteSourceTimestamp)&&timestamp<lastQuoteSourceTimestamp)return;
+      lastTradePrice=price;lastTradeAt=Date.now();lastQuoteSource="okx-rest-ticker";lastQuoteSourceTimestamp=timestamp;
+      renderSharedQuote(price);
+    }catch(e){
+      if(Date.now()-lastQuoteFallbackErrorAt>5000){
+        lastQuoteFallbackErrorAt=Date.now();renderSharedQuote(NaN);
+        const message=e instanceof Error?e.message:"ticker fallback unavailable";
+        const meta=byId("tvSyncedMeta"),statusEl=byId("tvStatus");
+        if(meta)meta.textContent="No fresh WebSocket quote and REST ticker fallback failed ("+message+"). Candles only; paper entries are blocked.";
+        if(statusEl)statusEl.textContent="LIVE QUOTE ERROR · "+message;
+      }
+    }finally{quoteFallbackBusy=false;}
+  }
+
   function connectQuoteSocket(force=false){
-    if(!currentSymbol||marketVenue!=="okx"){if(quoteSocket){quoteSocket.onclose=null;try{quoteSocket.close();}catch(e){}quoteSocket=null;}quoteSymbol="";lastTradePrice=NaN;lastTradeAt=0;return;}
+    if(!currentSymbol||marketVenue!=="okx"){
+      if(quoteSocket){quoteSocket.onclose=null;try{quoteSocket.close();}catch(e){}quoteSocket=null;}
+      quoteSymbol="";lastTradePrice=NaN;lastTradeAt=0;lastQuoteSource="none";lastQuoteSourceTimestamp=0;lastWsTradeAt=0;renderSharedQuote(NaN);return;
+    }
     if(!force&&quoteSocket&&quoteSymbol===currentSymbol&&(quoteSocket.readyState===WebSocket.CONNECTING||quoteSocket.readyState===WebSocket.OPEN))return;
     if(quoteReconnectTimer)clearTimeout(quoteReconnectTimer);quoteReconnectTimer=null;
     if(quoteSocket){quoteSocket.onclose=null;try{quoteSocket.close();}catch(e){}quoteSocket=null;}
+    const symbolChanged=quoteSymbol!==currentSymbol;
+    if(symbolChanged){lastTradePrice=NaN;lastTradeAt=0;lastQuoteSource="none";lastQuoteSourceTimestamp=0;lastWsTradeAt=0;}
     quoteSymbol=currentSymbol;
+    if(symbolChanged)renderSharedQuote(NaN);
     const instId=currentSymbol.endsWith("USDT")?currentSymbol.slice(0,-4)+"-USDT-SWAP":currentSymbol;
     try{
       quoteSocket=new WebSocket("wss://ws.okx.com/ws/v5/public");
-      quoteSocket.onopen=()=>{quoteSocket.send(JSON.stringify({op:"subscribe",args:[{channel:"trades",instId}]}));renderSharedQuote(currentMarketPrice());};
-      quoteSocket.onmessage=event=>{if(quoteSymbol!==currentSymbol)return;if(event.data==="ping"){try{quoteSocket.send("pong");}catch(e){}return;}let msg;try{msg=JSON.parse(event.data);}catch(e){return;}if(msg.arg?.channel!=="trades"||msg.arg?.instId!==instId||!Array.isArray(msg.data))return;for(const tick of msg.data){const price=Number(tick.px);if(!Number.isFinite(price)||price<=0)continue;lastTradePrice=price;lastTradeAt=Date.now();renderSharedQuote(price);}};
-      quoteSocket.onerror=()=>{const meta=byId("tvSyncedMeta");if(meta)meta.textContent="OKX live-trade stream reconnecting; paper entries are blocked while ticks are stale.";};
+      quoteSocket.onopen=()=>{if(quoteSocket&&quoteSymbol===currentSymbol){quoteSocket.send(JSON.stringify({op:"subscribe",args:[{channel:"trades",instId}]}));renderSharedQuote(NaN);}};
+      quoteSocket.onmessage=event=>{
+        if(quoteSymbol!==currentSymbol)return;
+        if(event.data==="ping"){try{quoteSocket.send("pong");}catch(e){}return;}
+        let msg;try{msg=JSON.parse(event.data);}catch(e){return;}
+        if(msg.arg?.channel!=="trades"||msg.arg?.instId!==instId||!Array.isArray(msg.data))return;
+        for(const tick of msg.data){
+          const price=Number(tick.px);if(!Number.isFinite(price)||price<=0)continue;
+          lastTradePrice=price;lastTradeAt=Date.now();lastWsTradeAt=lastTradeAt;lastQuoteSource="okx-websocket";
+          lastQuoteSourceTimestamp=Number(tick.ts)||lastTradeAt;
+          renderSharedQuote(price);
+        }
+      };
+      quoteSocket.onerror=()=>{const meta=byId("tvSyncedMeta");if(meta)meta.textContent="OKX trade WebSocket reconnecting; REST ticker fallback is available while ticks are stale."};
       quoteSocket.onclose=()=>{if(quoteSymbol===currentSymbol&&marketVenue==="okx"&&document.visibilityState==="visible"){if(quoteReconnectTimer)clearTimeout(quoteReconnectTimer);quoteReconnectTimer=setTimeout(()=>connectQuoteSocket(true),1500);}};
     }catch(e){if(quoteReconnectTimer)clearTimeout(quoteReconnectTimer);quoteReconnectTimer=setTimeout(()=>connectQuoteSocket(true),2000);}
   }
@@ -388,7 +452,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   function analyze(){
     if(!rows.length||!candleSeries)return;
     const closed=closedOnly(rows,currentInterval),lastLive=rows[rows.length-1];
-    if(lastLive)byId("livePrice").textContent=fmt(currentMarketPrice());
+    if(lastLive)byId("livePrice").textContent=hasFreshLiveQuote()?fmt(lastTradePrice):"STALE";
     if(closed.length<80){
       byId("liveHtf").textContent="UNAVAILABLE";
       paintChecks([{title:"Market history",pass:false,detail:"Need at least 80 valid closed candles.",neutral:true}]);
@@ -421,7 +485,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     byId("liveHtf").textContent=htf.direction;
     byId("liveHtf").className=htf.up?"live-action-buy":htf.down?"live-action-sell":"live-action-hold";
     byId("liveOverlayMeta").textContent=currentSymbol+" · "+currentInterval+" · last CLOSED candle "+new Date(last.time).toLocaleTimeString();
-    byId("livePrice").textContent=fmt(currentMarketPrice());
+    byId("livePrice").textContent=hasFreshLiveQuote()?fmt(lastTradePrice):"STALE";
     const longScore=longChecks.filter(x=>x.pass).length,shortScore=shortChecks.filter(x=>x.pass).length;
     let action="HOLD / WAIT",entry=NaN,stop=NaN,target=NaN,rr=NaN,detail="",selected=longChecks,marker={time:toSec(last.time),position:"aboveBar",color:"#f2c46f",shape:"circle",text:"HOLD / WAIT"};
     const htfCheck={pass:htf.up,detail:htf.ready?htf.direction:"Higher timeframe unavailable",neutral:!htf.ready};
@@ -485,7 +549,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const closed=closedOnly(rows,currentInterval),live=rows[rows.length-1],statusPanel=byId("continuousTeamStatus"),title=byId("continuousTeamTitle"),detail=byId("continuousTeamDetails");
     if(closed.length<80){statusPanel.className="live-agent-consensus warn";title.textContent="Continuous team: WAITING FOR DATA";detail.textContent="Need at least 80 closed candles; currently "+closed.length+". All entries remain blocked.";return;}
     const now=Date.now(),i=closed.length-1,last=closed[i],end=Number.isFinite(last.closeTime)&&last.closeTime>last.time?last.closeTime:last.time+msFor(currentInterval)-1;
-    const quoteAgeMs=Number.isFinite(lastTradeAt)?now-lastTradeAt:Infinity,quoteFresh=Number.isFinite(lastTradePrice)&&quoteAgeMs<=3000;
+    const quoteAgeMs=Number.isFinite(lastTradeAt)?now-lastTradeAt:Infinity,quoteFresh=hasFreshLiveQuote(now);
     const stale=now-end>msFor(currentInterval)*2+60000||!quoteFresh,closes=closed.map(c=>c.close),e9=ema(closes,9),e21=ema(closes,21),e50=ema(closes,50),rsiValues=rsi(closes,14),atrValues=atr(closed,14);
     const prior=closed.slice(Math.max(0,i-20),i),recent=closed.slice(Math.max(0,i-7),i+1),priorHigh=Math.max(...prior.map(c=>c.high)),priorLow=Math.min(...prior.map(c=>c.low));
     const htf=trendFor(higherCache,higherMap[currentInterval]||"1d"),upBreak=last.close>priorHigh,downBreak=last.close<priorLow;
@@ -962,7 +1026,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     if(!Number.isFinite(balance)||balance<100||balance>10000000||!Number.isFinite(riskPct)||riskPct<0.1||riskPct>1){paperStatus("Balance must be 100–10,000,000 USDT and risk 0.1%–1%.",true);return;}
     const live=rows[rows.length-1],closed=closedOnly(rows,currentInterval).slice(-1)[0];
     if(!live||!closed||now-live.time>msFor(currentInterval)*2){paperStatus("Candles are stale. Refresh analysis before paper trading.",true);return;}
-    if(!Number.isFinite(lastTradePrice)||Date.now()-lastTradeAt>3000){paperStatus("Paper entry blocked: live last-trade feed is stale. Wait for fresh quotes; no delayed entry is allowed.",true);return;}
+    if(!hasFreshLiveQuote()){paperStatus("Paper entry blocked: no fresh validated live quote. Wait for the OKX WebSocket or REST ticker fallback; no delayed entry is allowed.",true);return;}
     const entry=Number(currentMarketPrice()),stop=Number(d.stop),long=d.action==="BUY / LONG";
     if(!Number.isFinite(entry)||entry<=0||!Number.isFinite(stop)||(long?stop>=entry:stop<=entry)){paperStatus("Price crossed the setup's invalidation level. Signal expired; re-analyze.",true);return;}
     const drift=Math.abs(entry-Number(d.entry))/Number(d.entry);
@@ -1021,14 +1085,15 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   paperRefresh(true).finally(updateDemoAgentTicket);
   setInterval(()=>{if(document.visibilityState==="visible")paperRefresh(true).finally(updateDemoAgentTicket);},10000);
 
-  byId("liveSymbol").addEventListener("change",()=>{updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;reloadAll(true);});
-  byId("liveInterval").addEventListener("change",()=>{updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;reloadAll(true);});
-  window.tarotaiReloadLiveChart=()=>{higherCache=[];higherCacheKey="";higherCacheAt=0;reloadAll(true);};
+  byId("liveSymbol").addEventListener("change",()=>{updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;window.tarotaiContinuousTeamApproval=null;window.tarotaiAgentCommitteeApproval=null;void refresh(true).then(()=>runContinuousAgentCycle());});
+  byId("liveInterval").addEventListener("change",()=>{updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;window.tarotaiContinuousTeamApproval=null;window.tarotaiAgentCommitteeApproval=null;void refresh(true).then(()=>runContinuousAgentCycle());});
+  window.tarotaiReloadLiveChart=()=>{higherCache=[];higherCacheKey="";higherCacheAt=0;void refresh(true).then(()=>runContinuousAgentCycle());};
   startContinuousAgentMonitor();
-  refresh(true).then(()=>{connectSocket();runContinuousAgentCycle();});
+  if(quoteFallbackTimer)clearInterval(quoteFallbackTimer);quoteFallbackTimer=setInterval(()=>{if(document.visibilityState==="visible"&&(!hasFreshLiveQuote()||lastQuoteSource!=="okx-websocket"))void refreshQuoteFallback();},2000);
+  refresh(true).then(()=>{connectSocket();runContinuousAgentCycle();void refreshQuoteFallback();});
   pollTimer=setInterval(()=>{if(document.visibilityState==="visible")refresh(false);},15000);
-  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){void reloadAll(true);runContinuousAgentCycle();}});
-  window.addEventListener("beforeunload",()=>{if(pollTimer)clearInterval(pollTimer);if(feedSocket)feedSocket.close();if(resizeObserver)resizeObserver.disconnect();});
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){void refresh(true).then(()=>runContinuousAgentCycle());void refreshQuoteFallback();}});
+  window.addEventListener("beforeunload",()=>{if(pollTimer)clearInterval(pollTimer);if(quoteFallbackTimer)clearInterval(quoteFallbackTimer);if(feedSocket)feedSocket.close();if(quoteSocket)quoteSocket.close();if(resizeObserver)resizeObserver.disconnect();});
 })();
 
 </script><script src="/live-agent-monitor.js"></script></body></html>
