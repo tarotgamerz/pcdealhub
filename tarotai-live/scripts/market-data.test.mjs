@@ -569,8 +569,8 @@ test("strategy chart, agent context and paper checks stay on the same selected l
 test("paper entry checks a live OKX last-trade ticker and blocks material quote drift", () => {
   assert.match(paperRoute, /api\/v5\/market\/ticker/);
   assert.match(paperRoute, /action==="OPEN"&&priceDrift>0\.002/);
-  assert.match(paperRoute, /executionReferencePrice=verifiedMarketPrice/);
-  assert.match(paperRoute, /fapi\.binance\.com\/fapi\/v1\/ticker\/24hr/);
+  assert.match(paperRoute, /executionReferencePrice=canUseBook\?\(side==="BUY"\?verifiedAskPrice:verifiedBidPrice\):verifiedMarketPrice/);
+  assert.match(paperRoute, /fapi\.binance\.com\/fapi\/v1\/ticker\/bookTicker/);
   assert.match(paperRoute, /verifiedSpreadBps<0\|\|verifiedSpreadBps>20/);
   assert.match(paperRoute, /validatePaperExposure/);
   assert.match(paperRoute, /maxTotalExposurePct:PAPER_MAX_PORTFOLIO_EXPOSURE_PCT/);
@@ -595,10 +595,12 @@ test("Binance Futures is the canonical live chart source selected by the user", 
   assert.match(parallelAgentsRoute, /fapi\/v1\/klines/);
   assert.match(paperRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/24hr/);
   assert.match(liveQuoteRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/24hr/);
-  assert.match(liveQuoteRoute, /lastPrice/);
-  assert.match(liveQuoteRoute, /bidPrice/);
-  assert.match(liveQuoteRoute, /askPrice/);
-  assert.doesNotMatch(liveQuoteRoute, /fapi\.binance\.com\/fapi\/v1\/ticker\/bookTicker/);
+  assert.match(liveQuoteRoute, /fapi\.binance\.com\/fapi\/v1\/ticker\/bookTicker/);
+  assert.match(liveQuoteRoute, /priceBasis: "best-bid\/ask midpoint"/);
+  assert.match(liveQuoteRoute, /payload\?\.time/);
+  assert.match(liveQuoteRoute, /spreadAvailable: Number\.isFinite\(spread\.spreadBps\)/);
+  assert.match(liveQuoteRoute, /ageMs > 5000/);
+  assert.doesNotMatch(liveQuoteRoute, /fapi\.binance\.com\/fapi\/v1\/ticker\/24hr/);
   assert.match(futuresDesk, /channel:"trades",instId/);
   assert.match(futuresDesk, /Open official TradingView \(external\)/);
 });
@@ -706,7 +708,7 @@ test("Binance live chart renders automatic support, resistance, trendlines and s
 test("live quote fallback uses the selected venue and blocks stale prices", () => {
   assert.match(liveQuoteRoute, /api\/v5\/market\/ticker/);
   assert.match(liveQuoteRoute, /new Set\(\["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT"\]\)/);
-  assert.match(liveQuoteRoute, /ageMs > 3000/);
+  assert.match(liveQuoteRoute, /ageMs > 5000/);
   assert.match(liveQuoteRoute, /"Cache-Control": "no-store"/);
   assert.match(futuresDesk, /function hasFreshLiveQuote\(now=Date\.now\(\)\)/);
   assert.match(futuresDesk, /function refreshQuoteFallback\(\)/);
