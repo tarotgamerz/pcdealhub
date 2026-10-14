@@ -685,3 +685,24 @@ test("stale last-trade feed is never relabeled as a live quote", () => {
   assert.match(futuresDesk, /if\(fresh\)\{/);
   assert.match(futuresDesk, /function hasFreshLiveQuote\(now=Date\.now\(\)\)/);
 });
+
+
+test("live last-trade tick updates the in-progress candle on both in-app price charts", () => {
+  assert.match(futuresDesk, /function syncLiveQuoteToCurrentCandle\(price,exchangeTimestamp,now=Date\.now\(\)\)/);
+  assert.match(futuresDesk, /candleSeries\.update\(point\);[\s\S]*?mirrorCandleSeries\.update\(point\)/);
+  assert.match(futuresDesk, /priceLineVisible:false,lastValueVisible:false/);
+  assert.match(futuresDesk, /function drawStrategyChart\(candles,symbol,interval,higherCandles=\[\],liveCandle=null\)/);
+  assert.match(futuresDesk, /window\.tarotaiStrategyLiveCandle=liveCandle/);
+  assert.match(futuresDesk, /drawStrategyChart\(candles,symbol,interval,higherCandles,liveCandle\)/);
+  assert.match(futuresDesk, /const liveP=Number\(window\.tarotaiSharedLastPrice\)/);
+  assert.match(futuresDesk, /streamWasStale=Date\.now\(\)-lastMarketUpdateAt>5000/);
+  assert.match(futuresDesk, /pollTimer=setInterval\(\(\)=>\{if\(document\.visibilityState==="visible"&&Date\.now\(\)-lastMarketUpdateAt>5000\)void refresh\(true\);\},5000\)/);
+});
+
+test("strategy signal calculations remain based on closed candles while displaying the active candle", () => {
+  assert.match(futuresDesk, /const closes=candles\.map\(c=>c\.close\),fast=strategyEma\(closes,9\)/);
+  assert.match(futuresDesk, /const view=data\.map/);
+  assert.match(futuresDesk, /view\.push\(\{\.\.\.activeCandle,index:candles\.length,fast:visualFast/);
+  assert.match(futuresDesk, /const last=candles\.length-1,prev=candles\[last-1\]/);
+  assert.match(futuresDesk, /closedOnly\(rows,currentInterval\)/);
+});
