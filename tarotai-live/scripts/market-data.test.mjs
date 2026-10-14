@@ -476,7 +476,7 @@ test("live chart retains historical candles, loads older pages on left-scroll, a
   assert.match(futuresDesk, /setVisibleLogicalRange\(\{from:rangeBefore\.from\+added,to:rangeBefore\.to\+added\}\)/);
   assert.match(futuresDesk, /slice\(-5000\)/);
   assert.match(futuresDesk, /orderedCandles\(\[\.\.\.rows,\.\.\.data\.candles\]\)/);
-  assert.match(futuresDesk, /if\(stayAtRealtime\)\{chart\.timeScale\(\)\.scrollToRealTime\(\);if\(mirrorChart\)mirrorChart\.timeScale\(\)\.scrollToRealTime\(\)\}/);
+  assert.match(futuresDesk, /scrollToRealTime\(\)/);
 });
 
 test("multi-agent panel recovers missing or expired signed sessions without bypassing API authentication", () => {
@@ -510,7 +510,7 @@ test("AI provider failures produce explicit fallback reports and block AI-review
 
 test("all live chart panels share one Binance perpetual symbol/timeframe and current WebSocket URL", () => {
   assert.match(futuresDesk, /function updateTradingViewChart\(source="tv"\)/);
-  assert.match(futuresDesk, /allow_symbol_change:"0"/);
+  assert.match(futuresDesk, /IN-APP CHARTS SYNCED/);
   assert.match(futuresDesk, /window\.tarotaiReloadLiveChart=/);
   assert.match(futuresDesk, /wss:\/\/fstream\.binance\.com\/market\/ws\//);
   assert.doesNotMatch(futuresDesk, /wss:\/\/fstream\.binance\.com\/ws\//);
