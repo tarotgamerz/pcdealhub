@@ -880,12 +880,20 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     byId("livePaperOpen").disabled=paperOpening||!qualifies||!teamApproved||opened.some(t=>t.symbol===byId("liveSymbol").value);
     if(opened.some(t=>t.symbol===byId("liveSymbol").value))paperStatus("A paper position for this market is already open. Close it before opening another.");
   }
+  function paperTradeVenue(t){
+    const v=String(t?.venue||"").toLowerCase();if(["binance","bybit","okx"].includes(v))return v;
+    const source=String(t?.marketSource||"").toLowerCase();
+    if(source.includes("binance"))return "binance";
+    if(source.includes("bybit"))return "bybit";
+    if(source.includes("okx"))return "okx";
+    return "okx";
+  }
   async function paperRefresh(checkStops=true){
     if(paperBusy)return;paperBusy=true;
     try{
       let d=await paperRequest("/api/trading/paper"),ledger=Array.isArray(d.ledger)?d.ledger:[];paperStoreReady=true;
       if(checkStops){
-        const positions=paperOpened(ledger).filter(t=>t.symbol),checks=[...new Map(positions.map(t=>[(t.venue||"binance")+"|"+t.symbol,{symbol:t.symbol,venue:t.venue||"binance"}])).values()],warnings=[];
+        const positions=paperOpened(ledger).filter(t=>t.symbol),checks=[...new Map(positions.map(t=>[paperTradeVenue(t)+"|"+t.symbol,{symbol:t.symbol,venue:paperTradeVenue(t)}])).values()],warnings=[];
         for(const {symbol,venue} of checks){try{const result=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"STOP_CHECK",symbol,venue})});if(result.historyGaps?.length)warnings.push(symbol+": "+result.historyGaps.length+" position(s) predate available candle history");}catch(e){warnings.push(symbol+" ("+venue+"): stop check failed ("+e.message+")");}}
         if(symbols.length){d=await paperRequest("/api/trading/paper");ledger=Array.isArray(d.ledger)?d.ledger:[];}
         window.tarotaiPaperWarnings=warnings;
@@ -937,11 +945,11 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   async function paperClose(t,button){
     if(button.disabled)return;button.disabled=true;button.textContent="Checking price…";
     try{
-      let price=NaN;
-      if(t.symbol===currentSymbol&&Number.isFinite(lastTradePrice)&&Date.now()-lastTradeAt<=3000)price=Number(lastTradePrice);
-      if(!Number.isFinite(price)||price<=0){const q=await paperRequest("/api/exchanges/market?"+new URLSearchParams({venue:"binance",symbol:t.symbol,interval:"1m",limit:"3",public:"1"}));price=Number(q.candles?.[q.candles.length-1]?.close);}
-      if(!Number.isFinite(price)||price<=0)throw new Error("No fresh live price available");
-      const result=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"CLOSE",parentTradeId:t.id,symbol:t.symbol,venue:t.venue||"binance",side:t.side==="BUY"?"SELL":"BUY",quantity:Number(t.quantity),price,feeBps:Number(t.feeBps??5),slippageBps:Number(t.slippageBps??2),marketTime:Date.now()})});
+      const tradeVenue=paperTradeVenue(t);let price=NaN;
+      if(t.symbol===currentSymbol&&tradeVenue===marketVenue&&Number.isFinite(lastTradePrice)&&Date.now()-lastTradeAt<=3000)price=Number(lastTradePrice);
+      if(!Number.isFinite(price)||price<=0){const q=await paperRequest("/api/exchanges/market?"+new URLSearchParams({venue:tradeVenue,symbol:t.symbol,interval:"1m",limit:"3",public:"1"}));price=Number(q.candles?.[q.candles.length-1]?.close);}
+      if(!Number.isFinite(price)||price<=0)throw new Error("No fresh "+tradeVenue.toUpperCase()+" price available for this paper position");
+      const result=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"CLOSE",parentTradeId:t.id,symbol:t.symbol,venue:tradeVenue,side:t.side==="BUY"?"SELL":"BUY",quantity:Number(t.quantity),price,feeBps:Number(t.feeBps??5),slippageBps:Number(t.slippageBps??2),marketTime:Date.now()})});
       paperStatus("Paper position closed at simulated fill "+paperFmt(result.trade?.fillPrice??price)+". Net result includes modeled trading costs; no exchange order was sent.");
       log("Closed paper position "+t.id+". No exchange order sent.");await paperRefresh(false);
     }catch(e){paperStatus("Paper close failed: "+e.message,true);button.disabled=false;button.textContent="Close at verified live price";}

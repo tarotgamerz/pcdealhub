@@ -606,3 +606,12 @@ test("market data and agent APIs default to the reachable OKX swap feed", () => 
   assert.match(source, /const venue=\(q\.get\("venue"\)\|\|"okx"\)\.toLowerCase\(\)/);
   assert.match(parallelAgentsRoute, /preferred=String\(body\?\.venue\|\|"okx"\)\.toLowerCase\(\) as Venue/);
 });
+
+
+test("paper close and stop checks keep using the recorded trade venue", () => {
+  assert.match(futuresDesk, /function paperTradeVenue\(t\)/);
+  assert.match(futuresDesk, /venue:paperTradeVenue\(t\)/);
+  assert.match(futuresDesk, /venue:tradeVenue/);
+  assert.match(futuresDesk, /tradeVenue===marketVenue&&Number\.isFinite\(lastTradePrice\)/);
+  assert.doesNotMatch(futuresDesk, /new URLSearchParams\(\{venue:"binance",symbol:t\.symbol/);
+});
