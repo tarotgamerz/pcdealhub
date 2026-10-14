@@ -570,7 +570,7 @@ test("paper entry checks a live OKX last-trade ticker and blocks material quote 
   assert.match(paperRoute, /api\/v5\/market\/ticker/);
   assert.match(paperRoute, /action==="OPEN"&&priceDrift>0\.002/);
   assert.match(paperRoute, /executionReferencePrice=verifiedMarketPrice/);
-  assert.match(paperRoute, /ticker\/bookTicker/);
+  assert.match(paperRoute, /fapi\.binance\.com\/fapi\/v1\/ticker\/24hr/);
   assert.match(paperRoute, /verifiedSpreadBps<0\|\|verifiedSpreadBps>20/);
   assert.match(paperRoute, /validatePaperExposure/);
   assert.match(paperRoute, /maxTotalExposurePct:PAPER_MAX_PORTFOLIO_EXPOSURE_PCT/);
@@ -590,8 +590,12 @@ test("Binance Futures is the canonical live chart source selected by the user", 
   assert.match(futuresDesk, /wss:\/\/fstream\.binance\.com\/ws\//);
   assert.match(source, /https:\/\/fapi\.binance\.com\/fapi\/v1\/klines/);
   assert.match(parallelAgentsRoute, /fapi\/v1\/klines/);
-  assert.match(paperRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/price/);
-  assert.match(liveQuoteRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/price/);
+  assert.match(paperRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/24hr/);
+  assert.match(liveQuoteRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/24hr/);
+  assert.match(liveQuoteRoute, /lastPrice/);
+  assert.match(liveQuoteRoute, /bidPrice/);
+  assert.match(liveQuoteRoute, /askPrice/);
+  assert.doesNotMatch(liveQuoteRoute, /fapi\.binance\.com\/fapi\/v1\/ticker\/bookTicker/);
   assert.match(futuresDesk, /channel:"trades",instId/);
   assert.match(futuresDesk, /Open official TradingView \(external\)/);
 });
