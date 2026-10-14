@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
 import { isAuthorized } from "../../../../lib/auth";
-import { applySlippage, calculateFee, isStale, validateStops, resolveStopTarget } from "../../../../lib/trading-rules.mjs";
+import { applySlippage, calculateFee, isStale, validateStops, resolveStopTarget, validatePaperExposure, PAPER_MAX_POSITION_EXPOSURE_PCT, PAPER_MAX_PORTFOLIO_EXPOSURE_PCT } from "../../../../lib/trading-rules.mjs";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 function store(){const url=process.env.UPSTASH_REDIS_REST_URL,token=process.env.UPSTASH_REDIS_REST_TOKEN;if(!url||!token)throw new Error("STORE_OFF");return new Redis({url,token});}
@@ -93,36 +93,58 @@ export async function POST(req:Request){
   const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),venue=String(b.venue||"binance").toLowerCase(),side=String(b.side||"").toUpperCase(),qty=Number(b.quantity),price=Number(b.price),feeBps=Number(b.feeBps??5),slipBps=Number(b.slippageBps??2),marketTime=Number(b.marketTime);
   if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["okx","bybit","binance"].includes(venue)||!["BUY","SELL"].includes(side)||![qty,price,feeBps,slipBps,marketTime].every(Number.isFinite)||qty<=0||price<=0||feeBps<0||feeBps>50||slipBps<0||slipBps>50)return NextResponse.json({error:"Invalid trade inputs; include marketTime and costs 0-50 bps"},{status:400});
   if(isStale(marketTime))return NextResponse.json({error:"Stale or missing market timestamp; refresh market data before paper trading"},{status:409});
-  let verifiedMarketPrice:number,executionReferencePrice=price,marketSource="";
+  let verifiedMarketPrice:number,executionReferencePrice=price,marketSource="",verifiedSpreadBps=Number.NaN;
   try{
    let marketResponse:Response,marketQuote:any;
    if(venue==="okx"){
     const instId=symbol.endsWith("USDT")?symbol.slice(0,-4)+"-USDT-SWAP":symbol;
     const marketUrl=new URL("https://www.okx.com/api/v5/market/ticker");marketUrl.searchParams.set("instId",instId);
     marketResponse=await fetch(marketUrl,{cache:"no-store",signal:AbortSignal.timeout(6000)});marketQuote=await marketResponse.json();
-    if(!marketResponse.ok||marketQuote?.code!=="0"||!Number.isFinite(Number(marketQuote?.data?.[0]?.last)))return NextResponse.json({error:"Fresh OKX swap last-trade price could not be verified; paper trade blocked"},{status:502});
-    verifiedMarketPrice=Number(marketQuote.data[0].last);marketSource="OKX public swap last-trade ticker";
+    const ticker=marketQuote?.code==="0"&&Array.isArray(marketQuote?.data)?marketQuote.data[0]:null;
+    if(!marketResponse.ok||!Number.isFinite(Number(ticker?.last))||Number(ticker?.last)<=0)return NextResponse.json({error:"Fresh OKX swap last-trade price could not be verified; paper trade blocked"},{status:502});
+    const bid=Number(ticker.bidPx),ask=Number(ticker.askPx);
+    verifiedSpreadBps=Number.isFinite(bid)&&Number.isFinite(ask)&&bid>0&&ask>=bid?((ask-bid)/((ask+bid)/2))*10000:Number.NaN;
+    if(action==="OPEN"&&!Number.isFinite(verifiedSpreadBps))return NextResponse.json({error:"Paper entry blocked: current OKX bid-ask spread could not be verified."},{status:502});
+    verifiedMarketPrice=Number(ticker.last);marketSource="OKX public swap last-trade ticker";
    }else if(venue==="bybit"){
     const marketUrl=new URL("https://api.bybit.com/v5/market/tickers");marketUrl.searchParams.set("category","linear");marketUrl.searchParams.set("symbol",symbol);
     marketResponse=await fetch(marketUrl,{cache:"no-store",signal:AbortSignal.timeout(6000)});marketQuote=await marketResponse.json();
-    if(!marketResponse.ok||marketQuote?.retCode!==0||!Number.isFinite(Number(marketQuote?.result?.list?.[0]?.lastPrice)))return NextResponse.json({error:"Fresh Bybit linear last-trade price could not be verified; paper trade blocked"},{status:502});
-    verifiedMarketPrice=Number(marketQuote.result.list[0].lastPrice);marketSource="Bybit linear-perpetual public last-trade ticker";
+    const ticker=marketQuote?.retCode===0&&Array.isArray(marketQuote?.result?.list)?marketQuote.result.list[0]:null;
+    if(!marketResponse.ok||!Number.isFinite(Number(ticker?.lastPrice))||Number(ticker?.lastPrice)<=0)return NextResponse.json({error:"Fresh Bybit linear last-trade price could not be verified; paper trade blocked"},{status:502});
+    const bid=Number(ticker.bid1Price),ask=Number(ticker.ask1Price);
+    verifiedSpreadBps=Number.isFinite(bid)&&Number.isFinite(ask)&&bid>0&&ask>=bid?((ask-bid)/((ask+bid)/2))*10000:Number.NaN;
+    if(action==="OPEN"&&!Number.isFinite(verifiedSpreadBps))return NextResponse.json({error:"Paper entry blocked: current Bybit bid-ask spread could not be verified."},{status:502});
+    verifiedMarketPrice=Number(ticker.lastPrice);marketSource="Bybit linear-perpetual public last-trade ticker";
    }else{
     const marketUrl=new URL("https://fapi.binance.com/fapi/v1/ticker/price");marketUrl.searchParams.set("symbol",symbol);
-    marketResponse=await fetch(marketUrl,{cache:"no-store",signal:AbortSignal.timeout(6000)});marketQuote=await marketResponse.json();
-    if(!marketResponse.ok||!Number.isFinite(Number(marketQuote?.price)))return NextResponse.json({error:"Fresh Binance USDⓈ-M Futures last-trade price could not be verified; paper trade blocked"},{status:502});
+    const bookUrl=new URL("https://fapi.binance.com/fapi/v1/ticker/bookTicker");bookUrl.searchParams.set("symbol",symbol);
+    const [priceResult,bookResult]=await Promise.all([
+     fetch(marketUrl,{cache:"no-store",signal:AbortSignal.timeout(6000)}).then(async response=>({response,payload:await response.json().catch(()=>null)})),
+     fetch(bookUrl,{cache:"no-store",signal:AbortSignal.timeout(6000)}).then(async response=>({response,payload:await response.json().catch(()=>null)})).catch(()=>null)
+    ]);
+    marketResponse=priceResult.response;marketQuote=priceResult.payload;
+    if(!marketResponse.ok||!Number.isFinite(Number(marketQuote?.price))||Number(marketQuote?.price)<=0)return NextResponse.json({error:"Fresh Binance USDⓈ-M Futures last-trade price could not be verified; paper trade blocked"},{status:502});
+    const bid=Number(bookResult?.payload?.bidPrice),ask=Number(bookResult?.payload?.askPrice);
+    verifiedSpreadBps=bookResult?.response.ok&&Number.isFinite(bid)&&Number.isFinite(ask)&&bid>0&&ask>=bid?((ask-bid)/((ask+bid)/2))*10000:Number.NaN;
+    if(action==="OPEN"&&!Number.isFinite(verifiedSpreadBps))return NextResponse.json({error:"Paper entry blocked: current Binance Futures bid-ask spread could not be verified."},{status:502});
     verifiedMarketPrice=Number(marketQuote.price);marketSource="Binance USDⓈ-M Futures public last-trade ticker";
    }
    if(!Number.isFinite(verifiedMarketPrice)||verifiedMarketPrice<=0)return NextResponse.json({error:"Server-side market price is malformed; paper trade blocked"},{status:409});
+   if(action==="OPEN"&&(!Number.isFinite(verifiedSpreadBps)||verifiedSpreadBps<0||verifiedSpreadBps>20))return NextResponse.json({error:"Paper entry blocked: bid-ask spread is unavailable or exceeds the 20 bps safety limit.",spreadBps:Number.isFinite(verifiedSpreadBps)?verifiedSpreadBps:null,maxAllowedSpreadBps:20},{status:409});
    const priceDrift=Math.abs(price-verifiedMarketPrice)/verifiedMarketPrice;
    if(action==="OPEN"&&priceDrift>0.002)return NextResponse.json({error:"Paper entry blocked: chart price differs from the server-verified "+venue.toUpperCase()+" last-trade quote by "+(priceDrift*100).toFixed(3)+"%. Refresh the live chart before retrying.",verifiedMarketPrice,submittedPrice:price,maxAllowedDriftPct:0.2},{status:409});
-   executionReferencePrice=action==="CLOSE"?verifiedMarketPrice:price;
+   // The simulated fill uses the server-verified exchange price, never the browser's submitted price.
+   executionReferencePrice=verifiedMarketPrice;
   }catch{return NextResponse.json({error:"Market freshness verification failed; paper entry blocked"},{status:502});}
   if(action==="OPEN"&&Math.abs(price-verifiedMarketPrice)/verifiedMarketPrice>0.01)return NextResponse.json({error:"Entry price moved more than 1% from the server-verified live price; re-analyze the chart before paper entry",requestedPrice:price,verifiedMarketPrice},{status:409});
+  let existingOpenExposure=0;
   if(action==="OPEN"){
    const existingRows=(await d.lrange("tarotai:paper:ledger",0,999)).map((x:any)=>typeof x==="string"?JSON.parse(x):x);
    const closedIds=new Set(existingRows.filter((x:any)=>x.parentTradeId&&["PAPER_CLOSE","PAPER_STOP","PAPER_TARGET"].includes(x.status)).map((x:any)=>x.parentTradeId));
-   if(existingRows.some((x:any)=>x.status==="PAPER_OPEN"&&x.symbol===symbol&&!closedIds.has(x.id)))return NextResponse.json({error:"A paper position for this symbol is already open; close it before opening another"},{status:409});
+   const openRows=existingRows.filter((x:any)=>x.status==="PAPER_OPEN"&&!closedIds.has(x.id));
+   if(openRows.some((x:any)=>x.symbol===symbol))return NextResponse.json({error:"A paper position for this symbol is already open; close it before opening another"},{status:409});
+   existingOpenExposure=openRows.reduce((sum:number,x:any)=>sum+Number(x.fillPrice||x.verifiedMarketPrice||x.requestedPrice)*Number(x.quantity),0);
+   if(!Number.isFinite(existingOpenExposure)||existingOpenExposure<0)return NextResponse.json({error:"Existing paper exposure is malformed; opening another position is blocked"},{status:409});
   }
   let parentTrade:any=null;
   if(action==="CLOSE"){
@@ -135,6 +157,12 @@ export async function POST(req:Request){
   }
   const stopPrice=b.stopPrice==null?null:Number(b.stopPrice),targetPrice=b.targetPrice==null?null:Number(b.targetPrice);
   if(action==="OPEN"&&(stopPrice===null||targetPrice===null||!Number.isFinite(stopPrice)||!Number.isFinite(targetPrice)||!validateStops(side==="BUY"?"LONG":"SHORT",executionReferencePrice,stopPrice,targetPrice)))return NextResponse.json({error:"Opening paper trade requires valid stop and target geometry"},{status:400});
+  const paperBalance=Number(b.paperBalance),riskPct=Number(b.riskPct),maxExposurePct=Number(b.maxExposurePct);
+  if(action==="OPEN"){
+   if(![paperBalance,riskPct,maxExposurePct].every(Number.isFinite)||paperBalance<100||paperBalance>10000000||riskPct<0.1||riskPct>1||maxExposurePct<=0||maxExposurePct>PAPER_MAX_POSITION_EXPOSURE_PCT)return NextResponse.json({error:"Paper entry blocked: balance, risk, or exposure settings are outside the server-enforced limits."},{status:400});
+   const riskError=validatePaperExposure({balance:paperBalance,riskPct,entry:executionReferencePrice,stop:Number(stopPrice),quantity:qty,existingExposure:existingOpenExposure,maxExposurePct,maxTotalExposurePct:PAPER_MAX_PORTFOLIO_EXPOSURE_PCT});
+   if(riskError)return NextResponse.json({error:riskError,limits:{maxPositionExposurePct:PAPER_MAX_POSITION_EXPOSURE_PCT,maxPortfolioExposurePct:PAPER_MAX_PORTFOLIO_EXPOSURE_PCT,maxRiskPct:1}},{status:409});
+  }
   const fill=applySlippage(side,executionReferencePrice,slipBps),fee=calculateFee(fill,qty,feeBps);
   const grossPnl=parentTrade?(parentTrade.side==="BUY"?(fill-Number(parentTrade.fillPrice))*qty:(Number(parentTrade.fillPrice)-fill)*qty):null;
   const suppliedSource=String(b.decisionSource||"");
@@ -144,7 +172,7 @@ export async function POST(req:Request){
   const agentTeamModel=String(b.agentTeamModel||"unreported").slice(0,100);
   const roles=["market","entry","exits","sizing","discipline","position","journal","supervisor"];
   const agentVotes=Array.isArray(b.agentVotes)?b.agentVotes.slice(0,8).filter((v:any)=>v&&roles.includes(String(v.role))).map((v:any)=>({role:String(v.role),bias:["LONG","SHORT","WAIT"].includes(String(v.bias))?String(v.bias):"WAIT",veto:Boolean(v.veto),model:String(v.model||"unreported").slice(0,100),fallback:Boolean(v.fallback)})):[];
-  const trade={id:crypto.randomUUID(),parentTradeId:parentTrade?.id||null,createdAt:new Date().toISOString(),symbol,side,quantity:qty,requestedPrice:price,verifiedMarketPrice,marketDataCheckedAt:new Date().toISOString(),venue,marketSource,fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),pnlGross:grossPnl===null?null:Number(grossPnl.toFixed(8)),pnlNet:grossPnl===null?null:Number((grossPnl-fee-Number(parentTrade.fee||0)).toFixed(8)),feeBps,slippageBps:slipBps,stopPrice,targetPrice,status:"PAPER_"+action,mode:"PAPER_ONLY",
+  const trade={id:crypto.randomUUID(),parentTradeId:parentTrade?.id||null,createdAt:new Date().toISOString(),symbol,side,quantity:qty,requestedPrice:price,verifiedMarketPrice,marketDataCheckedAt:new Date().toISOString(),venue,marketSource,fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),pnlGross:grossPnl===null?null:Number(grossPnl.toFixed(8)),pnlNet:grossPnl===null?null:Number((grossPnl-fee-Number(parentTrade.fee||0)).toFixed(8)),feeBps,slippageBps:slipBps,spreadBps:Number.isFinite(verifiedSpreadBps)?Number(verifiedSpreadBps.toFixed(4)):null,fillNotional:Number((qty*fill).toFixed(8)),paperBalance:action==="OPEN"?paperBalance:(parentTrade?.paperBalance??null),riskPct:action==="OPEN"?riskPct:(parentTrade?.riskPct??null),maxExposurePct:action==="OPEN"?maxExposurePct:(parentTrade?.maxExposurePct??null),plannedRisk:action==="OPEN"?Number((qty*Math.abs(executionReferencePrice-Number(stopPrice))).toFixed(8)):(parentTrade?.plannedRisk??null),stopPrice,targetPrice,status:"PAPER_"+action,mode:"PAPER_ONLY",
     decisionSource:parentTrade?.decisionSource||decisionSource,signalCandleTime:parentTrade?.signalCandleTime??signalCandleTime,decisionAction:parentTrade?.decisionAction||decisionAction,agentTeamModel:parentTrade?.agentTeamModel||agentTeamModel,agentVotes:parentTrade?.agentVotes||agentVotes};
   if([trade.stopPrice,trade.targetPrice].some((x:any)=>x!==null&&(!Number.isFinite(x)||x<=0)))return NextResponse.json({error:"Stop/target must be positive numbers"},{status:400});
   await d.lpush("tarotai:paper:ledger",JSON.stringify(trade));await d.ltrim("tarotai:paper:ledger",0,999);
