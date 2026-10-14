@@ -739,7 +739,7 @@ test("stale last-trade feed is never relabeled as a live quote", () => {
 
 
 test("live quote marker stays synchronized across charts without rewriting traded candle OHLC", () => {
-  assert.match(futuresDesk, /currentSymbol\.toLowerCase\(\)+"@bookTicker"/);
+  assert.match(futuresDesk, /currentSymbol\.toLowerCase\(\)\+"@bookTicker"/);
   assert.match(futuresDesk, /const bid=Number\(tick\.b\),ask=Number\(tick\.a\),price=\(bid\+ask\)\/2/);
   assert.match(futuresDesk, /mainLivePriceLine=candleSeries\.createPriceLine\(\{price,color:"#54c8ff"/);
   assert.match(futuresDesk, /mirrorLivePriceLine=mirrorCandleSeries\.createPriceLine\(\{price,color:"#54c8ff"/);
