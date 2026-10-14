@@ -13,6 +13,31 @@ export function validateStops(side, entry, stop, target) {
  if (![entry,stop,target].every(Number.isFinite) || entry<=0 || stop<=0 || target<=0) return false;
  return side==="LONG" ? stop<entry && target>entry : side==="SHORT" ? target<entry && entry<stop : false;
 }
+export const PAPER_MAX_POSITION_EXPOSURE_PCT = 5;
+export const PAPER_MAX_PORTFOLIO_EXPOSURE_PCT = 20;
+
+export function calculatePaperQuantity({ balance, riskPct, entry, stop, maxExposurePct = PAPER_MAX_POSITION_EXPOSURE_PCT }) {
+ if (![balance, riskPct, entry, stop, maxExposurePct].every(Number.isFinite) || balance < 100 || balance > 10000000 || riskPct < 0.1 || riskPct > 1 || entry <= 0 || stop <= 0 || entry === stop || maxExposurePct <= 0 || maxExposurePct > PAPER_MAX_POSITION_EXPOSURE_PCT) {
+  throw new Error("invalid paper sizing inputs");
+ }
+ const riskBudget = balance * riskPct / 100;
+ const maxNotional = balance * maxExposurePct / 100;
+ return Math.min(riskBudget / Math.abs(entry - stop), maxNotional / entry);
+}
+
+export function validatePaperExposure({ balance, riskPct, entry, stop, quantity, existingExposure = 0, maxExposurePct = PAPER_MAX_POSITION_EXPOSURE_PCT, maxTotalExposurePct = PAPER_MAX_PORTFOLIO_EXPOSURE_PCT }) {
+ if (![balance, riskPct, entry, stop, quantity, existingExposure, maxExposurePct, maxTotalExposurePct].every(Number.isFinite) || balance < 100 || balance > 10000000 || riskPct < 0.1 || riskPct > 1 || entry <= 0 || stop <= 0 || entry === stop || quantity <= 0 || existingExposure < 0 || maxExposurePct <= 0 || maxExposurePct > PAPER_MAX_POSITION_EXPOSURE_PCT || maxTotalExposurePct <= 0 || maxTotalExposurePct > 100) {
+  return "Invalid paper balance, risk, exposure, or position sizing inputs.";
+ }
+ const notional = entry * quantity;
+ const plannedRisk = Math.abs(entry - stop) * quantity;
+ const epsilon = Math.max(1e-8, balance * 1e-10);
+ if (notional > balance * maxExposurePct / 100 + epsilon) return "Paper entry blocked: position notional exceeds the 5% per-position exposure cap.";
+ if (plannedRisk > balance * riskPct / 100 + epsilon) return "Paper entry blocked: stop-distance risk exceeds the selected risk budget.";
+ if (existingExposure + notional > balance * maxTotalExposurePct / 100 + epsilon) return "Paper entry blocked: total open paper exposure would exceed the 20% portfolio cap.";
+ return null;
+}
+
 export function resolveStopTarget(candle, side, stop, target) {
  if (![candle?.open,candle?.high,candle?.low].every(Number.isFinite)) throw new Error("invalid candle");
  const stopHit = side==="LONG" ? candle.low<=stop : candle.high>=stop;
