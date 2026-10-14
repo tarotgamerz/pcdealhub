@@ -126,7 +126,7 @@ export async function POST(req:Request){
     if(!marketResponse.ok||marketQuote?.symbol!==symbol||!Number.isFinite(bid)||!Number.isFinite(ask)||bid<=0||ask<bid||!Number.isFinite(timestamp)||timestamp<=0||ageMs < -1500||ageMs>5000)return NextResponse.json({error:"Fresh Binance USDⓈ-M Futures order-book quote could not be verified; paper trade blocked",ageMs:Number.isFinite(ageMs)?ageMs:null},{status:502});
     verifiedBidPrice=bid;verifiedAskPrice=ask;verifiedMarketPrice=(bid+ask)/2;
     verifiedSpreadBps=((ask-bid)/verifiedMarketPrice)*10000;marketSource="Binance USDⓈ-M Futures timestamped order-book midpoint";
-   }}
+   }
    if(!Number.isFinite(verifiedMarketPrice)||verifiedMarketPrice<=0)return NextResponse.json({error:"Server-side market price is malformed; paper trade blocked"},{status:409});
    if(action==="OPEN"&&(!Number.isFinite(verifiedSpreadBps)||verifiedSpreadBps<0||verifiedSpreadBps>20))return NextResponse.json({error:"Paper entry blocked: bid-ask spread is unavailable or exceeds the 20 bps safety limit.",spreadBps:Number.isFinite(verifiedSpreadBps)?verifiedSpreadBps:null,maxAllowedSpreadBps:20},{status:409});
    const priceDrift=Math.abs(price-verifiedMarketPrice)/verifiedMarketPrice;
