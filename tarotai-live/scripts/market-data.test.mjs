@@ -574,6 +574,9 @@ test("paper entry checks a live OKX last-trade ticker and blocks material quote 
   assert.match(paperRoute, /verifiedSpreadBps<0\|\|verifiedSpreadBps>20/);
   assert.match(paperRoute, /validatePaperExposure/);
   assert.match(paperRoute, /maxTotalExposurePct:PAPER_MAX_PORTFOLIO_EXPOSURE_PCT/);
+  assert.match(paperRoute, /legacy open paper position has no recorded starting balance/);
+  assert.match(paperRoute, /Open paper positions have inconsistent recorded balances/);
+  assert.match(paperRoute, /Paper starting balance is locked while positions are open/);
   assert.match(paperRoute, /marketSource,/);
 });
 
