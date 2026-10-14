@@ -116,18 +116,15 @@ export async function POST(req:Request){
     if(action==="OPEN"&&!Number.isFinite(verifiedSpreadBps))return NextResponse.json({error:"Paper entry blocked: current Bybit bid-ask spread could not be verified."},{status:502});
     verifiedMarketPrice=Number(ticker.lastPrice);marketSource="Bybit linear-perpetual public last-trade ticker";
    }else{
-    const marketUrl=new URL("https://fapi.binance.com/fapi/v1/ticker/price");marketUrl.searchParams.set("symbol",symbol);
-    const bookUrl=new URL("https://fapi.binance.com/fapi/v1/ticker/bookTicker");bookUrl.searchParams.set("symbol",symbol);
-    const [priceResult,bookResult]=await Promise.all([
-     fetch(marketUrl,{cache:"no-store",signal:AbortSignal.timeout(6000)}).then(async response=>({response,payload:await response.json().catch(()=>null)})),
-     fetch(bookUrl,{cache:"no-store",signal:AbortSignal.timeout(6000)}).then(async response=>({response,payload:await response.json().catch(()=>null)})).catch(()=>null)
-    ]);
-    marketResponse=priceResult.response;marketQuote=priceResult.payload;
-    if(!marketResponse.ok||!Number.isFinite(Number(marketQuote?.price))||Number(marketQuote?.price)<=0)return NextResponse.json({error:"Fresh Binance USDⓈ-M Futures last-trade price could not be verified; paper trade blocked"},{status:502});
-    const bid=Number(bookResult?.payload?.bidPrice),ask=Number(bookResult?.payload?.askPrice);
-    verifiedSpreadBps=bookResult?.response.ok&&Number.isFinite(bid)&&Number.isFinite(ask)&&bid>0&&ask>=bid?((ask-bid)/((ask+bid)/2))*10000:Number.NaN;
+    // One ticker payload supplies last trade, bid and ask so the fill reference and
+    // spread guard do not combine observations from two different snapshots.
+    const marketUrl=new URL("https://fapi.binance.com/fapi/v1/ticker/24hr");marketUrl.searchParams.set("symbol",symbol);
+    marketResponse=await fetch(marketUrl,{cache:"no-store",signal:AbortSignal.timeout(6000)});marketQuote=await marketResponse.json().catch(()=>null);
+    if(!marketResponse.ok||!Number.isFinite(Number(marketQuote?.lastPrice))||Number(marketQuote?.lastPrice)<=0)return NextResponse.json({error:"Fresh Binance USDⓈ-M Futures last-trade price could not be verified; paper trade blocked"},{status:502});
+    const bid=Number(marketQuote?.bidPrice),ask=Number(marketQuote?.askPrice);
+    verifiedSpreadBps=Number.isFinite(bid)&&Number.isFinite(ask)&&bid>0&&ask>=bid?((ask-bid)/((ask+bid)/2))*10000:Number.NaN;
     if(action==="OPEN"&&!Number.isFinite(verifiedSpreadBps))return NextResponse.json({error:"Paper entry blocked: current Binance Futures bid-ask spread could not be verified."},{status:502});
-    verifiedMarketPrice=Number(marketQuote.price);marketSource="Binance USDⓈ-M Futures public last-trade ticker";
+    verifiedMarketPrice=Number(marketQuote.lastPrice);marketSource="Binance USDⓈ-M Futures 24h ticker snapshot";
    }
    if(!Number.isFinite(verifiedMarketPrice)||verifiedMarketPrice<=0)return NextResponse.json({error:"Server-side market price is malformed; paper trade blocked"},{status:409});
    if(action==="OPEN"&&(!Number.isFinite(verifiedSpreadBps)||verifiedSpreadBps<0||verifiedSpreadBps>20))return NextResponse.json({error:"Paper entry blocked: bid-ask spread is unavailable or exceeds the 20 bps safety limit.",spreadBps:Number.isFinite(verifiedSpreadBps)?verifiedSpreadBps:null,maxAllowedSpreadBps:20},{status:409});
