@@ -101,8 +101,8 @@
 </style>
 </head>
 <body><main class="app">
-<header class="top"><button class="feature-trigger" id="featureTrigger" type="button" aria-label="Open TarotAI features" aria-haspopup="dialog" aria-expanded="false">⋮</button><div class="brand"><div class="logo">T</div><div><h1>TarotAI <span class="muted">/ Futures Lab</span></h1><div class="sub">Multi-agent research desk · Bybit linear perpetual market data</div></div></div><span class="pill">● LIVE TRADING DISABLED</span></header>
-<div class="notice"><strong>Paper-only safety mode:</strong> TarotAI reads public Bybit linear-perpetual market data and can save simulated trades to its private persistent paper ledger. It never sends real exchange orders. The two in-dashboard charts share one feed; the official TradingView site is external. Never enter exchange API keys here.</div>
+<header class="top"><button class="feature-trigger" id="featureTrigger" type="button" aria-label="Open TarotAI features" aria-haspopup="dialog" aria-expanded="false">⋮</button><div class="brand"><div class="logo">T</div><div><h1>TarotAI <span class="muted">/ Futures Lab</span></h1><div class="sub">Multi-agent research desk · OKX perpetual swap market data</div></div></div><span class="pill">● LIVE TRADING DISABLED</span></header>
+<div class="notice"><strong>Paper-only safety mode:</strong> TarotAI reads public OKX swap market data and can save simulated trades to its private persistent paper ledger. It never sends real exchange orders. The two in-dashboard charts share one feed; the official TradingView site is external. Never enter exchange API keys here.</div>
 <section class="stats"><div class="stat"><label>Environment</label><strong class="green">TEST MODE</strong></div><div class="stat"><label>Simulated equity</label><strong id="equity">$10,000.00</strong></div><div class="stat"><label>Open demo positions</label><strong id="openCount">0</strong></div><div class="stat"><label>Daily demo P&amp;L</label><strong id="pnl">$0.00</strong></div></section>
 <div class="grid">
 <section class="panel wide"><h2>Agent room</h2><div class="agents"><div class="agent"><div class="agenthead"><div class="ico">⌁</div><div><strong>Market Structure Analyst</strong><div class="sub">Trend, swing structure and higher-timeframe alignment</div></div></div><span class="tag">MARKET</span></div>
@@ -132,10 +132,10 @@
 <section class="panel wide"><h2>Demo trade journal</h2><div class="tablewrap"><table><thead><tr><th>Time</th><th>Symbol</th><th>Side</th><th>Entry</th><th>Stop / Target</th><th>Risk</th><th>Status</th></tr></thead><tbody id="trades"><tr><td colspan="7" class="empty">No demo orders yet. Create a local demo record to begin.</td></tr></tbody></table></div></section>
 <section class="panel"><h2>Research pipeline</h2><div class="step"><span class="tag">01</span><div><strong>Market data</strong><div class="sub">Source + timestamp verification required</div></div></div><div class="step"><span class="tag">02</span><div><strong>Historical backtest</strong><div class="sub">Fees, funding, slippage, out-of-sample split</div></div></div><div class="step"><span class="tag">03</span><div><strong>Forward test</strong><div class="sub">Paper results across varied regimes</div></div></div><div class="step"><span class="tag">04</span><div><strong>Risk review</strong><div class="sub">Independent veto + exposure caps</div></div></div><div class="step"><span class="tag">05</span><div><strong>Human approval</strong><div class="sub">Required before any future live-trading feature</div></div></div></section>
 
-<section class="panel full" id="tradingview-panel"><div class="row" style="justify-content:space-between;margin-bottom:12px"><div><h2 style="margin:0">Synchronized market chart</h2><div class="sub">This chart and the live-analysis chart below share one Bybit linear-perpetual candle array and the same live last-trade WebSocket quote.</div></div><span class="tag">ONE CANONICAL FEED</span></div>
+<section class="panel full" id="tradingview-panel"><div class="row" style="justify-content:space-between;margin-bottom:12px"><div><h2 style="margin:0">Synchronized market chart</h2><div class="sub">This chart and the live-analysis chart below share one OKX swap candle array and the same live last-trade WebSocket quote.</div></div><span class="tag">ONE CANONICAL FEED</span></div>
 <div class="row" style="margin-bottom:12px"><div class="field" style="flex:1;min-width:150px;margin:0"><label for="tvSymbol">Chart market</label><select id="tvSymbol"><option value="BTCUSDT">BTCUSDT perpetual</option><option value="ETHUSDT">ETHUSDT perpetual</option><option value="BNBUSDT">BNBUSDT perpetual</option><option value="SOLUSDT">SOLUSDT perpetual</option></select></div><div class="field" style="flex:1;min-width:120px;margin:0"><label for="tvInterval">Chart timeframe</label><select id="tvInterval"><option value="1">1 minute</option><option value="5">5 minutes</option><option value="15" selected>15 minutes</option><option value="60">1 hour</option><option value="240">4 hours</option></select></div><button class="btn" id="tvRefresh">Update chart</button></div>
-<div class="live-chart-shell" id="tvSyncedChartShell"><div id="tvSyncedChart" style="width:100%;height:100%"></div><div class="live-chart-overlay"><strong id="tvSyncedPrice">WAITING FOR SHARED LIVE PRICE</strong><span id="tvSyncedMeta">Waiting for Bybit linear perpetual last-trade stream…</span></div></div>
-<div class="row" style="margin-top:12px"><button class="btn primary" id="tvAskAgent">Run AI-enhanced 8-agent review</button><a class="btn" id="tvOpenExternal" href="https://www.tradingview.com/chart/?symbol=BYBIT%3ABTCUSDT.P" target="_blank" rel="noopener noreferrer" style="text-decoration:none">Open official TradingView (external)</a><span class="muted" id="tvStatus" style="font-size:12px">Waiting for shared Bybit feed…</span></div>
+<div class="live-chart-shell" id="tvSyncedChartShell"><div id="tvSyncedChart" style="width:100%;height:100%"></div><div class="live-chart-overlay"><strong id="tvSyncedPrice">WAITING FOR SHARED LIVE PRICE</strong><span id="tvSyncedMeta">Waiting for OKX perpetual swap last-trade stream…</span></div></div>
+<div class="row" style="margin-top:12px"><button class="btn primary" id="tvAskAgent">Run AI-enhanced 8-agent review</button><a class="btn" id="tvOpenExternal" href="https://www.tradingview.com/chart/?symbol=OKX%3ABTCUSDT.P" target="_blank" rel="noopener noreferrer" style="text-decoration:none">Open official TradingView (external)</a><span class="muted" id="tvStatus" style="font-size:12px">Waiting for shared OKX feed…</span></div>
 <p class="muted" style="font-size:11px;margin-bottom:0">Both charts inside TarotAI display the same candles and exact same live quote. The official TradingView website is external and may have independent feed latency; its quote is not used for paper execution.</p></section>
 
 
@@ -185,13 +185,13 @@
 <section class="panel full" id="visual-strategy-panel"><div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px"><div><h2 style="margin:0">Visual strategy annotations</h2><div class="sub">Multi-factor live setup · EMA trend · RSI momentum · ATR/structure stop · 2R target</div></div><span class="tag">READ-ONLY</span></div><div class="row" style="margin-bottom:10px"><div class="field" style="flex:1;min-width:150px;margin:0"><label for="strategySymbol">Market</label><select id="strategySymbol"><option value="BTCUSDT">BTC/USDT</option><option value="ETHUSDT">ETH/USDT</option><option value="BNBUSDT">BNB/USDT</option><option value="SOLUSDT">SOL/USDT</option></select></div><div class="field" style="flex:1;min-width:130px;margin:0"><label for="strategyInterval">Timeframe</label><select id="strategyInterval"><option value="1m">1 minute</option><option value="5m" selected>5 minutes</option><option value="15m">15 minutes</option><option value="1h">1 hour</option><option value="4h">4 hours</option></select></div><button class="btn primary" id="drawStrategy">Analyze live market</button></div><div class="strategy-metrics"><div class="strategy-metric"><label>Latest close</label><strong id="strategyPrice">—</strong></div><div class="strategy-metric"><label>Latest signal</label><strong id="strategySignal">WAIT</strong></div><div class="strategy-metric"><label>Stop loss</label><strong id="strategyStop">—</strong></div><div class="strategy-metric"><label>Take profit</label><strong id="strategyTarget">—</strong></div></div><div class="strategy-chart-wrap"><canvas id="strategyCanvas" width="1200" height="440" role="img" aria-label="Candlestick chart with EMA crossover entries, stop loss and take profit annotations"></canvas><iframe id="strategyFallbackChart" title="Live TradingView chart fallback; no strategy annotations when exchange candles are unavailable" loading="lazy" allowfullscreen referrerpolicy="origin"></iframe></div><div class="strategy-legend"><span><i class="swatch" style="background:#65e6ad"></i>Bull candle / LONG</span><span><i class="swatch" style="background:#ff7b83"></i>Bear candle / SHORT</span><span><i class="swatch" style="background:#7eafff"></i>EMA 9</span><span><i class="swatch" style="background:#f2c46f"></i>EMA 21</span><span><i class="swatch" style="background:#ff7b83"></i>Stop loss</span><span><i class="swatch" style="background:#65e6ad"></i>Take profit</span></div><div class="muted" id="strategyStatus" style="font-size:11px">Waiting for live exchange candles. Auto-refreshes every 30 seconds while this page is visible. No orders are sent.</div></section>
 <section class="panel full"><h2>Connected research services</h2>
 <div class="row"><div class="field" style="flex:1;min-width:160px"><label>Private access code</label><input id="accessCode" type="password" autocomplete="current-password" placeholder="App access code"></div><button class="btn primary" id="loginBtn">Unlock private APIs</button><button class="btn" id="logoutBtn">Lock</button></div>
-<div class="row"><div class="field" style="flex:1;min-width:120px"><label>Venue</label><select id="venue"><option value="binance">Binance USDⓈ-M Futures</option><option value="bybit">Bybit linear market data</option><option value="okx">OKX market data</option></select></div><div class="field" style="flex:1;min-width:120px"><label>Symbol</label><input id="marketSymbol" value="BTCUSDT"></div><div class="field" style="flex:1;min-width:100px"><label>Interval</label><select id="marketInterval"><option>1m</option><option>5m</option><option selected>15m</option><option>1h</option><option>4h</option><option>1d</option></select></div><button class="btn" id="marketBtn">Fetch market data</button></div>
+<div class="row"><div class="field" style="flex:1;min-width:120px"><label>Venue</label><select id="venue"><option value="binance">Binance USDⓈ-M Futures</option><option value="bybit">OKX swap market data</option><option value="okx">OKX market data</option></select></div><div class="field" style="flex:1;min-width:120px"><label>Symbol</label><input id="marketSymbol" value="BTCUSDT"></div><div class="field" style="flex:1;min-width:100px"><label>Interval</label><select id="marketInterval"><option>1m</option><option>5m</option><option selected>15m</option><option>1h</option><option>4h</option><option>1d</option></select></div><button class="btn" id="marketBtn">Fetch market data</button></div>
 <div id="marketResult" class="log">Not connected. Unlock to fetch verified exchange response data.</div>
 <div class="row" style="margin-top:12px"><div class="field" style="flex:1"><label>Fast SMA period</label><input id="fastPeriod" type="number" value="9" min="2" max="99"></div><div class="field" style="flex:1"><label>Slow SMA period</label><input id="slowPeriod" type="number" value="21" min="3" max="100"></div><div class="field" style="flex:1"><label>Fee (bps/turn)</label><input id="feeBps" type="number" value="5" min="0" max="50"></div><div class="field" style="flex:1"><label>Slippage (bps/turn)</label><input id="slippageBps" type="number" value="2" min="0" max="50"></div><button class="btn primary" id="backtestBtn">Run backtest</button></div>
 <div id="backtestResult" class="log">Backtest has not been run. Results are research-only and do not place orders.</div>
 <div class="row" style="margin-top:12px"><button class="btn" id="ledgerBtn">Load paper ledger</button><input id="closeTradeId" placeholder="Open trade ID to close" style="padding:9px;background:#080e16;border:1px solid #334153;border-radius:8px;color:var(--text)"><button class="btn" id="closePaperBtn">Close paper position</button><button class="btn" id="replayBtn">Save market replay</button><button class="btn" id="signalsBtn">Check TradingView signals</button><button class="btn" id="stopCheckBtn">Evaluate paper stops</button></div>
 <div id="ledgerResult" class="log">Persistent paper ledger and signal queue require configured server-side Upstash Redis.</div>
-</section>\n<section class="panel full"><h2>Bybit linear perpetual demo order test</h2>
+</section>\n<section class="panel full"><h2>OKX perpetual swap demo order test</h2>
 <div class="notice">This sends orders only to Binance's fixed demo/testnet host. Configure demo API credentials as server environment variables; never paste keys into this page or chat. OKX swap size is measured in contracts, not base-coin units.</div>
 <div class="row"><div class="field" style="flex:1"><label>Order side</label><select id="tnSide"><option>BUY</option><option>SELL</option></select></div><div class="field" style="flex:1"><label>Order type</label><select id="tnType"><option>LIMIT</option><option>MARKET</option></select></div><div class="field" style="flex:1"><label>Quantity</label><input id="tnQty" type="number" min="0" step="any" value="0.001"></div><div class="field" style="flex:1"><label>Limit price (LIMIT only)</label><input id="tnPrice" type="number" min="0" step="any"></div></div>
 <div class="field"><label>Client order ID (reuse this if the request times out)</label><input id="tnClientId" maxlength="36" autocomplete="off"></div><label style="display:flex;gap:8px;align-items:center;margin:8px 0 12px"><input id="tnConfirm" type="checkbox"> I understand this sends a real order to the demo/testnet account only.</label>
@@ -238,7 +238,7 @@ let strategyRefreshTimer=null;function startStrategyAutoRefresh(){if(strategyRef
 function tradingViewInterval(){return $('tvInterval').value}
 const tvToLiveInterval={"1":"1m","5":"5m","15":"15m","60":"1h","240":"4h"};
 const liveToTvInterval={"1m":"1","5m":"5","15m":"15","1h":"60","4h":"240"};
-function tradingViewSymbol(){const base=$("liveSymbol")?.value||$("tvSymbol").value;return "BYBIT:"+base+".P";}
+function tradingViewSymbol(){const base=$("liveSymbol")?.value||$("tvSymbol").value;return "OKX:"+base+".P";}
 function updateTradingViewChart(source="tv"){
   let base,interval;
   if(source==="strategy"){base=$("strategySymbol").value;interval=$("strategyInterval").value;}
@@ -251,13 +251,13 @@ function updateTradingViewChart(source="tv"){
   if($("marketInterval"))$("marketInterval").value=interval;
   const symbol=tradingViewSymbol();
   $("tvOpenExternal").href="https://www.tradingview.com/chart/?symbol="+encodeURIComponent(symbol);
-  $("tvStatus").textContent="IN-APP CHARTS SYNCED · "+symbol+" · "+interval+" · shared Bybit linear-perpetual candles and last-trade quote.";
+  $("tvStatus").textContent="IN-APP CHARTS SYNCED · "+symbol+" · "+interval+" · shared OKX swap candles and last-trade quote.";
   if(source!=="live"&&typeof window.tarotaiReloadLiveChart==="function")window.tarotaiReloadLiveChart();  if(source!=="live"&&typeof window.tarotaiReloadLiveChart==="function")window.tarotaiReloadLiveChart();
 }
 $("tvRefresh").addEventListener("click",()=>updateTradingViewChart("tv"));
 $("tvSymbol").addEventListener("change",()=>updateTradingViewChart("tv"));
 $("tvInterval").addEventListener("change",()=>updateTradingViewChart("tv"));
-$("venue").addEventListener("change",()=>{$("tvStatus").textContent="Research venue is separate. All linked live charts use the same Bybit linear perpetual symbol and live tick."});
+$("venue").addEventListener("change",()=>{$("tvStatus").textContent="Research venue is separate. All linked live charts use the same OKX perpetual swap symbol and live tick."});
 $("tvAskAgent").addEventListener("click",()=>{updateTradingViewChart("tv");if($("liveAgentPanel")?.hidden){$("liveAgentPanel").hidden=false;$("toggleLiveAgentTeam").textContent="Hide 8-agent trading team";$("toggleLiveAgentTeam").setAttribute("aria-expanded","true");}$("live-agent-chart").scrollIntoView({behavior:"smooth",block:"start"});$("runLiveAgentTeam").click();});
 updateTradingViewChart();
 
@@ -290,7 +290,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   const higherMap={"1m":"15m","5m":"1h","15m":"4h","1h":"1d","4h":"1d"};
   let chart=null,candleSeries=null,ema9Series=null,ema21Series=null,ema50Series=null,socketReconnectTimer=null;let lastMarketUpdateAt=0;
   let mirrorChart=null,mirrorCandleSeries=null,mirrorEma9Series=null,mirrorEma21Series=null,mirrorEma50Series=null,mirrorResizeObserver=null,rangeSyncLock=false,mirrorPriceLines=[],mainLivePriceLine=null,mirrorLivePriceLine=null,lastLiveLineUpdateAt=0;
-  let rows=[],marketVenue="bybit",feedSocket=null,quoteSocket=null,quoteReconnectTimer=null,quoteSymbol="",lastTradePrice=NaN,lastTradeAt=0,lastQuoteRenderAt=0,pollTimer=null,resizeObserver=null;
+  let rows=[],marketVenue="okx",feedSocket=null,quoteSocket=null,quoteReconnectTimer=null,quoteSymbol="",lastTradePrice=NaN,lastTradeAt=0,lastQuoteRenderAt=0,pollTimer=null,resizeObserver=null;
   let currentSymbol="",currentInterval="",higherCache=[],higherCacheKey="",higherCacheAt=0,priceLines=[],busy=false,firstRender=true,lastWsCandleTime=0,historyBusy=false,historyExhausted=false,historyPages=0,historyLoadAllowedAt=0;
   const fmt=(n)=>Number.isFinite(n)?n.toLocaleString("en-US",{maximumFractionDigits:n>=1000?2:n>=1?4:7}):"—";
   const msFor=i=>intervalMs[i]||300000;
@@ -327,8 +327,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       byId("livePrice").textContent=fmt(price);
       const badge=byId("tvSyncedPrice"),meta=byId("tvSyncedMeta");
       if(badge)badge.textContent=currentSymbol+" · "+fmt(price)+" USDT";
-      if(meta)meta.textContent=fresh?"Same Bybit linear perpetual last-trade tick in both charts · "+new Date(lastTradeAt).toLocaleTimeString():"Last-trade socket stale; showing latest candle close. Paper entries are blocked until live ticks resume.";
-      byId("tvStatus").textContent=fresh?"IN-APP CHARTS SYNCED · "+currentSymbol+" "+currentInterval+" · last trade "+fmt(price)+" · one Bybit feed.":"IN-APP CHARTS SYNCED · waiting for fresh Bybit last-trade tick; entries stay blocked.";
+      if(meta)meta.textContent=fresh?"Same OKX perpetual swap last-trade tick in both charts · "+new Date(lastTradeAt).toLocaleTimeString():"Last-trade socket stale; showing latest candle close. Paper entries are blocked until live ticks resume.";
+      byId("tvStatus").textContent=fresh?"IN-APP CHARTS SYNCED · "+currentSymbol+" "+currentInterval+" · last trade "+fmt(price)+" · one OKX feed.":"IN-APP CHARTS SYNCED · waiting for fresh OKX last-trade tick; entries stay blocked.";
       lastQuoteRenderAt=now;
     }
     if(now-lastLiveLineUpdateAt>=350){
@@ -340,17 +340,18 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     }
   }
   function connectQuoteSocket(force=false){
-    if(!currentSymbol||marketVenue!=="bybit"){if(quoteSocket){quoteSocket.onclose=null;try{quoteSocket.close();}catch(e){}quoteSocket=null;}quoteSymbol="";lastTradePrice=NaN;lastTradeAt=0;return;}
+    if(!currentSymbol||marketVenue!=="okx"){if(quoteSocket){quoteSocket.onclose=null;try{quoteSocket.close();}catch(e){}quoteSocket=null;}quoteSymbol="";lastTradePrice=NaN;lastTradeAt=0;return;}
     if(!force&&quoteSocket&&quoteSymbol===currentSymbol&&(quoteSocket.readyState===WebSocket.CONNECTING||quoteSocket.readyState===WebSocket.OPEN))return;
     if(quoteReconnectTimer)clearTimeout(quoteReconnectTimer);quoteReconnectTimer=null;
     if(quoteSocket){quoteSocket.onclose=null;try{quoteSocket.close();}catch(e){}quoteSocket=null;}
     quoteSymbol=currentSymbol;
+    const instId=currentSymbol.endsWith("USDT")?currentSymbol.slice(0,-4)+"-USDT-SWAP":currentSymbol;
     try{
-      quoteSocket=new WebSocket("wss://stream.bybit.com/v5/public/linear");
-      quoteSocket.onopen=()=>{quoteSocket.send(JSON.stringify({op:"subscribe",args:["publicTrade."+currentSymbol]}));renderSharedQuote(currentMarketPrice());};
-      quoteSocket.onmessage=event=>{if(quoteSymbol!==currentSymbol)return;let msg;try{msg=JSON.parse(event.data);}catch(e){return;}if(msg.topic!=="publicTrade."+currentSymbol||!Array.isArray(msg.data))return;for(const tick of msg.data){const price=Number(tick.p);if(!Number.isFinite(price)||price<=0)continue;lastTradePrice=price;lastTradeAt=Date.now();renderSharedQuote(price);}};
-      quoteSocket.onerror=()=>{const meta=byId("tvSyncedMeta");if(meta)meta.textContent="Bybit live-trade stream reconnecting; paper entries are blocked while live ticks are stale.";};
-      quoteSocket.onclose=()=>{if(quoteSymbol===currentSymbol&&marketVenue==="bybit"&&document.visibilityState==="visible"){if(quoteReconnectTimer)clearTimeout(quoteReconnectTimer);quoteReconnectTimer=setTimeout(()=>connectQuoteSocket(true),1500);}};
+      quoteSocket=new WebSocket("wss://ws.okx.com:8443/ws/v5/public");
+      quoteSocket.onopen=()=>{quoteSocket.send(JSON.stringify({op:"subscribe",args:[{channel:"trades",instId}]}));renderSharedQuote(currentMarketPrice());};
+      quoteSocket.onmessage=event=>{if(quoteSymbol!==currentSymbol)return;if(event.data==="ping"){try{quoteSocket.send("pong");}catch(e){}return;}let msg;try{msg=JSON.parse(event.data);}catch(e){return;}if(msg.arg?.channel!=="trades"||msg.arg?.instId!==instId||!Array.isArray(msg.data))return;for(const tick of msg.data){const price=Number(tick.px);if(!Number.isFinite(price)||price<=0)continue;lastTradePrice=price;lastTradeAt=Date.now();renderSharedQuote(price);}};
+      quoteSocket.onerror=()=>{const meta=byId("tvSyncedMeta");if(meta)meta.textContent="OKX live-trade stream reconnecting; paper entries are blocked while ticks are stale.";};
+      quoteSocket.onclose=()=>{if(quoteSymbol===currentSymbol&&marketVenue==="okx"&&document.visibilityState==="visible"){if(quoteReconnectTimer)clearTimeout(quoteReconnectTimer);quoteReconnectTimer=setTimeout(()=>connectQuoteSocket(true),1500);}};
     }catch(e){if(quoteReconnectTimer)clearTimeout(quoteReconnectTimer);quoteReconnectTimer=setTimeout(()=>connectQuoteSocket(true),2000);}
   }
 
@@ -765,7 +766,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const sym=byId("liveSymbol").value,interval=byId("liveInterval").value,changed=sym!==currentSymbol||interval!==currentInterval;
       if(changed){currentSymbol=sym;currentInterval=interval;higherCache=[];higherCacheKey="";higherCacheAt=0;firstRender=true;rows=[];historyExhausted=false;historyPages=0;lastWsCandleTime=0;}
       const data=await fetchMarketWithFallback(currentSymbol,currentInterval,250);
-      const nextVenue=data.venue||"bybit",venueChanged=marketVenue!==nextVenue;
+      const nextVenue=data.venue||"okx",venueChanged=marketVenue!==nextVenue;
       marketVenue=nextVenue;
       if(venueChanged||changed)connectSocket();
       rows=changed?orderedCandles(data.candles):orderedCandles([...rows,...data.candles]);lastMarketUpdateAt=Date.now();updateHistoryStatus("Loaded "+rows.length.toLocaleString()+" candles. Pan left or tap Load older candles to inspect older patterns.");
@@ -773,9 +774,9 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       renderRows(firstRender);
       try{await loadHigher(false);analyze();}catch(e){higherCache=[];higherCacheKey="";byId("liveHtf").textContent="UNAVAILABLE";analyze();status("Chart data loaded, but the higher-timeframe confirmation failed: "+e.message+". Signal stays HOLD until trend confirmation succeeds.");}
       const last=rows[rows.length-1],age=Math.max(0,Date.now()-last.time);
-      const venueLabel=({binance:"BINANCE FUTURES",bybit:"BYBIT LINEAR FUTURES",okx:"OKX SWAP"})[marketVenue]||String(marketVenue).toUpperCase();
+      const venueLabel=({binance:"BINANCE FUTURES",bybit:"OKX SWAP FUTURES",okx:"OKX SWAP"})[marketVenue]||String(marketVenue).toUpperCase();
       setFeed(venueLabel+" · "+(marketVenue==="binance"&&feedSocket&&feedSocket.readyState===1?"LIVE STREAM":"REST REFRESH"),marketVenue==="binance"&&feedSocket&&feedSocket.readyState===1?"good":"neutral");
-      status("Source: "+(data.sourceHost||"Bybit linear perpetual")+". Last bar opened "+Math.round(age/1000)+"s ago; REST snapshot fetched "+new Date(data.fetchedAt||Date.now()).toLocaleTimeString()+". "+(feedSocket&&feedSocket.readyState===1?"WebSocket candle updates active.":"Polling fallback active (refresh every 15s).")+" No orders are sent.");
+      status("Source: "+(data.sourceHost||"OKX perpetual swap")+". Last bar opened "+Math.round(age/1000)+"s ago; REST snapshot fetched "+new Date(data.fetchedAt||Date.now()).toLocaleTimeString()+". "+(feedSocket&&feedSocket.readyState===1?"WebSocket candle updates active.":"Polling fallback active (refresh every 15s).")+" No orders are sent.");
     }catch(e){
       setFeed("MARKET DATA ERROR","bad");
       byId("liveHtf").textContent="UNAVAILABLE";
@@ -787,32 +788,28 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   function connectSocket(){
     if(feedSocket){feedSocket.onclose=null;try{feedSocket.close();}catch(e){}feedSocket=null;}
     if(!currentSymbol||!currentInterval)return;
-    if(marketVenue!=="bybit"){setFeed(String(marketVenue).toUpperCase()+" · REST REFRESH","neutral");connectQuoteSocket();return;}
+    if(marketVenue!=="okx"){setFeed(String(marketVenue).toUpperCase()+" · REST REFRESH","neutral");connectQuoteSocket();return;}
+    const instId=currentSymbol.endsWith("USDT")?currentSymbol.slice(0,-4)+"-USDT-SWAP":currentSymbol;
+    const candleChannel="candle"+({"1m":"1m","3m":"3m","5m":"5m","15m":"15m","30m":"30m","1h":"1H","2h":"2H","4h":"4H","1d":"1D"}[currentInterval]||"1m");
     try{
-      feedSocket=new WebSocket("wss://stream.bybit.com/v5/public/linear");
-      feedSocket.onopen=()=>{if(socketReconnectTimer)clearTimeout(socketReconnectTimer);setFeed("BYBIT LINEAR · LIVE STREAM","good");feedSocket.send(JSON.stringify({op:"subscribe",args:["kline."+({"1m":"1","3m":"3","5m":"5","15m":"15","30m":"30","1h":"60","2h":"120","4h":"240","1d":"D"}[currentInterval]||"1")+"."+currentSymbol]}));};
+      feedSocket=new WebSocket("wss://ws.okx.com:8443/ws/v5/public");
+      feedSocket.onopen=()=>{if(socketReconnectTimer)clearTimeout(socketReconnectTimer);setFeed("OKX SWAP · LIVE STREAM","good");feedSocket.send(JSON.stringify({op:"subscribe",args:[{channel:candleChannel,instId}]}));};
       feedSocket.onmessage=event=>{
-        if(marketVenue!=="bybit")return;let msg;try{msg=JSON.parse(event.data);}catch(e){return;}
-        if(!String(msg.topic||"").startsWith("kline.")||!Array.isArray(msg.data)||!msg.data.length)return;
-        const k=msg.data[msg.data.length-1],bar={time:Number(k.start),open:Number(k.open),high:Number(k.high),low:Number(k.low),close:Number(k.close),volume:Number(k.volume),closeTime:Number(k.end)};
+        if(marketVenue!=="okx")return;if(event.data==="ping"){try{feedSocket.send("pong");}catch(e){}return;}
+        let msg;try{msg=JSON.parse(event.data);}catch(e){return;}
+        if(msg.arg?.channel!==candleChannel||msg.arg?.instId!==instId||!Array.isArray(msg.data)||!msg.data.length)return;
+        const k=msg.data[msg.data.length-1],bar={time:Number(k[0]),open:Number(k[1]),high:Number(k[2]),low:Number(k[3]),close:Number(k[4]),volume:Number(k[5]),closeTime:Number(k[0])+msFor(currentInterval)-1};
         if(!validateCandle(bar))return;const visibleBefore=chart.timeScale().getVisibleLogicalRange(),stickAtRealtime=!visibleBefore||visibleBefore.to>=rows.length-8;lastMarketUpdateAt=Date.now();
         if(!rows.length||bar.time>rows[rows.length-1].time)rows.push(bar);else{const idx=rows.findIndex(x=>x.time===bar.time);if(idx>=0)rows[idx]=bar;}
         if(rows.length>5000)rows=rows.slice(-5000);
-        try{const point=plotCandle(bar);candleSeries.update(point);if(mirrorCandleSeries)mirrorCandleSeries.update(point);const cls=rows.map(c=>c.close),e9Data=lineData(ema(cls,9),rows),e21Data=lineData(ema(cls,21),rows),e50Data=lineData(ema(cls,50),rows);ema9Series.setData(e9Data);ema21Series.setData(e21Data);ema50Series.setData(e50Data);if(mirrorEma9Series){mirrorEma9Series.setData(e9Data);mirrorEma21Series.setData(e21Data);mirrorEma50Series.setData(e50Data);}renderSharedQuote(currentMarketPrice());if(stickAtRealtime){chart.timeScale().scrollToRealTime();if(mirrorChart)mirrorChart.timeScale().scrollToRealTime();}if(k.confirm){analyze();runContinuousAgentCycle();}else analyze();
+        try{const point=plotCandle(bar);candleSeries.update(point);if(mirrorCandleSeries)mirrorCandleSeries.update(point);const cls=rows.map(c=>c.close),e9Data=lineData(ema(cls,9),rows),e21Data=lineData(ema(cls,21),rows),e50Data=lineData(ema(cls,50),rows);ema9Series.setData(e9Data);ema21Series.setData(e21Data);ema50Series.setData(e50Data);if(mirrorEma9Series){mirrorEma9Series.setData(e9Data);mirrorEma21Series.setData(e21Data);mirrorEma50Series.setData(e50Data);}renderSharedQuote(currentMarketPrice());if(stickAtRealtime){chart.timeScale().scrollToRealTime();if(mirrorChart)mirrorChart.timeScale().scrollToRealTime();}if(k[8]==="1"){analyze();runContinuousAgentCycle();}else analyze();
         }catch(e){}
       };
-      feedSocket.onerror=()=>setFeed("BYBIT LIVE STREAM RECONNECTING","bad");
-      feedSocket.onclose=()=>{if(marketVenue==="bybit"&&document.visibilityState==="visible"){if(socketReconnectTimer)clearTimeout(socketReconnectTimer);socketReconnectTimer=setTimeout(()=>connectSocket(),1200);}};
-    }catch(e){setFeed("BYBIT STREAM UNAVAILABLE · REST FALLBACK","bad");if(socketReconnectTimer)clearTimeout(socketReconnectTimer);socketReconnectTimer=setTimeout(()=>connectSocket(),2500);}
+      feedSocket.onerror=()=>setFeed("OKX LIVE STREAM RECONNECTING","bad");
+      feedSocket.onclose=()=>{if(marketVenue==="okx"&&document.visibilityState==="visible"){if(socketReconnectTimer)clearTimeout(socketReconnectTimer);socketReconnectTimer=setTimeout(()=>connectSocket(),1200);}};
+    }catch(e){setFeed("OKX STREAM UNAVAILABLE · REST FALLBACK","bad");if(socketReconnectTimer)clearTimeout(socketReconnectTimer);socketReconnectTimer=setTimeout(()=>connectSocket(),2500);}
     connectQuoteSocket(true);
-  }  async function reloadAll(force){await refresh(true);connectSocket();connectQuoteSocket(true);}
-  if(!window.LightweightCharts){
-    setFeed("CHART LIBRARY UNAVAILABLE","bad");
-    status("Interactive chart library did not load. Check access to the chart CDN; no fake chart or signals will be shown.");
-    byId("liveInstruction").textContent="HOLD / WAIT — the interactive chart engine did not load. Reload this page when the chart CDN is reachable.";
-    return;
-  }
-  createChart();createMirrorChart();
+  }  createChart();createMirrorChart();
   chart.timeScale().subscribeVisibleLogicalRangeChange(range=>{if(range&&mirrorChart&&!rangeSyncLock){rangeSyncLock=true;try{mirrorChart.timeScale().setVisibleLogicalRange(range);}catch(e){}finally{rangeSyncLock=false;}}if(!range||historyBusy||Date.now()<historyLoadAllowedAt)return;if(range.from<18)void loadOlderHistory();});
   byId("liveLoadOlder").addEventListener("click",()=>loadOlderHistory());
   byId("liveRefresh").addEventListener("click",()=>refresh(true));
