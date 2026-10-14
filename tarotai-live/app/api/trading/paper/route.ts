@@ -78,13 +78,16 @@ export async function POST(req:Request){
   const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),side=String(b.side||"").toUpperCase(),qty=Number(b.quantity),price=Number(b.price),feeBps=Number(b.feeBps??5),slipBps=Number(b.slippageBps??2),marketTime=Number(b.marketTime);
   if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["BUY","SELL"].includes(side)||![qty,price,feeBps,slipBps,marketTime].every(Number.isFinite)||qty<=0||price<=0||feeBps<0||feeBps>50||slipBps<0||slipBps>50)return NextResponse.json({error:"Invalid trade inputs; include marketTime and costs 0-50 bps"},{status:400});
   if(isStale(marketTime))return NextResponse.json({error:"Stale or missing market timestamp; refresh market data before paper trading"},{status:409});
-  let verifiedMarketPrice:number;
+  let verifiedMarketPrice:number,executionReferencePrice=price;
   try{
-   const marketUrl=new URL("https://fapi.binance.com/fapi/v1/klines");marketUrl.searchParams.set("symbol",symbol);marketUrl.searchParams.set("interval","1m");marketUrl.searchParams.set("limit","2");
-   const marketResponse=await fetch(marketUrl,{cache:"no-store",signal:AbortSignal.timeout(6000)}),marketRows=await marketResponse.json();
-   if(!marketResponse.ok||!Array.isArray(marketRows)||!marketRows.length)return NextResponse.json({error:"Fresh demo market price could not be verified; paper entry blocked"},{status:502});
-   const latest=marketRows[marketRows.length-1],closeTime=Number(latest[6]);verifiedMarketPrice=Number(latest[4]);
-   if(!Number.isFinite(closeTime)||!Number.isFinite(verifiedMarketPrice)||verifiedMarketPrice<=0||Date.now()-closeTime>120000||closeTime>Date.now()+60000)return NextResponse.json({error:"Server-side market data is stale or malformed; paper entry blocked"},{status:409});
+   const marketUrl=new URL("https://fapi.binance.com/fapi/v1/ticker/price");marketUrl.searchParams.set("symbol",symbol);
+   const marketResponse=await fetch(marketUrl,{cache:"no-store",signal:AbortSignal.timeout(6000)}),marketQuote=await marketResponse.json();
+   if(!marketResponse.ok||!Number.isFinite(Number(marketQuote?.price)))return NextResponse.json({error:"Fresh Binance USDⓈ-M last-trade price could not be verified; paper trade blocked"},{status:502});
+   verifiedMarketPrice=Number(marketQuote.price);
+   if(!Number.isFinite(verifiedMarketPrice)||verifiedMarketPrice<=0)return NextResponse.json({error:"Server-side market price is malformed; paper trade blocked"},{status:409});
+   const priceDrift=Math.abs(price-verifiedMarketPrice)/verifiedMarketPrice;
+   if(action==="OPEN"&&priceDrift>0.002)return NextResponse.json({error:"Paper entry blocked: chart price differs from the server-verified Binance last-trade quote by "+(priceDrift*100).toFixed(3)+"%. Refresh the live chart before retrying.",verifiedMarketPrice,submittedPrice:price,maxAllowedDriftPct:0.2},{status:409});
+   executionReferencePrice=action==="CLOSE"?verifiedMarketPrice:price;
   }catch{return NextResponse.json({error:"Market freshness verification failed; paper entry blocked"},{status:502});}
   if(action==="OPEN"&&Math.abs(price-verifiedMarketPrice)/verifiedMarketPrice>0.01)return NextResponse.json({error:"Entry price moved more than 1% from the server-verified live price; re-analyze the chart before paper entry",requestedPrice:price,verifiedMarketPrice},{status:409});
   if(action==="OPEN"){
@@ -102,8 +105,8 @@ export async function POST(req:Request){
    if(!parentTrade||alreadyClosed||parentTrade.symbol!==symbol||parentTrade.side===side||Math.abs(Number(parentTrade.quantity)-qty)>1e-10)return NextResponse.json({error:"Parent trade is missing, already closed, mismatched, or quantity must fully close the position"},{status:409});
   }
   const stopPrice=b.stopPrice==null?null:Number(b.stopPrice),targetPrice=b.targetPrice==null?null:Number(b.targetPrice);
-  if(action==="OPEN"&&(stopPrice===null||targetPrice===null||!Number.isFinite(stopPrice)||!Number.isFinite(targetPrice)||!validateStops(side==="BUY"?"LONG":"SHORT",price,stopPrice,targetPrice)))return NextResponse.json({error:"Opening paper trade requires valid stop and target geometry"},{status:400});
-  const fill=applySlippage(side,price,slipBps),fee=calculateFee(fill,qty,feeBps);
+  if(action==="OPEN"&&(stopPrice===null||targetPrice===null||!Number.isFinite(stopPrice)||!Number.isFinite(targetPrice)||!validateStops(side==="BUY"?"LONG":"SHORT",executionReferencePrice,stopPrice,targetPrice)))return NextResponse.json({error:"Opening paper trade requires valid stop and target geometry"},{status:400});
+  const fill=applySlippage(side,executionReferencePrice,slipBps),fee=calculateFee(fill,qty,feeBps);
   const grossPnl=parentTrade?(parentTrade.side==="BUY"?(fill-Number(parentTrade.fillPrice))*qty:(Number(parentTrade.fillPrice)-fill)*qty):null;
   const suppliedSource=String(b.decisionSource||"");
   const decisionSource=["continuous-local-team","ai-eight-agent-review"].includes(suppliedSource)?suppliedSource:"manual-chart-signal";
@@ -112,7 +115,7 @@ export async function POST(req:Request){
   const agentTeamModel=String(b.agentTeamModel||"unreported").slice(0,100);
   const roles=["market","entry","exits","sizing","discipline","position","journal","supervisor"];
   const agentVotes=Array.isArray(b.agentVotes)?b.agentVotes.slice(0,8).filter((v:any)=>v&&roles.includes(String(v.role))).map((v:any)=>({role:String(v.role),bias:["LONG","SHORT","WAIT"].includes(String(v.bias))?String(v.bias):"WAIT",veto:Boolean(v.veto),model:String(v.model||"unreported").slice(0,100),fallback:Boolean(v.fallback)})):[];
-  const trade={id:crypto.randomUUID(),parentTradeId:parentTrade?.id||null,createdAt:new Date().toISOString(),symbol,side,quantity:qty,requestedPrice:price,verifiedMarketPrice,marketDataCheckedAt:new Date().toISOString(),marketSource:"Binance USDⓈ-M Futures public 1m candles",fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),pnlGross:grossPnl===null?null:Number(grossPnl.toFixed(8)),pnlNet:grossPnl===null?null:Number((grossPnl-fee-Number(parentTrade.fee||0)).toFixed(8)),feeBps,slippageBps:slipBps,stopPrice,targetPrice,status:"PAPER_"+action,mode:"PAPER_ONLY",
+  const trade={id:crypto.randomUUID(),parentTradeId:parentTrade?.id||null,createdAt:new Date().toISOString(),symbol,side,quantity:qty,requestedPrice:price,verifiedMarketPrice,marketDataCheckedAt:new Date().toISOString(),marketSource:"Binance USDⓈ-M Futures public last-trade ticker",fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),pnlGross:grossPnl===null?null:Number(grossPnl.toFixed(8)),pnlNet:grossPnl===null?null:Number((grossPnl-fee-Number(parentTrade.fee||0)).toFixed(8)),feeBps,slippageBps:slipBps,stopPrice,targetPrice,status:"PAPER_"+action,mode:"PAPER_ONLY",
     decisionSource:parentTrade?.decisionSource||decisionSource,signalCandleTime:parentTrade?.signalCandleTime??signalCandleTime,decisionAction:parentTrade?.decisionAction||decisionAction,agentTeamModel:parentTrade?.agentTeamModel||agentTeamModel,agentVotes:parentTrade?.agentVotes||agentVotes};
   if([trade.stopPrice,trade.targetPrice].some((x:any)=>x!==null&&(!Number.isFinite(x)||x<=0)))return NextResponse.json({error:"Stop/target must be positive numbers"},{status:400});
   await d.lpush("tarotai:paper:ledger",JSON.stringify(trade));await d.ltrim("tarotai:paper:ledger",0,999);

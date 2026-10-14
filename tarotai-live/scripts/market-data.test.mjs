@@ -547,3 +547,25 @@ test("continuous local rule roles refresh every second and paper entries use the
   assert.match(futuresDesk, /PAPER_ONLY_APPROVAL/);
   assert.match(paperRoute, /liveTradingEnabled:false/);
 });
+
+
+test("strategy chart uses the selected live-chart venue and never silently switches to Bybit or OKX", () => {
+  assert.match(futuresDesk, /const sourceVenue=marketVenue\|\|'binance'/);
+  assert.match(futuresDesk, /Alternate exchanges are disabled to prevent mismatched prices/);
+  assert.doesNotMatch(futuresDesk, /api\.bybit\.com\/v5\/market\/kline/);
+  assert.doesNotMatch(futuresDesk, /www\.okx\.com\/api\/v5\/market\/candles/);
+});
+
+test("paper entry checks a live last-trade ticker and blocks material quote drift", () => {
+  assert.match(paperRoute, /fapi\.binance\.com\/fapi\/v1\/ticker\/price/);
+  assert.match(paperRoute, /action==="OPEN"&&priceDrift>0\.002/);
+  assert.match(paperRoute, /executionReferencePrice=action==="CLOSE"\?verifiedMarketPrice:price/);
+  assert.match(paperRoute, /marketSource:"Binance USDⓈ-M Futures public last-trade ticker"/);
+});
+
+test("continuous local agents veto missing or stale last-trade ticks", () => {
+  assert.match(futuresDesk, /quoteFresh=Number\.isFinite\(lastTradePrice\)&&quoteAgeMs<=3000/);
+  assert.match(futuresDesk, /const stale=now-end>msFor\(currentInterval\)\*2\+60000\|\|!quoteFresh/);
+  assert.match(futuresDesk, /livePrice=Number\(currentMarketPrice\(\)\)/);
+  assert.match(futuresDesk, /STALE QUOTE — ENTRIES BLOCKED/);
+});
