@@ -28,19 +28,20 @@ export async function GET(request: Request) {
 
   if (venue === "binance") {
     try {
-      // Keep last trade, best bid and best ask from the same response snapshot;
-      // separate price/book requests can race during fast markets.
-      const response = await fetch("https://fapi.binance.com/fapi/v1/ticker/24hr?symbol=" + encodeURIComponent(symbol), { cache: "no-store", signal: AbortSignal.timeout(2500) });
+      // One order-book ticker provides bid, ask and exchange event time from
+      // the same snapshot. The midpoint is intentionally labeled, not called last trade.
+      const response = await fetch("https://fapi.binance.com/fapi/v1/ticker/bookTicker?symbol=" + encodeURIComponent(symbol), { cache: "no-store", signal: AbortSignal.timeout(2500) });
       const payload = await response.json().catch(() => null);
-      const price = Number(payload?.lastPrice);
-      if (!response.ok || !Number.isFinite(price) || price <= 0) {
-        return NextResponse.json({ error: "Binance ticker request failed.", detail: payload?.msg || "Invalid upstream response.", venue, symbol, readOnly: true, orderPlacement: false }, { status: 502, headers: { "Cache-Control": "no-store" } });
-      }
       const spread = spreadMetrics(payload?.bidPrice, payload?.askPrice);
-      const timestamp = Date.now();
-      return NextResponse.json({ ok: true, venue: "binance", symbol, price, ...spread, spreadAvailable: Number.isFinite(spread.spreadBps), timestamp, observedAt: timestamp, timestampMeaning: "server-observed response time; Binance 24h ticker closeTime is a rolling-window boundary, not an event timestamp", ageMs: 0, source: "binance-usdm-24hr-ticker", stale: false, readOnly: true, orderPlacement: false }, { headers: { "Cache-Control": "no-store" } });
+      const timestamp = Number(payload?.time);
+      const ageMs = Date.now() - timestamp;
+      if (!response.ok || payload?.symbol !== symbol || !Number.isFinite(spread.bid) || !Number.isFinite(spread.ask) || !Number.isFinite(timestamp) || timestamp <= 0 || ageMs < -1500 || ageMs > 5000) {
+        return NextResponse.json({ error: "Binance order-book ticker is stale or invalid.", detail: payload?.msg || "Need a valid bid, ask and exchange timestamp from one snapshot.", venue, symbol, ageMs: Number.isFinite(ageMs) ? ageMs : null, stale: true, readOnly: true, orderPlacement: false }, { status: 502, headers: { "Cache-Control": "no-store" } });
+      }
+      const price = (spread.bid + spread.ask) / 2;
+      return NextResponse.json({ ok: true, venue: "binance", symbol, price, priceBasis: "best-bid/ask midpoint", ...spread, spreadAvailable: Number.isFinite(spread.spreadBps), timestamp, ageMs, source: "binance-usdm-book-ticker-mid", stale: false, readOnly: true, orderPlacement: false }, { headers: { "Cache-Control": "no-store" } });
     } catch (error) {
-      return NextResponse.json({ error: "Binance live ticker unavailable.", detail: error instanceof Error ? error.message : "Unknown error.", venue, symbol, readOnly: true, orderPlacement: false }, { status: 502, headers: { "Cache-Control": "no-store" } });
+      return NextResponse.json({ error: "Binance live order-book ticker unavailable.", detail: error instanceof Error ? error.message : "Unknown error.", venue, symbol, readOnly: true, orderPlacement: false }, { status: 502, headers: { "Cache-Control": "no-store" } });
     }
   }
 
