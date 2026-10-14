@@ -492,7 +492,7 @@ test("multi-agent panel recovers missing or expired signed sessions without bypa
 
 test("live trading desk continuously runs eight distinct local roles while visible", () => {
   assert.match(futuresDesk, /function runContinuousAgentCycle\(\)/);
-  assert.match(futuresDesk, /continuousTeamTimer=setInterval\(runContinuousAgentCycle,5000\)/);
+  assert.match(futuresDesk, /continuousTeamTimer=setInterval\(runContinuousAgentCycle,1000\)/);
   assert.match(futuresDesk, /renderLiveAgentResults\(reports,"continuousAgentResults"\)/);
   assert.match(futuresDesk, /source:"continuous-local"/);
   assert.match(futuresDesk, /id="toggleContinuousTeam"/);
