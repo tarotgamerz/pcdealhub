@@ -10,11 +10,25 @@ export async function GET(request: Request) {
   const venue = (url.searchParams.get("venue") || "okx").toLowerCase();
   const symbol = (url.searchParams.get("symbol") || "BTCUSDT").toUpperCase();
 
-  if (venue !== "okx" || !SUPPORTED.has(symbol)) {
+  if (!["okx", "binance"].includes(venue) || !SUPPORTED.has(symbol)) {
     return NextResponse.json(
       { error: "Unsupported live quote venue or symbol.", readOnly: true, orderPlacement: false },
       { status: 400, headers: { "Cache-Control": "no-store" } }
     );
+  }
+
+  if (venue === "binance") {
+    try {
+      const response = await fetch("https://fapi.binance.com/fapi/v1/ticker/price?symbol=" + encodeURIComponent(symbol), { cache: "no-store", signal: AbortSignal.timeout(2500) });
+      const payload = await response.json().catch(() => null);
+      const price = Number(payload?.price);
+      if (!response.ok || !Number.isFinite(price) || price <= 0) {
+        return NextResponse.json({ error: "Binance ticker request failed.", detail: payload?.msg || "Invalid upstream response.", venue, symbol, readOnly: true, orderPlacement: false }, { status: 502, headers: { "Cache-Control": "no-store" } });
+      }
+      return NextResponse.json({ ok: true, venue: "binance", symbol, price, timestamp: Date.now(), ageMs: 0, source: "binance-usdm-rest-ticker", stale: false, readOnly: true, orderPlacement: false }, { headers: { "Cache-Control": "no-store" } });
+    } catch (error) {
+      return NextResponse.json({ error: "Binance live ticker unavailable.", detail: error instanceof Error ? error.message : "Unknown error.", venue, symbol, readOnly: true, orderPlacement: false }, { status: 502, headers: { "Cache-Control": "no-store" } });
+    }
   }
 
   const instId = symbol.slice(0, -4) + "-USDT-SWAP";
