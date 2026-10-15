@@ -536,16 +536,17 @@ test("automatic paper trading is opt-in, persistent-ledger gated, and records on
 });
 
 
-test("in-dashboard charts use one candle source plus a shared live OKX swap last-trade quote", () => {
-  assert.match(futuresDesk, /id="tvSyncedChart"/);
-  assert.doesNotMatch(futuresDesk, /<iframe id="tvChart"/);
-  assert.match(futuresDesk, /function createMirrorChart\(\)/);
-  assert.match(futuresDesk, /mirrorCandleSeries\.setData\(candleData\)/);
-  assert.match(futuresDesk, /channel:"trades",instId/);
+test("unified in-app trading desk exposes one live analysis chart with synced controls and quote", () => {
+  assert.match(futuresDesk, /id="liveMarketChart"/);
+  assert.doesNotMatch(futuresDesk, /id="tvSyncedChart"/);
+  assert.doesNotMatch(futuresDesk, /id="tradingview-panel"/);
+  assert.match(futuresDesk, /id="live-agent-chart"/);
+  assert.match(futuresDesk, /id="chartAgentCounter"/);
+  assert.match(futuresDesk, /id="tvAskAgent" type="button">Run AI-enhanced 8-agent review/);
   assert.match(futuresDesk, /function hasFreshLiveQuote\(now=Date\.now\(\)\)/);
   assert.match(futuresDesk, /function currentMarketPrice\(\)/);
   assert.match(futuresDesk, /function renderSharedQuote\(_price\)/);
-  assert.match(futuresDesk, /Open official TradingView \(external\)/);
+  assert.match(futuresDesk, /updateTradingViewChart\("live"\)/);
 });
 
 test("continuous local rule roles refresh every second and paper entries use the shared verified last trade", () => {
@@ -606,7 +607,7 @@ test("Binance Futures is the canonical live chart source selected by the user", 
 });
 
 
-test("strategy fallback and both in-app charts use the same selected Binance venue", () => {
+test("strategy fallback and the unified in-app chart use the same selected Binance venue", () => {
   assert.match(futuresDesk, /window\.tarotaiMarketVenue=marketVenue/);
   assert.match(futuresDesk, /const sourceVenue=window\.tarotaiMarketVenue\|\|'binance'/);
   assert.match(futuresDesk, /const tvExchange=\(\{binance:'BINANCE',bybit:'BYBIT',okx:'OKX'\}\)\[window\.tarotaiMarketVenue\]\|\|'BINANCE'/);
@@ -760,11 +761,12 @@ test("stale last-trade feed is never relabeled as a live quote", () => {
 });
 
 
-test("live quote marker stays synchronized across charts without rewriting traded candle OHLC", () => {
+test("the single live chart quote marker updates without rewriting traded candle OHLC", () => {
   assert.match(futuresDesk, /currentSymbol\.toLowerCase\(\)\+"@bookTicker"/);
   assert.match(futuresDesk, /const bid=Number\(tick\.b\),ask=Number\(tick\.a\),price=\(bid\+ask\)\/2/);
   assert.match(futuresDesk, /mainLivePriceLine=candleSeries\.createPriceLine\(\{price,color:"#54c8ff"/);
-  assert.match(futuresDesk, /mirrorLivePriceLine=mirrorCandleSeries\.createPriceLine\(\{price,color:"#54c8ff"/);
+  assert.doesNotMatch(futuresDesk, /id="tvSyncedChart"/);
+  assert.match(futuresDesk, /mainLivePriceLine=candleSeries\.createPriceLine\(\{price,color:"#54c8ff"/);
   assert.match(futuresDesk, /liveP=Number\(window\.tarotaiSharedLastPrice\)/);
   assert.match(futuresDesk, /if\(liveQuoteFresh&&liveP>=min&&liveP<=max\)/);
   assert.match(futuresDesk, /const sourceMaxAge=lastQuoteSource===marketVenue\+"-rest-ticker"\?3500:3000/);
