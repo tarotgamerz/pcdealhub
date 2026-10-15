@@ -641,6 +641,12 @@ test("Binance Futures is the canonical live chart source selected by the user", 
 });
 
 
+test("independent strategy confirmation supports every market listed on the main chart",()=>{
+  assert.match(futuresDesk, /id="liveSymbol"><option value="BTCUSDT">BTC\/USDT perpetual<\/option><option value="ETHUSDT">ETH\/USDT perpetual<\/option><option value="BNBUSDT">BNB\/USDT perpetual<\/option><option value="SOLUSDT">SOL\/USDT perpetual<\/option><option value="XRPUSDT">XRP\/USDT perpetual<\/option><option value="DOGEUSDT">DOGE\/USDT perpetual<\/option>/);
+  assert.match(futuresDesk, /id="strategySymbol"><option value="BTCUSDT">BTC\/USDT<\/option><option value="ETHUSDT">ETH\/USDT<\/option><option value="BNBUSDT">BNB\/USDT<\/option><option value="SOLUSDT">SOL\/USDT<\/option><option value="XRPUSDT">XRP\/USDT<\/option><option value="DOGEUSDT">DOGE\/USDT<\/option>/);
+  assert.match(futuresDesk, /\$\("strategySymbol"\)\.value=base/);
+});
+
 test("strategy fallback and the unified in-app chart use the same selected Binance venue", () => {
   assert.match(futuresDesk, /window\.tarotaiMarketVenue=marketVenue/);
   assert.match(futuresDesk, /const sourceVenue=window\.tarotaiMarketVenue\|\|'binance'/);
