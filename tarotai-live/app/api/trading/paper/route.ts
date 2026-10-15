@@ -18,6 +18,14 @@ export async function POST(req:Request){
  const action=String(b.action||"").toUpperCase();
  try{
   const d=store();
+  const needsLedgerLock=["OPEN","CLOSE","STOP_CHECK","REPLAY"].includes(action);
+  const lockKey="tarotai:paper:ledger:lock";
+  const lockToken=crypto.randomUUID();
+  if(needsLedgerLock){
+   const acquired=await d.set(lockKey,lockToken,{nx:true,px:60000});
+   if(!acquired)return NextResponse.json({error:"Another paper-ledger operation is in progress. Retry in a few seconds; no trade was changed."},{status:409});
+  }
+  try{
   if(action==="REPLAY"){
    const symbol=String(b.symbol||"BTCUSDT").toUpperCase(),venue=String(b.venue||"binance").toLowerCase(),interval=String(b.interval||"1m"),limit=Math.min(500,Math.max(20,Math.floor(Number(b.limit)||100)));
    if(!/^[A-Z0-9]{4,20}$/.test(symbol)||!["okx","bybit","binance"].includes(venue)||!["1m","3m","5m","15m","30m","1h","2h","4h","1d"].includes(interval))return NextResponse.json({error:"Invalid venue, symbol or interval"},{status:400});
@@ -190,5 +198,10 @@ export async function POST(req:Request){
   if([trade.stopPrice,trade.targetPrice].some((x:any)=>x!==null&&(!Number.isFinite(x)||x<=0)))return NextResponse.json({error:"Stop/target must be positive numbers"},{status:400});
   await d.lpush("tarotai:paper:ledger",JSON.stringify(trade));await d.ltrim("tarotai:paper:ledger",0,999);
   return NextResponse.json({accepted:true,trade,liveTradingEnabled:false,note:"Ledger-only simulation; no exchange order sent"},{status:201});
+  }finally{
+   if(needsLedgerLock){
+    try{await d.eval("if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",[lockKey],[lockToken]);}catch{}
+   }
+  }
  }catch(e:any){return NextResponse.json({error:e?.message==="STORE_OFF"?"Persistent store unavailable; configure Upstash Redis":"Paper ledger write failed; no order was sent"},{status:503});}
 }
