@@ -29,6 +29,18 @@ export function validateOrderRequest(input: {
 
 export const PAPER_MAX_POSITION_EXPOSURE_PCT: 5;
 export const PAPER_MAX_PORTFOLIO_EXPOSURE_PCT: 20;
+export const PAPER_MAX_DAILY_LOSS_PCT: 3;
+export const PAPER_MAX_ENTRIES_PER_UTC_DAY: 5;
+export function validatePaperDailyRisk(input: {
+  ledger: Array<{
+    status?: string;
+    createdAt?: string;
+    parentTradeId?: string | null;
+    pnlNet?: number | string | null;
+  }>;
+  balance: number;
+  now?: number;
+}): string | null;
 export function calculatePaperQuantity(input: {
   balance: number;
   riskPct: number;
