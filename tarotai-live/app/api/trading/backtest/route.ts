@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isAuthorized } from "../../../../lib/auth";
 import { getIntervalMs, runSmaCrossoverBacktest, validateBacktestCandles } from "../../../../lib/trading-backtest.mjs";
+import { runLiveAgentStrategyBacktest } from "../../../../lib/live-agent-backtest.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,6 +10,9 @@ const INTERVALS: Record<string, Record<string, string>> = {
   binance: { "1m":"1m", "5m":"5m", "15m":"15m", "30m":"30m", "1h":"1h", "4h":"4h", "1d":"1d" },
   bybit: { "1m":"1", "5m":"5", "15m":"15", "30m":"30", "1h":"60", "4h":"240", "1d":"D" },
   okx: { "1m":"1m", "5m":"5m", "15m":"15m", "30m":"30m", "1h":"1H", "4h":"4H", "1d":"1D" }
+};
+const HIGHER_INTERVAL: Record<string, string> = {
+  "1m":"15m", "5m":"1h", "15m":"4h", "30m":"4h", "1h":"1d", "4h":"1d", "1d":"1d"
 };
 
 type Candle = { time: number; open: number; high: number; low: number; close: number; volume: number; closeTime: number };
@@ -121,12 +125,16 @@ export async function POST(request: Request) {
   const feeBps = Number(body?.feeBps ?? 5);
   const slippageBps = Number(body?.slippageBps ?? 2);
   const requestedLimit = Number(body?.limit ?? 1000);
+  const initialBalance = Number(body?.initialBalance ?? 10000);
+  const liveAgentRiskPct = Number(body?.liveAgentRiskPct ?? 0.5);
   if (!/^[A-Z0-9]{4,20}$/.test(symbol) || !INTERVALS[venue] || !INTERVALS[venue][interval] ||
       !Number.isInteger(fast) || !Number.isInteger(slow) || fast < 2 || slow <= fast || slow > 100 ||
       !Number.isFinite(feeBps) || feeBps < 0 || feeBps > 50 ||
       !Number.isFinite(slippageBps) || slippageBps < 0 || slippageBps > 50 ||
-      !Number.isFinite(requestedLimit) || requestedLimit < 100 || requestedLimit > 1000) {
-    return NextResponse.json({ error: "Invalid inputs. Use a supported venue/timeframe, 2 <= fastPeriod < slowPeriod <= 100, costs from 0–50 bps per side, and 100–1000 candles." }, { status: 400 });
+      !Number.isFinite(requestedLimit) || requestedLimit < 100 || requestedLimit > 1000 ||
+      !Number.isFinite(initialBalance) || initialBalance < 100 || initialBalance > 10000000 ||
+      !Number.isFinite(liveAgentRiskPct) || liveAgentRiskPct < 0.1 || liveAgentRiskPct > 1) {
+    return NextResponse.json({ error: "Invalid inputs. Use a supported venue/timeframe, valid SMA periods, costs from 0–50 bps per side, 100–1000 candles, a 100–10,000,000 USDT test balance and 0.1–1% live-agent paper risk." }, { status: 400 });
   }
 
   let resolvedVenue = venue;
@@ -156,10 +164,48 @@ export async function POST(request: Request) {
     const train = runSmaCrossoverBacktest(candles, { ...common, startIndex: slow, endIndex: split } as any);
     const test = runSmaCrossoverBacktest(candles, { ...common, startIndex: split, endIndex: candles.length } as any);
     const stepMs = getIntervalMs(interval)!;
+    const higherInterval = HIGHER_INTERVAL[interval] || interval;
+    let liveAgentStrategy: Record<string, unknown>;
+    let higherTimeframeContext: Record<string, unknown> | null = null;
+    try {
+      // Keep both strategy and higher-timeframe candles on the exact venue resolved for the main sample.
+      const higherHistory = await fetchHistory(resolvedVenue, symbol, higherInterval, Math.min(1000, Math.max(180, Math.floor(requestedLimit))));
+      const higherCandles = higherHistory.candles;
+      higherTimeframeContext = {
+        interval: higherInterval,
+        sourceHost: higherHistory.sourceHost,
+        closedCandles: higherCandles.length,
+        firstClosedCandleTime: higherCandles[0]?.time ?? null,
+        lastClosedCandleTime: higherCandles[higherCandles.length - 1]?.time ?? null,
+        alignment: "Only higher-timeframe candles whose closeTime is at or before each main signal candle close are considered."
+      };
+      const liveOptions = { initialBalance, riskPct: liveAgentRiskPct, feeBps, slippageBps, maxPositionExposurePct: 5, maxPortfolioExposurePct: 20, maxEntryDriftPct: 1 };
+      liveAgentStrategy = {
+        model: "live-agent-rules-v1",
+        directionRule: "EMA 9/21/50 + RSI 14 band + momentum + 20-bar breakout/breakdown + aligned HTF EMA 20/50",
+        higherTimeframe: higherInterval,
+        startingBalanceUSDT: initialBalance,
+        riskPctPerTrade: liveAgentRiskPct,
+        perPositionNotionalCapPct: 5,
+        portfolioNotionalCapPct: 20,
+        fullSample: runLiveAgentStrategyBacktest(candles, higherCandles, { ...liveOptions, fromIndex: 79, endIndex: candles.length, signalStartIndex: 79 }),
+        train: runLiveAgentStrategyBacktest(candles, higherCandles, { ...liveOptions, fromIndex: 79, endIndex: split, signalStartIndex: 79 }),
+        holdout: runLiveAgentStrategyBacktest(candles, higherCandles, { ...liveOptions, fromIndex: split, endIndex: candles.length, signalStartIndex: split })
+      };
+    } catch (strategyError) {
+      liveAgentStrategy = {
+        available: false,
+        model: "live-agent-rules-v1",
+        reason: strategyError instanceof Error ? strategyError.message : "Higher-timeframe history was unavailable",
+        warnings: ["The SMA research baseline below ran separately. The exact live-agent rules were not scored because same-venue higher-timeframe data was unavailable."]
+      };
+    }
     return NextResponse.json({
       mode: "RESEARCH_ONLY_NO_ORDERS",
       source: resolvedVenue === "binance" ? "Binance USDⓈ-M Futures public market history" : resolvedVenue === "bybit" ? "Bybit Linear Futures public market history" : "OKX USDT-margined swaps public market history",
       requestedVenue: venue, venue: resolvedVenue, sourceHost, symbol, interval, candles: candles.length, splitIndex: split,
+      liveAgentStrategy,
+      higherTimeframeContext,
       history: { firstClosedCandleTime: candles[0].time, lastClosedCandleTime: candles[candles.length - 1].time, lastCandleAgeMs: Date.now() - candles[candles.length - 1].time, candleIntervalMs: stepMs, unfinishedCandlesExcluded: true },
       strategy: { type: "simple moving-average crossover", fastPeriod: fast, slowPeriod: slow, signalCalculatedOn: "closed candle", executionAssumption: "next candle open" },
       assumptions: {
@@ -174,7 +220,8 @@ export async function POST(request: Request) {
         "Maximum drawdown uses closed-trade equity; intratrade drawdown can be worse.",
         "The 70/30 split is chronological. Do not tune periods on the test segment; preserve a further untouched period for final confirmation.",
         "Treat the holdout as weak evidence when trade count is small; seek many more trades across different market regimes and symbols.",
-        "A simple SMA crossover may have no edge after costs. Past simulation results do not guarantee future returns."
+        "A simple SMA crossover may have no edge after costs. Past simulation results do not guarantee future returns.",
+        "Live-agent strategy results are a rule-replication research test, not a claim of validated profitability. Treat empty/small holdout samples as inconclusive; use a further untouched period and paper forward testing."
       ]
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
