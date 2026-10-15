@@ -343,7 +343,7 @@ test("research backtest measures the actual live-agent rules with aligned higher
   assert.match(liveAgentBacktestEngine, /drift > maxDriftPct \/ 100/);
   assert.match(liveAgentBacktestEngine, /STOP_AMBIGUOUS/);
   assert.match(liveAgentBacktestEngine, /Fewer than 100 closed trades/);
-  assert.match(liveAgentBacktestEngine, /higher-timeframe uses only candles closed by then/);
+  assert.match(liveAgentBacktestEngine, /higher timeframe uses only candles closed by then/);
 });
 
 test("live chart requires matching higher-timeframe trend for a current setup", () => {
