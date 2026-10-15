@@ -43,7 +43,7 @@ async function yahooMarketData(symbol:string,interval:string,limit:number,before
  const sourceInterval=YAHOO_INTERVALS[interval],sourceDuration=sourceInterval==="60m"?3600000:sourceInterval==="1d"?86400000:Math.max(60000,Number(sourceInterval.replace("m",""))*60000);
  const url=new URL("https://query1.finance.yahoo.com/v8/finance/chart/"+encodeURIComponent(market.providerSymbol));
  url.searchParams.set("interval",sourceInterval);url.searchParams.set("includePrePost","false");url.searchParams.set("events","div,splits");
- if(before!==null){url.searchParams.set("period1",String(Math.max(0,Math.floor((before-(YAHOO_HISTORY_MS[interval]||14*86400000))/1000))));url.searchParams.set("period2",String(Math.max(1,Math.floor(before/1000)-1));}
+ if(before!==null){url.searchParams.set("period1",String(Math.max(0,Math.floor((before-(YAHOO_HISTORY_MS[interval]||14*86400000))/1000))));url.searchParams.set("period2",String(Math.max(1,Math.floor(before/1000)-1)));}
  else url.searchParams.set("range",YAHOO_RANGES[interval]||"5d");
  let result:any=null,sourceHost="",lastError="Yahoo Finance returned no chart data.";
  for(const host of ["query1.finance.yahoo.com","query2.finance.yahoo.com"]){
