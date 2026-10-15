@@ -332,8 +332,8 @@ test("research backtest measures the actual live-agent rules with aligned higher
   assert.match(futuresDesk, /function renderBacktestSummary\(report,httpStatus\)/);
   assert.match(futuresDesk, /id="backtestSummary"/);
   assert.match(futuresDesk, /Show raw backtest response/);
-  assert.match(futuresDesk, /Requested '+requested\+' → data source '+actual/);
-  assert.match(futuresDesk, /String\(report\.source\|\|'source not reported'\)/);
+  assert.ok(futuresDesk.includes("Requested '+requested+' → data source '+actual"));
+  assert.ok(futuresDesk.includes("String(report.source||'source not reported')"));
   assert.match(futuresDesk, /Fee \(bps\/side\)/);
   assert.match(futuresDesk, /Slippage \(bps\/side\)/);
   assert.match(futuresDesk, /liveAgentRiskPct:Number\(\$\('livePaperRisk'\)\.value\)/);
