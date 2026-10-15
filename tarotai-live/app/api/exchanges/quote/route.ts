@@ -4,6 +4,19 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const SUPPORTED = new Set(["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT"]);
+const YAHOO_MARKETS:Record<string,{providerSymbol:string;name:string;currency:string;unit:string}> = {
+  NIFTY50:{providerSymbol:"^NSEI",name:"NIFTY 50",currency:"INR",unit:"index points"},
+  GOLD:{providerSymbol:"GC=F",name:"Gold Futures (COMEX)",currency:"USD",unit:"USD per troy ounce"}
+};
+function marketIsOpen(meta:any,now=Date.now()) {
+  const state=String(meta?.marketState||"").toUpperCase();
+  if(["REGULAR","OPEN"].includes(state))return true;
+  if(["CLOSED","POST","POSTPOST","PRE","PREPRE"].includes(state))return false;
+  const regular=meta?.currentTradingPeriod?.regular,start=Number(regular?.start),end=Number(regular?.end);
+  if(Number.isFinite(start)&&Number.isFinite(end)&&end>start)return now/1000>=start&&now/1000<=end;
+  const timestamp=Number(meta?.regularMarketTime)*1000;
+  return Number.isFinite(timestamp)&&timestamp>0&&now-timestamp>=0&&now-timestamp<20*60*1000;
+}
 
 function spreadMetrics(bidInput: unknown, askInput: unknown) {
   const bid = Number(bidInput), ask = Number(askInput);
@@ -19,11 +32,37 @@ export async function GET(request: Request) {
   const venue = (url.searchParams.get("venue") || "binance").toLowerCase();
   const symbol = (url.searchParams.get("symbol") || "BTCUSDT").toUpperCase();
 
-  if (!["okx", "binance"].includes(venue) || !SUPPORTED.has(symbol)) {
+  if (!["okx", "binance", "yahoo"].includes(venue) || (venue !== "yahoo" && !SUPPORTED.has(symbol))) {
     return NextResponse.json(
       { error: "Unsupported live quote venue or symbol.", readOnly: true, orderPlacement: false },
       { status: 400, headers: { "Cache-Control": "no-store" } }
     );
+  }
+
+
+  if (venue === "yahoo") {
+    const market=YAHOO_MARKETS[symbol];
+    if(!market)return NextResponse.json({error:"Unsupported Yahoo reference market.",readOnly:true,orderPlacement:false},{status:400,headers:{"Cache-Control":"no-store"}});
+    let result:any=null,lastError="Yahoo Finance quote unavailable.";
+    for(const host of ["query1.finance.yahoo.com","query2.finance.yahoo.com"]){
+      try{
+        const endpoint="https://"+host+"/v8/finance/chart/"+encodeURIComponent(market.providerSymbol)+"?interval=1m&range=1d&includePrePost=false";
+        const response=await fetch(endpoint,{cache:"no-store",signal:AbortSignal.timeout(3500),headers:{"Accept":"application/json","User-Agent":"Mozilla/5.0 TarotAI read-only market dashboard"}});
+        const payload=await response.json().catch(()=>null),entry=payload?.chart?.result?.[0];
+        if(response.ok&&entry){result=entry;break;}
+        lastError=String(payload?.chart?.error?.description||"Yahoo Finance chart request failed (HTTP "+response.status+").");
+      }catch(error){lastError=error instanceof Error?error.message:"Yahoo Finance request failed.";}
+    }
+    if(!result)return NextResponse.json({error:"Yahoo Finance reference quote unavailable.",detail:lastError,venue,symbol,readOnly:true,orderPlacement:false},{status:502,headers:{"Cache-Control":"no-store"}});
+    const meta=result.meta||{},timestamps=Array.isArray(result.timestamp)?result.timestamp:[],lastIndex=timestamps.length-1;
+    const timestamp=Number(meta.regularMarketTime)*1000||Number(timestamps[lastIndex])*1000;
+    const price=Number(meta.regularMarketPrice)||Number(result.indicators?.quote?.[0]?.close?.[lastIndex]);
+    const now=Date.now(),ageMs=Number.isFinite(timestamp)&&timestamp>0?Math.max(0,now-timestamp):Number.POSITIVE_INFINITY;
+    const open=marketIsOpen(meta,now),stale=!Number.isFinite(ageMs)||(open&&ageMs>25*60*1000);
+    if(!Number.isFinite(price)||price<=0||!Number.isFinite(timestamp)||timestamp<=0){
+      return NextResponse.json({error:"Yahoo Finance returned an invalid reference price.",venue,symbol,readOnly:true,orderPlacement:false},{status:502,headers:{"Cache-Control":"no-store"}});
+    }
+    return NextResponse.json({ok:true,venue:"yahoo",symbol,providerSymbol:market.providerSymbol,assetName:market.name,currency:String(meta.currency||market.currency),unit:market.unit,price,priceBasis:"Yahoo Finance delayed reference price",bid:null,ask:null,spreadBps:null,spreadAvailable:false,timestamp,ageMs,source:"yahoo-finance-delayed-reference",marketOpen:open,delayed:true,stale,readOnly:true,orderPlacement:false,warning:"Reference-only feed. Quote may be delayed and has no verified executable bid/ask; TarotAI blocks paper entries for NIFTY 50 and Gold."},{headers:{"Cache-Control":"no-store"}});
   }
 
   if (venue === "binance") {
