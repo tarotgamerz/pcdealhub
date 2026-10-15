@@ -459,7 +459,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const price=Number(data.price),timestamp=Number(data.timestamp),sourceAge=Number(data.ageMs);
       const maxSourceAge=quoteVenue==="yahoo"?20*60*1000:3000;if(!Number.isFinite(price)||price<=0||!Number.isFinite(timestamp)||timestamp<=0||!Number.isFinite(sourceAge)||sourceAge < -1500||sourceAge>maxSourceAge)throw new Error(quoteVenue==="yahoo"?"Yahoo reference quote is delayed beyond the 20-minute freshness limit":"Exchange ticker is stale or invalid");
       if(lastQuoteSource===quoteVenue+"-rest-ticker"&&Number.isFinite(lastQuoteSourceTimestamp)&&timestamp<lastQuoteSourceTimestamp)return;
-      lastTradePrice=price;lastTradeAt=Date.now();lastQuoteSource=quoteVenue+"-rest-ticker";lastQuoteSourceTimestamp=timestamp;if(quoteVenue==="yahoo")currentMarketReference={...(currentMarketReference||{}),assetName:data.assetName||currentMarketReference?.assetName,currency:data.currency||currentMarketReference?.currency,unit:data.unit||currentMarketReference?.unit,marketOpen:data.marketOpen,delayed:true};
+      lastTradePrice=price;lastTradeAt=Date.now();lastQuoteSource=quoteVenue+"-rest-ticker";lastQuoteSourceTimestamp=timestamp;if(quoteVenue==="yahoo"){quoteSymbol=symbol;currentMarketReference={...(currentMarketReference||{}),assetName:data.assetName||currentMarketReference?.assetName,currency:data.currency||currentMarketReference?.currency,unit:data.unit||currentMarketReference?.unit,marketOpen:data.marketOpen,delayed:true};}
       renderSharedQuote(price);
     }catch(e){
       if(Date.now()-lastQuoteFallbackErrorAt>5000){
