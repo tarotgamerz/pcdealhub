@@ -19,6 +19,7 @@ async function readPaperLedger(d:Redis){
  }
  return rows;
 }
+function store(){const url=process.env.UPSTASH_REDIS_REST_URL,token=process.env.UPSTASH_REDIS_REST_TOKEN;if(!url||!token)throw new Error("STORE_OFF");return new Redis({url,token});}
 export async function GET(req:Request){
  if(!process.env.TAROTAI_ACCESS_CODE)return NextResponse.json({error:"Private access is not configured"},{status:503});
  if(!isAuthorized(req))return NextResponse.json({error:"Authentication required"},{status:401});
