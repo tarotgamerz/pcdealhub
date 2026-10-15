@@ -646,11 +646,15 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     if(!sameSnapshot||!chartDecision||chartDecision.action!==action){action="HOLD / WAIT";entry=stop=target=rr=NaN;}
     const bias=action==="BUY / LONG"?"LONG":action==="SELL / SHORT"?"SHORT":"WAIT",livePrice=Number(currentMarketPrice()),drift=Number.isFinite(entry)&&entry>0?Math.abs(livePrice-entry)/entry:NaN;
     const balance=Number(byId("livePaperBalance")?.value),riskPct=Number(byId("livePaperRisk")?.value),dist=Math.abs(entry-stop);
-    const sizeReady=bias!=="WAIT"&&Number.isFinite(balance)&&balance>=100&&balance<=10000000&&Number.isFinite(riskPct)&&riskPct>=.1&&riskPct<=1&&Number.isFinite(dist)&&dist>0;
-    const qty=sizeReady?Math.min((balance*riskPct/100)/dist,balance/entry):NaN;
     const ledger=Array.isArray(window.tarotaiPaperLedger)?window.tarotaiPaperLedger:[];
     const terminal=new Set(["PAPER_CLOSE","PAPER_STOP","PAPER_TARGET"]),closedIds=new Set(ledger.filter(t=>t.parentTradeId&&terminal.has(t.status)).map(t=>t.parentTradeId));
     const open=ledger.filter(t=>t.status==="PAPER_OPEN"&&!closedIds.has(t.id)),onSymbol=open.filter(t=>t.symbol===currentSymbol);
+    const existingOpenNotional=open.reduce((sum,t)=>sum+Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice)*Number(t.quantity),0);
+    const sizingInputsReady=bias!=="WAIT"&&Number.isFinite(balance)&&balance>=100&&balance<=10000000&&Number.isFinite(riskPct)&&riskPct>=.1&&riskPct<=1&&Number.isFinite(entry)&&entry>0&&Number.isFinite(dist)&&dist>0&&Number.isFinite(existingOpenNotional)&&existingOpenNotional>=0;
+    const positionNotionalCap=balance*.05,portfolioNotionalCap=balance*.20,remainingPortfolioNotional=Math.max(0,portfolioNotionalCap-existingOpenNotional);
+    const qty=sizingInputsReady?Math.min((balance*riskPct/100)/dist,positionNotionalCap/entry,remainingPortfolioNotional/entry):NaN;
+    const sizingTolerance=Number.isFinite(balance)?Math.max(1e-8,balance*1e-10):0;
+    const sizeReady=sizingInputsReady&&Number.isFinite(qty)&&qty>0&&qty*dist<=balance*riskPct/100+sizingTolerance&&qty*entry<=positionNotionalCap+sizingTolerance&&existingOpenNotional+qty*entry<=portfolioNotionalCap+sizingTolerance;
     const alerts=onSymbol.filter(t=>Number.isFinite(Number(t.stopPrice))&&Number.isFinite(Number(t.targetPrice))&&(t.experimentMode==="target-only-observation"?(t.side==="BUY"?livePrice>=Number(t.targetPrice):livePrice<=Number(t.targetPrice)):(t.side==="BUY"?livePrice<=Number(t.stopPrice)||livePrice>=Number(t.targetPrice):livePrice>=Number(t.stopPrice)||livePrice<=Number(t.targetPrice))));
     const observationStopTouches=onSymbol.filter(t=>t.experimentMode==="target-only-observation"&&Number.isFinite(Number(t.stopPrice))&&(t.side==="BUY"?livePrice<=Number(t.stopPrice):livePrice>=Number(t.stopPrice)));
     const finished=ledger.filter(t=>t.parentTradeId&&terminal.has(t.status)),pnl=finished.map(t=>Number(t.pnlNet)).filter(Number.isFinite),net=pnl.reduce((a,b)=>a+b,0),wins=pnl.filter(v=>v>0).length;
@@ -683,7 +687,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     ]));
     reports.push(localReport("sizing",sizeReady?bias:"WAIT",bias!=="WAIT"&&!sizeReady,[
       "BIAS: "+(sizeReady?bias:"WAIT"),"VETO: "+(bias!=="WAIT"&&!sizeReady?"YES":"NO"),
-      "EVIDENCE: "+(sizeReady?"paper equity "+fmt(balance)+" USDT · risk "+riskPct+"% · cash-risk cap "+fmt(balance*riskPct/100)+" · quantity cap "+qty.toPrecision(7)+".":"Sizing withheld until a valid signal, balance and stop distance exist."),
+      "EVIDENCE: "+(sizeReady?"paper equity "+fmt(balance)+" USDT · risk "+riskPct+"% · cash-risk cap "+fmt(balance*riskPct/100)+" · quantity "+qty.toPrecision(7)+" · per-position notional cap "+fmt(positionNotionalCap)+" USDT (5%) · total open notional "+fmt(existingOpenNotional)+" / "+fmt(portfolioNotionalCap)+" USDT (20%).":"Sizing withheld: no valid signal, balance/stop distance, or remaining exposure capacity under the 5% position and 20% portfolio caps."),
       "HISTORICAL: sizing arithmetic does not imply a profitable strategy.",
       "TRIGGER: "+(sizeReady?"use this quantity only for a manually confirmed paper trade":"WAIT; no quantity approved."),
       "INVALIDATION: recompute if entry, stop, equity or risk percentage changes.",
