@@ -33,6 +33,17 @@
 @media(max-width:600px){.strategy-chart-wrap{height:340px}.strategy-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 /* Live agent trading chart */
+.agent-order-bar{display:grid;grid-template-columns:1.1fr .75fr 1.1fr 1.45fr 1fr;gap:8px;margin:0 0 12px;padding:10px;border:1px solid #2b4056;border-radius:12px;background:linear-gradient(120deg,#0b1722,#0d131c)}
+.agent-order-mode,.agent-order-cell{min-width:0;padding:7px 9px;background:rgba(8,13,20,.55);border:1px solid #202f40;border-radius:9px}
+.agent-order-mode label,.agent-order-cell label{display:block;font-size:9px;letter-spacing:.08em;color:var(--muted);font-weight:800;margin-bottom:5px}
+.agent-order-mode strong,.agent-order-cell strong{display:block;font-size:12px;line-height:1.4;overflow-wrap:anywhere}
+.agent-order-mode small,.agent-order-cell small{display:block;margin-top:4px;font-size:10px;color:var(--muted);line-height:1.35;overflow-wrap:anywhere}
+.agent-order-bar[data-mode="active"] .agent-order-mode{border-color:#2c5949;background:#0b211a}
+.agent-order-bar[data-mode="active"] #agentOrderMode{color:var(--green)}
+.agent-order-bar[data-mode="paused"] #agentOrderMode{color:var(--amber)}
+.agent-order-bar[data-mode="blocked"] #agentOrderMode,.agent-order-bar[data-mode="error"] #agentOrderMode{color:var(--red)}
+@media(max-width:950px){.agent-order-bar{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:600px){.agent-order-bar{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:7px}.agent-order-mode{grid-column:span 2}.agent-order-mode,.agent-order-cell{padding:7px}.agent-order-cell strong,.agent-order-mode strong{font-size:11px}}
 #visual-strategy-panel{display:none!important}
 .live-trade-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}.live-head-status{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;max-width:100%}.live-strategy-confirmation{margin-top:12px;padding:12px;border:1px solid #26384a;border-radius:12px;background:linear-gradient(120deg,#0d1722,#0c121b)}.live-strategy-confirmation-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px}.live-strategy-confirmation-head strong{font-size:13px;color:#dce8f6}.live-strategy-confirmation .strategy-metrics{margin:0}.live-strategy-confirmation #strategyStatus{line-height:1.5}.strategy-engine-legacy{display:none!important}.chart-sync-legacy{display:none!important}
 .live-trade-title{font-size:17px;font-weight:800;margin:0 0 4px}
@@ -130,6 +141,7 @@
 <div class="switchrow"><div><strong>Require stop &amp; target</strong><div class="sub">Reject incomplete demo plans</div></div><input class="switch" type="checkbox" checked disabled></div>
 <div class="switchrow"><div><strong>Max demo risk/trade</strong><div class="sub">Hard cap, independent of agent opinion</div></div><strong>$100</strong></div>
 <div class="switchrow"><div><strong>Max simulated leverage</strong><div class="sub">Demo only</div></div><strong>5×</strong></div>
+<div class="switchrow"><div><strong>Daily safety lock</strong><div class="sub">Server enforced · stops new entries after daily limit</div></div><strong>3% / 5 entries</strong></div>
 <div class="switchrow"><div><strong>Testnet connection</strong><div class="sub">Not connected yet</div></div><span class="tag">OFFLINE</span></div>
 </section>
 <section class="panel wide"><h2>Paper trade journal</h2><p class="muted">Open and closed positions, simulated fills, fees, stops, targets, P&amp;L and agent decision source are recorded in the persistent Paper Trading panel. Local-only demo plans are disabled.</p></section>
@@ -145,6 +157,13 @@
   <div class="live-trade-head">
     <div><h2 class="live-trade-title">Unified Live Market Chart &amp; Agent Analysis</h2><div class="sub">One chart · verified live quote · EMA 9/21/50 · RSI 14 · ATR 14 · support/resistance · trendlines · entry/stop/target annotations</div></div>
     <div class="live-head-status"><span id="liveFeedPill" class="live-feed-pill">CONNECTING TO MARKET</span><div id="chartAgentCounter" class="chart-agent-counter warn" role="status" aria-live="polite" title="Eight deterministic local rule roles, not eight separate AI model calls."><strong id="chartAgentCounterValue">0/8 ACTIVE · STARTING</strong><span id="chartAgentCounterDetail">Waiting for fresh market candles…</span></div></div>
+  </div>
+  <div class="agent-order-bar" id="agentOrderBar" data-mode="warn" role="status" aria-live="polite">
+    <div class="agent-order-mode"><label>AUTONOMOUS PAPER MODE</label><strong id="agentOrderMode">STARTING / SIGN-IN REQUIRED</strong><small id="agentOrderModeDetail">Paper only · live exchange orders disabled</small></div>
+    <div class="agent-order-cell"><label>OPEN PAPER POSITIONS</label><strong id="agentOrderCount">—</strong><small>Persistent ledger</small></div>
+    <div class="agent-order-cell"><label>TOTAL OPEN NOTIONAL</label><strong id="agentOpenNotional">—</strong><small>USDT · simulated exposure</small></div>
+    <div class="agent-order-cell"><label>POSITION BEING MONITORED</label><strong id="agentActivePosition">None on chart</strong><small id="agentActiveOrderSize">Waiting for ledger</small></div>
+    <div class="agent-order-cell"><label>MARK P&amp;L · ESTIMATE</label><strong id="agentActivePnl">—</strong><small id="agentActivePnlMeta">Needs a matching fresh quote</small></div>
   </div>
   <div class="live-controls">
     <div class="field" style="margin:0"><label for="liveSymbol">Market</label><select id="liveSymbol"><option value="BTCUSDT">BTC/USDT perpetual</option><option value="ETHUSDT">ETH/USDT perpetual</option><option value="BNBUSDT">BNB/USDT perpetual</option><option value="SOLUSDT">SOL/USDT perpetual</option><option value="XRPUSDT">XRP/USDT perpetual</option><option value="DOGEUSDT">DOGE/USDT perpetual</option><option value="NIFTY50">NIFTY 50 (NSE · delayed reference)</option><option value="GOLD">Gold Futures (COMEX · USD/oz · delayed reference)</option></select></div>
@@ -191,7 +210,7 @@
     <div class="live-checks"><h3>Why the agent decided this</h3><div id="liveCheckList" class="live-check-list"><div class="live-check neutral"><em>•</em><span>Waiting for closed candles and higher-timeframe data.</span></div></div></div>
   </div>
   <div id="liveMarketStatus" class="live-market-status">Market data has not been checked yet. No orders are sent from this panel.</div>
-<div class="live-instructions" style="margin-top:12px"><h3>Paper trade controls</h3><div class="sub">Only fresh confirmed BUY / LONG or SELL / SHORT setups qualify. Risk is capped at 0.1–1% of balance by stop distance, 5% notional per position and 20% total open notional. A verified exchange quote and bid-ask spread ≤20 bps are mandatory. Paper only. No real exchange orders are sent.</div><div class="live-paper-controls"><div class="field"><label for="livePaperBalance">Simulated balance (USDT)</label><input id="livePaperBalance" type="number" min="100" max="10000000" step="100" value="10000"></div><div class="field"><label for="livePaperRisk">Risk per trade (%)</label><input id="livePaperRisk" type="number" min="0.1" max="1" step="0.1" value="0.5"></div><button class="btn primary" id="livePaperOpen" type="button" disabled>Open paper trade from signal</button><button class="btn" id="livePaperReload" type="button">Refresh ledger / check stops</button><button class="btn" id="livePaperAutoToggle" type="button" aria-pressed="false">Enable auto paper trading</button><div class="field"><label for="observationDirection">Observation test direction</label><select id="observationDirection"><option value="BUY" selected>LONG · paper only</option><option value="SELL">SHORT · paper only</option></select></div><button class="btn" id="livePaperObservationOpen" type="button">Start target-only paper test</button></div><div class="live-paper-experiment-note">Target-only observation test: the paper position stays open after a stop touch and auto-closes only when its profit target is confirmed. If the same closed candle touches both stop and target, it stays open because the order of touch is unknown. The reference stop is used for sizing, not as an auto-exit; simulated drawdown can exceed the planned stop-risk. 5% position and 20% portfolio notional caps still apply. Observation trials are excluded from strategy win-rate stats; manual close remains available.</div><div id="livePaperAutoStatus" class="live-market-status">AUTO PAPER: OFF. The 8-role local rule team runs continuously; simulated entries begin only when you enable paper mode and the private persistent ledger is available. No real orders are sent.</div><div class="live-paper-summary"><div class="live-level"><label>Open positions</label><strong id="livePaperOpenCount">—</strong></div><div class="live-level"><label>Closed paper trades</label><strong id="livePaperClosedCount">—</strong></div><div class="live-level"><label>Realized net P&amp;L (USDT)</label><strong id="livePaperNetPnl">—</strong></div><div class="live-level"><label>Signal win rate · tests excluded</label><strong id="livePaperWinRate">—</strong></div><div class="live-level"><label>AI-review win rate</label><strong id="livePaperAiWinRate">—</strong><small id="livePaperAiSamples">0 closed trades</small></div><div class="live-level"><label>Continuous-rule win rate</label><strong id="livePaperLocalWinRate">—</strong><small id="livePaperLocalSamples">0 closed trades</small></div></div><div id="livePaperPositions" class="live-paper-positions"><div class="muted">Loading persistent paper ledger…</div></div><div id="livePaperStatus" class="live-market-status">Paper trading is disabled until a valid signal and persistent private ledger are available.</div></div>
+<div class="live-instructions" style="margin-top:12px"><h3>Paper trade controls</h3><div class="sub">Only fresh confirmed BUY / LONG or SELL / SHORT setups qualify. Risk is capped at 0.1–1% of balance by stop distance, 5% notional per position and 20% total open notional. A verified exchange quote and bid-ask spread ≤20 bps are mandatory. Paper only. No real exchange orders are sent.</div><div class="live-paper-controls"><div class="field"><label for="livePaperBalance">Simulated balance (USDT)</label><input id="livePaperBalance" type="number" min="100" max="10000000" step="100" value="10000"></div><div class="field"><label for="livePaperRisk">Risk per trade (%)</label><input id="livePaperRisk" type="number" min="0.1" max="1" step="0.1" value="0.5"></div><button class="btn primary" id="livePaperOpen" type="button" disabled>Open paper trade from signal</button><button class="btn" id="livePaperReload" type="button">Refresh ledger / check stops</button><button class="btn" id="livePaperAutoToggle" type="button" aria-pressed="false">Enable auto paper trading</button><div class="field"><label for="observationDirection">Observation test direction</label><select id="observationDirection"><option value="BUY" selected>LONG · paper only</option><option value="SELL">SHORT · paper only</option></select></div><button class="btn" id="livePaperObservationOpen" type="button">Start target-only paper test</button></div><div class="live-paper-experiment-note">Target-only observation test: the paper position stays open after a stop touch and auto-closes only when its profit target is confirmed. If the same closed candle touches both stop and target, it stays open because the order of touch is unknown. The reference stop is used for sizing, not as an auto-exit; simulated drawdown can exceed the planned stop-risk. 5% position and 20% portfolio notional caps still apply. Observation trials are excluded from strategy win-rate stats; manual close remains available.</div><div id="livePaperAutoStatus" class="live-market-status">AUTO PAPER: STARTING. After your private session and persistent ledger are ready, the 8-role team can open and manage approved crypto-perpetual paper positions automatically. Pause any time. No real orders are sent.</div><div class="live-paper-summary"><div class="live-level"><label>Open positions</label><strong id="livePaperOpenCount">—</strong></div><div class="live-level"><label>Closed paper trades</label><strong id="livePaperClosedCount">—</strong></div><div class="live-level"><label>Realized net P&amp;L (USDT)</label><strong id="livePaperNetPnl">—</strong></div><div class="live-level"><label>Signal win rate · tests excluded</label><strong id="livePaperWinRate">—</strong></div><div class="live-level"><label>AI-review win rate</label><strong id="livePaperAiWinRate">—</strong><small id="livePaperAiSamples">0 closed trades</small></div><div class="live-level"><label>Continuous-rule win rate</label><strong id="livePaperLocalWinRate">—</strong><small id="livePaperLocalSamples">0 closed trades</small></div></div><div id="livePaperPositions" class="live-paper-positions"><div class="muted">Loading persistent paper ledger…</div></div><div id="livePaperStatus" class="live-market-status">Paper trading is disabled until a valid signal and persistent private ledger are available.</div></div>
   <div class="live-safety-note"><strong>Execution safety:</strong> BUY means a potential long setup; SELL means a potential short setup; HOLD / WAIT means do not enter. Levels are analytical references calculated from closed candles, not guaranteed fills. The chart is read-only and never submits orders.</div>
 </section>
 
@@ -854,6 +873,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       if(!verify.ok||session.authenticated!==true)throw new Error("The browser did not accept the private session cookie. Reload TarotAI and try again.");
       input.value="";byId("liveAgentAuthGate").hidden=true;byId("liveAgentRunStatus").textContent="Private session unlocked. Starting the selected specialist team…";
       void runLiveAgentTeam();
+      if(paperAutoPreference&&!isReferenceMarket(byId("liveSymbol").value))void setAutoPaperEnabled(true,false);
     }catch(e){showAgentAuthGate(e&&e.message?e.message:String(e));}
     finally{button.disabled=false;button.textContent="Unlock & continue";}
   }
@@ -1093,12 +1113,40 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   });
   updateLiveAgentSlotOptions();
 
+  let paperAutoPreference=(()=>{try{const saved=localStorage.getItem("tarotaiAutoPaperTrading");return saved===null||saved!=="false";}catch(e){return true;}})();
   let paperBusy=false,paperOpening=false,paperStoreReady=false,autoPaperEnabled=false,lastAutoPaperCandleKey="";
   const paperClosedStatuses=new Set(["PAPER_CLOSE","PAPER_STOP","PAPER_TARGET"]);
   const paperNum=v=>Number.isFinite(Number(v))?Number(v):NaN;
   const paperFmt=v=>Number.isFinite(v)?v.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
   function paperStatus(msg,bad=false){byId("livePaperStatus").textContent=msg;byId("livePaperStatus").style.color=bad?"var(--red)":"var(--muted)";}
   function paperOpened(ledger){const closed=new Set(ledger.filter(t=>t.parentTradeId&&paperClosedStatuses.has(t.status)).map(t=>t.parentTradeId));return ledger.filter(t=>t.status==="PAPER_OPEN"&&!closed.has(t.id));}
+  function updateAgentOrderBar(){
+    const root=byId("agentOrderBar");if(!root)return;
+    const put=(id,value)=>{const e=byId(id);if(e)e.textContent=value;};
+    const reference=marketVenue==="yahoo"||isReferenceMarket(byId("liveSymbol")?.value||currentSymbol);
+    if(reference){root.dataset.mode="blocked";put("agentOrderMode","REFERENCE MARKET · BLOCKED");put("agentOrderModeDetail","NIFTY 50 / Gold are reference-only; paper execution is disabled.");}
+    else if(!paperStoreReady){root.dataset.mode="warn";put("agentOrderMode",paperAutoPreference?"SIGN IN / LEDGER REQUIRED":"PAPER MODE PAUSED");put("agentOrderModeDetail",paperAutoPreference?"Auto mode starts after the private session and persistent ledger are ready.":"Enable auto paper trading when ready.");}
+    else if(autoPaperEnabled){root.dataset.mode="active";put("agentOrderMode","AUTO PAPER · ACTIVE");put("agentOrderModeDetail","Agent-controlled entries · server risk gates · live orders disabled.");}
+    else{root.dataset.mode="paused";put("agentOrderMode","AUTO PAPER · PAUSED");put("agentOrderModeDetail","Existing positions remain recorded; new entries are paused.");}
+    if(!paperStoreReady){put("agentOrderCount","—");put("agentOpenNotional","—");put("agentActivePosition","Ledger unavailable");put("agentActiveOrderSize","Unlock TarotAI to read current orders.");put("agentActivePnl","—");put("agentActivePnlMeta","No unverified amount is displayed.");return;}
+    const ledger=Array.isArray(window.tarotaiPaperLedger)?window.tarotaiPaperLedger:[],opened=paperOpened(ledger);
+    const notional=t=>{const p=Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice),q=Number(t.quantity);return Number.isFinite(p)&&p>0&&Number.isFinite(q)&&q>0?p*q:0;};
+    const total=opened.reduce((sum,t)=>sum+notional(t),0);
+    put("agentOrderCount",String(opened.length));put("agentOpenNotional",paperFmt(total)+" USDT");
+    const onChart=opened.find(t=>t.symbol===currentSymbol&&paperTradeVenue(t)===marketVenue),active=onChart||opened[0];
+    if(!active){put("agentActivePosition","No open paper position");put("agentActiveOrderSize","Agent is flat on all supported markets.");put("agentActivePnl","—");put("agentActivePnlMeta","No simulated exposure is currently open.");return;}
+    const entry=Number(active.fillPrice||active.verifiedMarketPrice||active.requestedPrice),qty=Number(active.quantity),amount=notional(active);
+    put("agentActivePosition",String(active.symbol||"Unknown")+" · "+(active.side==="BUY"?"LONG":"SHORT")+(onChart?" · ON CHART":" · OTHER MARKET"));
+    put("agentActiveOrderSize",qty.toLocaleString("en-US",{maximumFractionDigits:8})+" units · "+paperFmt(amount)+" USDT · entry "+paperFmt(entry));
+    if(onChart&&hasFreshLiveQuote(Date.now())&&Number.isFinite(Number(lastTradePrice))&&lastTradePrice>0){
+      const mark=Number(lastTradePrice),gross=(active.side==="BUY"?(mark-entry):(entry-mark))*qty,exitFee=mark*qty*Number(active.feeBps??5)/10000,net=gross-Number(active.fee||0)-exitFee;
+      put("agentActivePnl",(net>0?"+":"")+paperFmt(net)+" USDT");put("agentActivePnlMeta","Estimated after entry + exit fees; exit slippage excluded.");
+      const pnl=byId("agentActivePnl");if(pnl)pnl.style.color=net>0?"var(--green)":net<0?"var(--red)":"var(--text)";
+    }else{
+      put("agentActivePnl","—");put("agentActivePnlMeta",onChart?"Waiting for a matching fresh live quote.":"Switch chart to "+active.symbol+" for mark P&L.");
+      const pnl=byId("agentActivePnl");if(pnl)pnl.style.color="var(--text)";
+    }
+  }
   async function paperRequest(url,options={}){
     const r=await fetch(url,{cache:"no-store",...options});let d={};try{d=await r.json();}catch(e){d={error:"Invalid server response"};}if(!r.ok)throw new Error(d.error||d.detail||("HTTP "+r.status));return d;
   }
@@ -1127,7 +1175,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       fact("Quantity",paperNum(t.quantity).toLocaleString("en-US",{maximumFractionDigits:8}));fact(t.experimentMode==="target-only-observation"?"Reference-stop distance · not max loss":"Risk at stop",paperFmt(Math.abs(paperNum(t.fillPrice)-paperNum(t.stopPrice))*paperNum(t.quantity)));fact("Entry fee",paperFmt(paperNum(t.fee)));card.append(facts);
       const close=document.createElement("button");close.className="btn";close.type="button";close.textContent="Close at verified live price";close.addEventListener("click",()=>paperClose(t,close));card.append(close);box.append(card);
     }
-    window.tarotaiPaperLedger=ledger;
+    window.tarotaiPaperLedger=ledger;updateAgentOrderBar();
     const d=window.tarotaiLiveDecision,qualifies=d&&["BUY / LONG","SELL / SHORT"].includes(d.action)&&d.symbol===byId("liveSymbol").value&&d.interval===byId("liveInterval").value;
     const closedNow=closedOnly(rows,currentInterval).slice(-1)[0],approvals=[window.tarotaiContinuousTeamApproval,window.tarotaiAgentCommitteeApproval].filter(Boolean);
     const teamApproved=!!closedNow&&approvals.some(a=>a.symbol===d?.symbol&&a.interval===d?.interval&&Number(a.candleTime)===Number(closedNow.time)&&a.action===d?.action&&["continuous-local-team","ai-eight-agent-review"].includes(a.source));
@@ -1166,6 +1214,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     }finally{paperBusy=false;}
   }
   function updateDemoAgentTicket(){
+    updateAgentOrderBar();
     const now=Date.now(),fresh=hasFreshLiveQuote(now);
     const d=window.tarotaiLiveDecision||null,symbol=byId("liveSymbol")?.value||currentSymbol||"—",interval=byId("liveInterval")?.value||currentInterval||"—";
     const action=d&&d.symbol===symbol&&d.interval===interval&&["BUY / LONG","SELL / SHORT"].includes(d.action)?d.action:"WAIT";
@@ -1311,7 +1360,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   byId("demoAgentOpen").addEventListener("click",paperOpenSignal);
   byId("demoRefreshAgent").addEventListener("click",()=>{runContinuousAgentCycle();updateDemoAgentTicket();const button=byId("runLiveAgentTeam");if(button)button.click();});
   byId("livePaperReload").addEventListener("click",()=>paperRefresh(true));
-  async function setAutoPaperEnabled(next){
+  async function setAutoPaperEnabled(next,persistPreference=true){
     const button=byId("livePaperAutoToggle"),status=byId("livePaperAutoStatus");
     if(next===autoPaperEnabled)return;
     if(next&&(marketVenue==="yahoo"||isReferenceMarket(byId("liveSymbol").value))){status.textContent="AUTO PAPER BLOCKED: NIFTY 50 and Gold are delayed reference markets without supported execution/contract-risk verification. Select a supported crypto perpetual for paper trading.";status.style.color="var(--red)";button.setAttribute("aria-pressed","false");return;}
@@ -1320,20 +1369,26 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       await paperRefresh(false);
       if(!paperStoreReady){status.textContent="AUTO PAPER BLOCKED: private authentication or persistent Upstash Redis ledger is unavailable. No simulated entry was created.";status.style.color="var(--red)";button.setAttribute("aria-pressed","false");return;}
       autoPaperEnabled=true;lastAutoPaperCandleKey="";
-      button.textContent="Disable auto paper trading";button.setAttribute("aria-pressed","true");
+      if(persistPreference){paperAutoPreference=true;try{localStorage.setItem("tarotaiAutoPaperTrading","true");}catch(e){}}
+      button.textContent="Pause auto paper trading";button.setAttribute("aria-pressed","true");
       status.textContent="AUTO PAPER: ON · the 8-role local rule team checks the same closed candle every second and opens a simulated position only after exact-candle approval, position sizing and server-side risk review. Stop/target monitoring uses live quote updates plus closed Binance 1-minute candle reconciliation. No real orders. Keep this tab open and visible.";
       status.style.color="var(--green)";runContinuousAgentCycle();
     }else{
-      autoPaperEnabled=false;button.textContent="Enable auto paper trading";button.setAttribute("aria-pressed","false");
+      autoPaperEnabled=false;
+      if(persistPreference){paperAutoPreference=false;try{localStorage.setItem("tarotaiAutoPaperTrading","false");}catch(e){}}
+      button.textContent="Enable auto paper trading";button.setAttribute("aria-pressed","false");
       status.textContent="AUTO PAPER: OFF · new simulated entries paused. Existing paper positions remain in the persistent ledger and will still be checked for stop/target exits.";
       status.style.color="var(--muted)";
     }
   }
   byId("livePaperAutoToggle").addEventListener("click",()=>void setAutoPaperEnabled(!autoPaperEnabled));
-  paperRefresh(true).finally(updateDemoAgentTicket);
+  paperRefresh(true).finally(()=>{
+    updateDemoAgentTicket();
+    if(paperAutoPreference&&!isReferenceMarket(byId("liveSymbol").value)&&marketVenue!=="yahoo")void setAutoPaperEnabled(true,false);
+  });
   setInterval(()=>{if(document.visibilityState==="visible")paperRefresh(true).finally(updateDemoAgentTicket);},10000);
 
-  byId("liveSymbol").addEventListener("change",()=>{if(autoPaperEnabled&&isReferenceMarket(byId("liveSymbol").value))void setAutoPaperEnabled(false);updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;window.tarotaiContinuousTeamApproval=null;window.tarotaiAgentCommitteeApproval=null;void refresh(true).then(()=>{runContinuousAgentCycle();void refreshQuoteFallback();});});
+  byId("liveSymbol").addEventListener("change",()=>{if(autoPaperEnabled&&isReferenceMarket(byId("liveSymbol").value))void setAutoPaperEnabled(false,false);updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;window.tarotaiContinuousTeamApproval=null;window.tarotaiAgentCommitteeApproval=null;void refresh(true).then(()=>{runContinuousAgentCycle();void refreshQuoteFallback();if(paperAutoPreference&&!autoPaperEnabled&&!isReferenceMarket(byId("liveSymbol").value)&&marketVenue!=="yahoo")void setAutoPaperEnabled(true,false);});});
   byId("liveInterval").addEventListener("change",()=>{updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;window.tarotaiContinuousTeamApproval=null;window.tarotaiAgentCommitteeApproval=null;void refresh(true).then(()=>{runContinuousAgentCycle();void refreshQuoteFallback();});});
   window.tarotaiReloadLiveChart=()=>{higherCache=[];higherCacheKey="";higherCacheAt=0;void refresh(true).then(()=>runContinuousAgentCycle());};
   startContinuousAgentMonitor();

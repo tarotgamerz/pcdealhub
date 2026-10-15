@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
 import { isAuthorized } from "../../../../lib/auth";
-import { applySlippage, calculateFee, isStale, validateStops, resolveStopTarget, resolveTargetOnlyObservation, validatePaperExposure, PAPER_MAX_POSITION_EXPOSURE_PCT, PAPER_MAX_PORTFOLIO_EXPOSURE_PCT } from "../../../../lib/trading-rules.mjs";
+import { applySlippage, calculateFee, isStale, validateStops, resolveStopTarget, resolveTargetOnlyObservation, validatePaperExposure, validatePaperDailyRisk, PAPER_MAX_POSITION_EXPOSURE_PCT, PAPER_MAX_PORTFOLIO_EXPOSURE_PCT, PAPER_MAX_DAILY_LOSS_PCT, PAPER_MAX_ENTRIES_PER_UTC_DAY } from "../../../../lib/trading-rules.mjs";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 const OPEN_POSITIONS_KEY="tarotai:paper:open_positions";
+const STOP_CURSORS_KEY="tarotai:paper:stop_cursors";
 function parseLedgerValue(x:any){return typeof x==="string"?JSON.parse(x):x;}
 async function readPaperLedger(d:Redis){
  const [stored,indexed]=await Promise.all([
@@ -93,28 +94,34 @@ export async function POST(req:Request){
    if(Date.now()-latest.closeTime>120000||latest.closeTime>Date.now())return NextResponse.json({error:"Closed stop-check candles are stale or malformed"},{status:409});
    const rows=await readPaperLedger(d);
    const closed=new Set(rows.filter((x:any)=>x.parentTradeId&&["PAPER_CLOSE","PAPER_STOP","PAPER_TARGET"].includes(x.status)).map((x:any)=>x.parentTradeId));
-   for(const id of closed)await d.hdel(OPEN_POSITIONS_KEY,id);
+   for(const id of closed){await d.hdel(OPEN_POSITIONS_KEY,id);await d.hdel(STOP_CURSORS_KEY,id);}
    const indexedOpenRows=rows.filter((x:any)=>x.status==="PAPER_OPEN"&&!closed.has(x.id));
    for(const openTrade of indexedOpenRows)await d.hset(OPEN_POSITIONS_KEY,{[openTrade.id]:JSON.stringify(openTrade)});
    const triggered:any[]=[],historyGaps:any[]=[],ambiguousObservationCandles:any[]=[];
    for(const trade of indexedOpenRows.filter((x:any)=>x.symbol===symbol&&(x.venue||"binance")===venue&&x.stopPrice&&x.targetPrice)){
     const openedAt=Date.parse(trade.createdAt),targetOnlyObservation=trade.experimentMode==="target-only-observation";
     if(!Number.isFinite(openedAt))continue;
-    // Normal strategy positions require complete post-entry history. Target-only observations may scan the latest
-    // available candles even after older history ages out because every returned candle is newer than that entry.
-    if(openedAt<closedCandles[0].time&&!targetOnlyObservation){historyGaps.push({tradeId:trade.id,createdAt:trade.createdAt,oldestAvailableCandleTime:closedCandles[0].time});continue;}
-    const eligible=closedCandles.filter((bar:any)=>bar.time>openedAt);
+    const cursorRaw=await d.hget<string|number>(STOP_CURSORS_KEY,trade.id);
+    const lastProcessedTime=cursorRaw===null||cursorRaw===undefined?Number.NaN:Number(cursorRaw);
+    const hasCursor=Number.isFinite(lastProcessedTime)&&lastProcessedTime>0;
+    // A durable cursor preserves progress beyond the exchange's limited 500-candle response window.
+    // If the server was offline long enough to lose unprocessed candles, fail closed and report the history gap.
+    if(openedAt<closedCandles[0].time&&!hasCursor&&!targetOnlyObservation){historyGaps.push({tradeId:trade.id,createdAt:trade.createdAt,oldestAvailableCandleTime:closedCandles[0].time});continue;}
+    if(hasCursor&&closedCandles[0].time>lastProcessedTime+60000){historyGaps.push({tradeId:trade.id,createdAt:trade.createdAt,lastProcessedCandleTime:lastProcessedTime,oldestAvailableCandleTime:closedCandles[0].time});continue;}
+    let processedThrough=hasCursor?lastProcessedTime:0;
+    const eligible=closedCandles.filter((bar:any)=>bar.time>openedAt&&(!hasCursor||bar.time>lastProcessedTime));
     for(const bar of eligible){
      const result=targetOnlyObservation
       ?resolveTargetOnlyObservation(bar.candle,trade.side==="BUY"?"LONG":"SHORT",Number(trade.stopPrice),Number(trade.targetPrice))
       :resolveStopTarget(bar.candle,trade.side==="BUY"?"LONG":"SHORT",Number(trade.stopPrice),Number(trade.targetPrice));
      if(targetOnlyObservation&&result.ambiguous)ambiguousObservationCandles.push({tradeId:trade.id,candleTime:bar.time});
-     if(!result.exit||result.price===null)continue;
+     if(!result.exit||result.price===null){processedThrough=bar.time;continue;}
      const closeSide=trade.side==="BUY"?"SELL":"BUY",fill=applySlippage(closeSide,Number(result.price),Number(trade.slippageBps)),fee=calculateFee(fill,Number(trade.quantity),Number(trade.feeBps));
      const gross=trade.side==="BUY"?(fill-Number(trade.fillPrice))*Number(trade.quantity):(Number(trade.fillPrice)-fill)*Number(trade.quantity);
      const closedTrade={id:crypto.randomUUID(),parentTradeId:trade.id,createdAt:new Date().toISOString(),symbol,side:closeSide,quantity:trade.quantity,requestedPrice:result.price,fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),pnlGross:Number(gross.toFixed(8)),pnlNet:Number((gross-fee-Number(trade.fee||0)).toFixed(8)),feeBps:trade.feeBps,slippageBps:trade.slippageBps,status:result.exit==="STOP"?"PAPER_STOP":"PAPER_TARGET",ambiguousCandle:result.ambiguous,sourceCandleTime:bar.time,sourceCandleCloseTime:bar.closeTime,mode:"PAPER_ONLY",experimentMode:trade.experimentMode||null,sourceVenue:venue};
-     await d.lpush("tarotai:paper:ledger",JSON.stringify(closedTrade));await d.hdel(OPEN_POSITIONS_KEY,trade.id);triggered.push(closedTrade);closed.add(trade.id);break;
+     await d.lpush("tarotai:paper:ledger",JSON.stringify(closedTrade));await d.hdel(OPEN_POSITIONS_KEY,trade.id);await d.hdel(STOP_CURSORS_KEY,trade.id);triggered.push(closedTrade);closed.add(trade.id);break;
     }
+    if(!closed.has(trade.id)&&processedThrough>(hasCursor?lastProcessedTime:0))await d.hset(STOP_CURSORS_KEY,{[trade.id]:processedThrough});
    }
    await d.ltrim("tarotai:paper:ledger",0,999);
    return NextResponse.json({mode:"PAPER_ONLY",checkedSymbol:symbol,venue,sourceCandle:latest.candle,sourceCandleTime:latest.time,sourceCandleCloseTime:latest.closeTime,sourceCandleClosed:true,triggered,historyGaps,ambiguousObservationCandles,liveTradingEnabled:false,stopFirstOnAmbiguousCandle:true,note:"Strategy positions use stop-first exits on closed candles. Target-only observation trades ignore stop touches, close only when a profit target is confirmed without an ambiguous stop touch, and remain open otherwise."});
@@ -181,6 +188,14 @@ export async function POST(req:Request){
    if(openBalances.some((value:number)=>Math.abs(value-openBalances[0])>Math.max(0.01,openBalances[0]*1e-9)))return NextResponse.json({error:"Open paper positions have inconsistent recorded balances. Close all open positions before continuing."},{status:409});
    const requestedBalance=Number(b.paperBalance);
    if(openBalances.length&&Number.isFinite(requestedBalance)&&Math.abs(requestedBalance-openBalances[0])>Math.max(0.01,openBalances[0]*1e-9))return NextResponse.json({error:"Paper starting balance is locked while positions are open. Use "+openBalances[0].toFixed(2)+" USDT or close all open positions first."},{status:409});
+   if(!Number.isFinite(requestedBalance)||requestedBalance<100||requestedBalance>10000000)return NextResponse.json({error:"Invalid daily paper starting balance; entry is blocked."},{status:400});
+   const utcDay=new Date().toISOString().slice(0,10),dailyBalanceKey="tarotai:paper:daily_balance:"+utcDay;
+   await d.set(dailyBalanceKey,String(requestedBalance),{nx:true,ex:172800});
+   const dailyBaseline=Number(await d.get(dailyBalanceKey));
+   if(!Number.isFinite(dailyBaseline)||dailyBaseline<100||dailyBaseline>10000000)return NextResponse.json({error:"Daily paper starting balance could not be verified; entry is blocked."},{status:503});
+   if(Math.abs(requestedBalance-dailyBaseline)>Math.max(0.01,dailyBaseline*1e-9))return NextResponse.json({error:"Daily paper starting balance is locked for today at "+dailyBaseline.toFixed(2)+" USDT. Keep today's configured amount; it can reset next UTC day."},{status:409});
+   const dailyRiskError=validatePaperDailyRisk({ledger:existingRows,balance:dailyBaseline,now:Date.now()});
+   if(dailyRiskError)return NextResponse.json({error:dailyRiskError,limits:{maxDailyLossPct:PAPER_MAX_DAILY_LOSS_PCT,maxEntriesPerUtcDay:PAPER_MAX_ENTRIES_PER_UTC_DAY}},{status:409});
    existingOpenExposure=openRows.reduce((sum:number,x:any)=>sum+Number(x.fillPrice||x.verifiedMarketPrice||x.requestedPrice)*Number(x.quantity),0);
    if(!Number.isFinite(existingOpenExposure)||existingOpenExposure<0)return NextResponse.json({error:"Existing paper exposure is malformed; opening another position is blocked"},{status:409});
   }
@@ -220,7 +235,7 @@ export async function POST(req:Request){
   if([trade.stopPrice,trade.targetPrice].some((x:any)=>x!==null&&(!Number.isFinite(x)||x<=0)))return NextResponse.json({error:"Stop/target must be positive numbers"},{status:400});
   await d.lpush("tarotai:paper:ledger",JSON.stringify(trade));
   if(action==="OPEN")await d.hset(OPEN_POSITIONS_KEY,{[trade.id]:JSON.stringify(trade)});
-  if(action==="CLOSE"&&parentTrade)await d.hdel(OPEN_POSITIONS_KEY,parentTrade.id);
+  if(action==="CLOSE"&&parentTrade){await d.hdel(OPEN_POSITIONS_KEY,parentTrade.id);await d.hdel(STOP_CURSORS_KEY,parentTrade.id);}
   await d.ltrim("tarotai:paper:ledger",0,999);
   return NextResponse.json({accepted:true,trade,liveTradingEnabled:false,note:"Ledger-only simulation; no exchange order sent",openPositionIndexUpdated:true},{status:201});
   }finally{

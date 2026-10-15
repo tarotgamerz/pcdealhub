@@ -15,6 +15,36 @@ export function validateStops(side, entry, stop, target) {
 }
 export const PAPER_MAX_POSITION_EXPOSURE_PCT = 5;
 export const PAPER_MAX_PORTFOLIO_EXPOSURE_PCT = 20;
+export const PAPER_MAX_DAILY_LOSS_PCT = 3;
+export const PAPER_MAX_ENTRIES_PER_UTC_DAY = 5;
+
+export function validatePaperDailyRisk({ ledger, balance, now = Date.now() }) {
+ if (!Array.isArray(ledger) || !Number.isFinite(balance) || balance < 100 || balance > 10000000 || !Number.isFinite(now) || now <= 0) {
+  return "Invalid daily paper-risk inputs.";
+ }
+ const date = new Date(now);
+ const dayStart = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+ const isToday = trade => {
+  const timestamp = Date.parse(trade?.createdAt);
+  return Number.isFinite(timestamp) && timestamp >= dayStart && timestamp <= now;
+ };
+ const closeStatuses = new Set(["PAPER_CLOSE", "PAPER_STOP", "PAPER_TARGET"]);
+ const realizedToday = ledger
+  .filter(trade => trade?.parentTradeId && closeStatuses.has(trade.status) && isToday(trade))
+  .reduce((sum, trade) => {
+   const pnl = Number(trade.pnlNet);
+   return sum + (Number.isFinite(pnl) ? pnl : 0);
+  }, 0);
+ if (realizedToday <= -(balance * PAPER_MAX_DAILY_LOSS_PCT / 100)) {
+  return "Daily paper loss limit (" + PAPER_MAX_DAILY_LOSS_PCT + "% of simulated balance) reached; new entries are blocked until the next UTC day.";
+ }
+ // Parent PAPER_OPEN rows count as entries even after a child close record is written.
+ const entriesToday = ledger.filter(trade => trade && !trade.parentTradeId && trade.status === "PAPER_OPEN" && isToday(trade)).length;
+ if (entriesToday >= PAPER_MAX_ENTRIES_PER_UTC_DAY) {
+  return "Daily paper entry limit (" + PAPER_MAX_ENTRIES_PER_UTC_DAY + " trades) reached; new entries are blocked until the next UTC day.";
+ }
+ return null;
+}
 
 export function calculatePaperQuantity({ balance, riskPct, entry, stop, maxExposurePct = PAPER_MAX_POSITION_EXPOSURE_PCT }) {
  if (![balance, riskPct, entry, stop, maxExposurePct].every(Number.isFinite) || balance < 100 || balance > 10000000 || riskPct < 0.1 || riskPct > 1 || entry <= 0 || stop <= 0 || entry === stop || maxExposurePct <= 0 || maxExposurePct > PAPER_MAX_POSITION_EXPOSURE_PCT) {

@@ -1,7 +1,33 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {applySlippage,calculateFee,isStale,validateStops,resolveStopTarget,resolveTargetOnlyObservation,validateOrderRequest,calculatePaperQuantity,validatePaperExposure,PAPER_MAX_POSITION_EXPOSURE_PCT,PAPER_MAX_PORTFOLIO_EXPOSURE_PCT} from "../lib/trading-rules.mjs";
+import {applySlippage,calculateFee,isStale,validateStops,resolveStopTarget,resolveTargetOnlyObservation,validateOrderRequest,calculatePaperQuantity,validatePaperExposure,validatePaperDailyRisk,PAPER_MAX_POSITION_EXPOSURE_PCT,PAPER_MAX_PORTFOLIO_EXPOSURE_PCT,PAPER_MAX_DAILY_LOSS_PCT,PAPER_MAX_ENTRIES_PER_UTC_DAY} from "../lib/trading-rules.mjs";
 import { evaluateLiveAgentSignal, runLiveAgentStrategyBacktest } from "../lib/live-agent-backtest.mjs";
+test("autonomous paper daily safety limits remain explicit",()=>{
+ assert.equal(PAPER_MAX_DAILY_LOSS_PCT,3);
+ assert.equal(PAPER_MAX_ENTRIES_PER_UTC_DAY,5);
+});
+test("paper daily loss guard blocks entries at the realized-loss limit",()=>{
+ const now=Date.UTC(2026,9,15,12),today=new Date(now-60_000).toISOString();
+ const ledger=[
+  {id:"entry-1",status:"PAPER_OPEN",createdAt:today},
+  {id:"close-1",parentTradeId:"entry-1",status:"PAPER_STOP",pnlNet:-300,createdAt:today}
+ ];
+ assert.match(validatePaperDailyRisk({ledger,balance:10000,now}),/Daily paper loss limit/);
+});
+test("paper daily entry guard counts five entries even after they are closed",()=>{
+ const now=Date.UTC(2026,9,15,12),today=new Date(now-60_000).toISOString();
+ const ledger=Array.from({length:5},(_,i)=>({id:"entry-"+i,status:"PAPER_OPEN",createdAt:today}));
+ assert.match(validatePaperDailyRisk({ledger,balance:10000,now}),/Daily paper entry limit/);
+});
+test("paper daily risk guard does not carry prior-UTC-day losses into today",()=>{
+ const now=Date.UTC(2026,9,15,12),yesterday=new Date(now-86400000).toISOString();
+ const ledger=[
+  {id:"entry-1",status:"PAPER_OPEN",createdAt:yesterday},
+  {id:"close-1",parentTradeId:"entry-1",status:"PAPER_STOP",pnlNet:-400,createdAt:yesterday}
+ ];
+ assert.equal(validatePaperDailyRisk({ledger,balance:10000,now}),null);
+});
+
 test("paper position sizing caps notional at 5% while respecting stop-risk budget",()=>{
  assert.equal(PAPER_MAX_POSITION_EXPOSURE_PCT,5);
  assert.equal(PAPER_MAX_PORTFOLIO_EXPOSURE_PCT,20);

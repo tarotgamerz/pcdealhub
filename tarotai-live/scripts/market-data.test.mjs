@@ -892,3 +892,23 @@ test("Yahoo chart polling preserves its cached quote and keeps reference-feed st
   assert.match(futuresDesk,/if\(marketVenue!==\"yahoo\"\)connectSocket\(\)/);
   assert.match(futuresDesk,/void refreshQuoteFallback\(\)/);
 });
+
+
+test("paper route enforces daily entry/loss brakes and persists long-session stop-check progress", () => {
+  assert.match(paperRoute, /validatePaperDailyRisk\(\{ledger:existingRows,balance:dailyBaseline,now:Date\.now\(\)\}\)/);
+  assert.match(paperRoute, /tarotai:paper:daily_balance:/);
+  assert.match(paperRoute, /STOP_CURSORS_KEY/);
+  assert.match(paperRoute, /lastProcessedCandleTime:lastProcessedTime/);
+  assert.match(paperRoute, /await d\.hset\(STOP_CURSORS_KEY/);
+  assert.match(paperRoute, /await d\.hdel\(STOP_CURSORS_KEY,trade\.id\)/);
+});
+
+test("trading chart displays persistent paper position size and estimates mark P&L", () => {
+  const desk = readFileSync(new URL("../public/trading-desk.html", import.meta.url), "utf8");
+  assert.match(desk, /id="agentOrderBar"/);
+  assert.match(desk, /id="agentOpenNotional"/);
+  assert.match(desk, /id="agentActiveOrderSize"/);
+  assert.match(desk, /Estimated after entry \+ exit fees; exit slippage excluded/);
+  assert.match(desk, /localStorage\.getItem\("tarotaiAutoPaperTrading"\)/);
+  assert.match(desk, /void setAutoPaperEnabled\(true,false\)/);
+});
