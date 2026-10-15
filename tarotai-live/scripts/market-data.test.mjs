@@ -753,7 +753,7 @@ test("active paper positions survive the bounded trade-history window",()=>{
   assert.match(paperRoute, /if\(!seen\.has\(trade\.id\)\)\{rows\.push\(trade\);seen\.add\(trade\.id\);\}/);
   assert.match(paperRoute, /async function readPaperLedger\(d:Redis\)/);
   assert.match(paperRoute, /if\(action==="OPEN"\)await d\.hset\(OPEN_POSITIONS_KEY/);
-  assert.match(paperRoute, /if\(action==="CLOSE"&&parentTrade\)await d\.hdel\(OPEN_POSITIONS_KEY,parentTrade\.id\)/);
+  assert.match(paperRoute, /if\(action==="CLOSE"&&parentTrade\)\{await d\.hdel\(OPEN_POSITIONS_KEY,parentTrade\.id\);await d\.hdel\(STOP_CURSORS_KEY,parentTrade\.id\);\}/);
   assert.match(paperRoute, /await d\.hdel\(OPEN_POSITIONS_KEY,trade\.id\)/);
   assert.match(paperRoute, /for\(const openTrade of openRows\)await d\.hset\(OPEN_POSITIONS_KEY/);
   assert.match(paperRoute, /historyRetentionLimit:1000/);
@@ -779,7 +779,7 @@ test("chart shows current activity of the eight continuous local rule roles",()=
 test("target-only observation trades ignore stop-only touches and stay outside signal accuracy metrics",()=>{
   assert.match(paperRoute, /resolveTargetOnlyObservation/);
   assert.match(paperRoute, /targetOnlyObservation=trade\.experimentMode==="target-only-observation"/);
-  assert.match(paperRoute, /openedAt<closedCandles\[0\]\.time&&!targetOnlyObservation/);
+  assert.match(paperRoute, /openedAt<closedCandles\[0\]\.time&&!hasCursor&&!targetOnlyObservation/);
   assert.match(paperRoute, /decisionSource=experimentMode\?"target-only-observation"/);
   assert.match(paperRoute, /experimentMode:experimentMode\|\|null/);
   assert.match(paperRoute, /experimentObservation/);
