@@ -709,6 +709,18 @@ test("agent and paper-order previews enforce 5% position and 20% portfolio expos
   assert.match(futuresDesk, /persistent paper ledger must be loaded before sizing or opening a position/);
 });
 
+test("active paper positions survive the bounded trade-history window",()=>{
+  assert.match(paperRoute, /const OPEN_POSITIONS_KEY="tarotai:paper:open_positions"/);
+  assert.match(paperRoute, /d\.hgetall<Record<string,string>>\(OPEN_POSITIONS_KEY\)/);
+  assert.match(paperRoute, /if\(!seen\.has\(trade\.id\)\)\{rows\.push\(trade\);seen\.add\(trade\.id\);\}/);
+  assert.match(paperRoute, /async function readPaperLedger\(d:Redis\)/);
+  assert.match(paperRoute, /if\(action==="OPEN"\)await d\.hset\(OPEN_POSITIONS_KEY/);
+  assert.match(paperRoute, /if\(action==="CLOSE"&&parentTrade\)await d\.hdel\(OPEN_POSITIONS_KEY,parentTrade\.id\)/);
+  assert.match(paperRoute, /await d\.hdel\(OPEN_POSITIONS_KEY,trade\.id\)/);
+  assert.match(paperRoute, /for\(const openTrade of openRows\)await d\.hset\(OPEN_POSITIONS_KEY/);
+  assert.match(paperRoute, /historyRetentionLimit:1000/);
+});
+
 test("paper ledger writes and stop checks are serialized with an expiring token-guarded lock",()=>{
   assert.match(paperRoute, /needsLedgerLock=\["OPEN","CLOSE","STOP_CHECK","REPLAY"\]\.includes\(action\)/);
   assert.match(paperRoute, /d\.set\(lockKey,lockToken,\{nx:true,px:60000\}\)/);
