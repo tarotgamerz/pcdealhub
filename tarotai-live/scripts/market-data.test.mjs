@@ -536,10 +536,17 @@ test("automatic paper trading is opt-in, persistent-ledger gated, and records on
 });
 
 
-test("unified in-app trading desk exposes one live analysis chart with synced controls and quote", () => {
+test("unified in-app trading desk exposes one visible chart and merged strategy confirmation", () => {
   assert.match(futuresDesk, /id="liveMarketChart"/);
   assert.doesNotMatch(futuresDesk, /id="tvSyncedChart"/);
   assert.doesNotMatch(futuresDesk, /id="tradingview-panel"/);
+  assert.doesNotMatch(futuresDesk, /id="visual-strategy-panel"/);
+  assert.doesNotMatch(futuresDesk, /class="strategy-chart-wrap"/);
+  assert.match(futuresDesk, /class="strategy-engine-legacy" hidden aria-hidden="true"/);
+  assert.match(futuresDesk, /class="live-strategy-confirmation"/);
+  assert.match(futuresDesk, /id="strategySignal"/);
+  assert.match(futuresDesk, /id="strategyStop"/);
+  assert.match(futuresDesk, /id="strategyTarget"/);
   assert.match(futuresDesk, /id="live-agent-chart"/);
   assert.match(futuresDesk, /id="chartAgentCounter"/);
   assert.match(futuresDesk, /id="tvAskAgent" type="button">Run AI-enhanced 8-agent review/);
@@ -690,6 +697,24 @@ test("paper UI measures current spread and passes server-enforced exposure input
   assert.match(futuresDesk, /paperBalance:balance,riskPct,maxExposurePct/);
   assert.doesNotMatch(futuresDesk, /spreadBps:0/);
   assert.match(futuresDesk, /5% notional per position/);
+});
+
+test("agent and paper-order previews enforce 5% position and 20% portfolio exposure caps",()=>{
+  assert.match(futuresDesk, /positionNotionalCap=balance\*\.05,portfolioNotionalCap=balance\*\.20/);
+  assert.match(futuresDesk, /existingOpenNotional\+qty\*entry<=portfolioNotionalCap/);
+  assert.match(futuresDesk, /const now=Date\.now\(\),fresh=hasFreshLiveQuote\(now\)/);
+  assert.match(futuresDesk, /Math\.min\(riskBudget\/distance,notionalCap\/entry,remainingPortfolioNotional\/entry\)/);
+  assert.match(futuresDesk, /existingOpenNotional\+quantity\*entry>portfolioNotionalCap/);
+  assert.match(futuresDesk, /existingOpenNotional\+quantity\*entryReference>portfolioNotionalCap/);
+  assert.match(futuresDesk, /persistent paper ledger must be loaded before sizing or opening a position/);
+});
+
+test("paper ledger writes and stop checks are serialized with an expiring token-guarded lock",()=>{
+  assert.match(paperRoute, /needsLedgerLock=\["OPEN","CLOSE","STOP_CHECK","REPLAY"\]\.includes\(action\)/);
+  assert.match(paperRoute, /d\.set\(lockKey,lockToken,\{nx:true,px:60000\}\)/);
+  assert.match(paperRoute, /Another paper-ledger operation is in progress/);
+  assert.match(paperRoute, /d\.eval\("if redis\.call\('get', KEYS\[1\]\) == ARGV\[1\] then return redis\.call\('del', KEYS\[1\]\) else return 0 end"/);
+  assert.match(paperRoute, /\}finally\{/);
 });
 
 test("chart shows current activity of the eight continuous local rule roles",()=>{
