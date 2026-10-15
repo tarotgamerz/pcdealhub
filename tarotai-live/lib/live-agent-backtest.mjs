@@ -113,7 +113,7 @@ export function runLiveAgentStrategyBacktest(mainCandles, higherCandles, options
       feeBps < 0 || feeBps > 50 || slippageBps < 0 || slippageBps > 50 ||
       maxPositionPct <= 0 || maxPositionPct > 5 || maxPortfolioPct <= 0 || maxPortfolioPct > 20 ||
       maxDriftPct < 0 || maxDriftPct > 5) throw new Error("Invalid live-agent backtest settings");
-  if (end - from < 3 || signalFrom >= end) return { available: false, reason: "Not enough candles in this chronological segment.", closedTrades: 0, warnings: ["No performance claim is made from an empty sample."] };
+  if (end - from < 2 || signalFrom >= end) return { available: false, reason: "Not enough candles in this chronological segment.", closedTrades: 0, warnings: ["No performance claim is made from an empty sample."] };
 
   const ind = calculateIndicators(mainCandles), fee = feeBps / 10000, slip = slippageBps / 10000;
   let equity = initialBalance, peak = initialBalance, maxDD = 0, position = null;
