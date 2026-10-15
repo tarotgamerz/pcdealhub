@@ -64,3 +64,10 @@ The endpoint queues a signal for review only. It never executes an order. Use a 
 - Exchange order routes validate basic inputs and exchange acknowledgements but do not yet fetch and enforce each venue's instrument tick/lot filters, reconcile all partial fills automatically, or implement a global server-side daily-loss kill switch.
 - Paper ledger events are persistent when Upstash is configured; without it, writes fail closed. Exchange demo credentials and Redis are manual configuration requirements.
 - Live trading remains disabled; do not add production exchange hosts or production credentials to these routes.
+
+
+## Strategy ensemble upgrade — shadow phase
+
+The trading desk includes a deterministic, three-family strategy ensemble in shadow mode: higher-timeframe trend following, breakout/momentum, and range-only mean reversion. It evaluates the same verified closed candles as the live chart, requires at least two unopposed directional votes to emit a shadow LONG/SHORT suggestion, and withholds votes for stale/invalid data. Rule agreement is not a calibrated probability and is not evidence of profitability. In this phase it is deliberately excluded from entry authority: existing chart approvals and server-side risk gates remain in force until a separate fee/slippage-aware, chronological walk-forward benchmark validates any strategy promotion.
+
+This is not DRL. There are no trained policy weights or online learning claims in this change.

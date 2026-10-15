@@ -205,6 +205,16 @@
     </div>
     <p class="muted" id="strategyStatus" style="font-size:11px;margin:8px 0 0">Waiting for independent rule check. This is a confirmation signal, not a guaranteed prediction.</p>
   </section>
+  <section class="live-strategy-confirmation" aria-label="Strategy ensemble shadow study">
+    <div class="live-strategy-confirmation-head"><div><strong>Strategy ensemble · shadow mode</strong><div class="sub">Three different rule families are evaluated on the same verified closed candles. Shadow votes do not control paper entries until benchmarked out-of-sample.</div></div><span class="tag">SHADOW · NO EXECUTION AUTHORITY</span></div>
+    <div class="strategy-metrics">
+      <div class="strategy-metric"><label>Combined shadow verdict</label><strong id="ensembleBias">WAIT</strong></div>
+      <div class="strategy-metric"><label>Trend following</label><strong id="ensembleTrend">WAIT</strong></div>
+      <div class="strategy-metric"><label>Breakout / momentum</label><strong id="ensembleBreakout">WAIT</strong></div>
+      <div class="strategy-metric"><label>Mean reversion</label><strong id="ensembleMeanReversion">WAIT</strong></div>
+    </div>
+    <p class="muted" id="ensembleStatus" style="font-size:11px;margin:8px 0 0">Waiting for at least 80 valid closed candles and higher-timeframe context. This is rule agreement, not a predicted win probability.</p>
+  </section>
   <div class="live-analysis-grid">
     <div class="live-instructions"><h3>What to do now</h3><p id="liveInstruction">Fetching exchange candles. No trade is recommended until the data and timeframe checks complete.</p></div>
     <div class="live-checks"><h3>Why the agent decided this</h3><div id="liveCheckList" class="live-check-list"><div class="live-check neutral"><em>•</em><span>Waiting for closed candles and higher-timeframe data.</span></div></div></div>
@@ -242,6 +252,7 @@
 
 <div class="feature-overlay" id="featureOverlay"><nav class="feature-drawer" role="dialog" aria-modal="true" aria-label="TarotAI features"><div class="feature-drawer-head"><div class="logo">T</div><div><div class="feature-drawer-title">tarotai</div><div class="feature-drawer-sub">Select an agent or workspace</div></div><button class="feature-drawer-close" id="featureClose" type="button" aria-label="Close menu">×</button></div><div class="feature-drawer-label">AI agents</div><a class="feature-drawer-link" href="/console.html?mode=chat"><span class="feature-drawer-icon">✳</span><span><b>Chat Agent</b><span class="feature-drawer-desc">General assistant and conversation</span></span></a><a class="feature-drawer-link" href="/console.html?mode=trading"><span class="feature-drawer-icon">↗</span><span><b>Trading Agent</b><span class="feature-drawer-desc">Market analysis, setup planning and risk review</span></span></a><a class="feature-drawer-link" href="/console.html?mode=work"><span class="feature-drawer-icon">◈</span><span><b>Work Agent</b><span class="feature-drawer-desc">Structured task execution</span></span></a><a class="feature-drawer-link" href="/console.html?mode=research"><span class="feature-drawer-icon">⌕</span><span><b>Research Agent</b><span class="feature-drawer-desc">Evidence and web sources</span></span></a><a class="feature-drawer-link" href="/console.html?mode=code"><span class="feature-drawer-icon">⌘</span><span><b>Code Agent</b><span class="feature-drawer-desc">Debugging and implementation</span></span></a><a class="feature-drawer-link" href="/agents.html"><span class="feature-drawer-icon">⎇</span><span><b>Multi-Agent Workspace</b><span class="feature-drawer-desc">Coordinate specialist roles</span></span></a><a class="feature-drawer-link" href="/agents.html?profile=trading"><span class="feature-drawer-icon">⚖</span><span><b>Trading Team</b><span class="feature-drawer-desc">Market Analyst → Trading Analyst → Risk Officer → Strategy Tester</span></span></a><div class="feature-drawer-label">Workspace</div><a class="feature-drawer-link" href="/trading-desk.html"><span class="feature-drawer-icon">▤</span><span><b>Futures Lab</b><span class="feature-drawer-desc">Paper trades, backtests and risk controls</span></span></a><a class="feature-drawer-link" href="/console.html"><span class="feature-drawer-icon">⌂</span><span><b>Command Center</b><span class="feature-drawer-desc">Memory, documents, tasks and connected apps</span></span></a><div class="feature-drawer-note">Live trading remains disabled. The Futures Lab is designed for research, backtesting, persistent paper trades and explicitly confirmed demo/testnet orders only.</div></nav></div>
 <script src="/market-patterns.js"></script>
+<script src="/strategy-ensemble.js"></script>
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 <script>
 const $=id=>document.getElementById(id);
@@ -691,6 +702,24 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   const localAgentRoles=["market","entry","exits","sizing","discipline","position","journal","supervisor"];
   const localRoleNames={market:"Market Structure Analyst",entry:"Entry Setup Specialist",exits:"Stop-Loss & Take-Profit Planner",sizing:"Position Sizing & Risk Manager",discipline:"Execution Discipline Agent",position:"Live Position Manager",journal:"Trade Journal & Review Analyst",supervisor:"Agent Operations Supervisor"};
   let continuousTeamEnabled=true,continuousTeamTimer=null,continuousCycle=0;
+  function paintStrategyEnsembleShadow(result){
+    const fields=[
+      ["ensembleTrend",result&&result.strategies&&result.strategies.trend],
+      ["ensembleBreakout",result&&result.strategies&&result.strategies.breakout],
+      ["ensembleMeanReversion",result&&result.strategies&&result.strategies.meanReversion]
+    ];
+    const colorFor=bias=>bias==="LONG"?"var(--green)":bias==="SHORT"?"var(--red)":"var(--muted)";
+    fields.forEach(([id,vote])=>{const el=byId(id);if(!el)return;el.textContent=vote?vote.bias:"WAIT";el.style.color=colorFor(vote&&vote.bias);el.title=vote?vote.reason:"Ensemble data unavailable.";});
+    const finalVote=byId("ensembleBias");
+    if(finalVote){finalVote.textContent=result&&result.bias||"WAIT";finalVote.style.color=colorFor(result&&result.bias);}
+    const status=byId("ensembleStatus");
+    if(status){
+      if(!result){status.textContent="Shadow ensemble module unavailable. No ensemble claim is made.";return;}
+      status.textContent=(result.status==="READY"?"Regime: "+result.regime+" · "+result.longVotes+" long vote(s), "+result.shortVotes+" short vote(s). ":"Data gate: ")
+        +result.message+" Shadow-only: existing entry approvals and risk gates are unchanged. No probability estimate or DRL model is claimed.";
+    }
+  }
+
   function localReport(role,bias,veto,lines){return {role,name:localRoleNames[role],ok:true,bias,veto,text:lines.join("\n"),model:"local-rules-v1",source:"continuous-local",fallback:false,elapsedMs:0};}
   function runContinuousAgentCycle(){
     if(!continuousTeamEnabled){setChartAgentCounter("0/8 AGENTS ACTIVE","Monitor paused","paused");return;}
@@ -700,7 +729,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     if(closed.length<80){statusPanel.className="live-agent-consensus warn";title.textContent="Continuous team: WAITING FOR DATA";detail.textContent="Need at least 80 closed candles; currently "+closed.length+". All entries remain blocked.";setChartAgentCounter("0/8 AGENTS ACTIVE","Waiting for 80 closed candles · "+closed.length+"/80 available","warn");return;}
     const now=Date.now(),i=closed.length-1,last=closed[i],end=Number.isFinite(last.closeTime)&&last.closeTime>last.time?last.closeTime:last.time+msFor(currentInterval)-1;
     const quoteAgeMs=Number.isFinite(lastTradeAt)?now-lastTradeAt:Infinity,quoteFresh=hasFreshLiveQuote(now);
-    const stale=marketVenue==="yahoo"||now-end>msFor(currentInterval)*2+60000||!quoteFresh,closes=closed.map(c=>c.close),e9=ema(closes,9),e21=ema(closes,21),e50=ema(closes,50),rsiValues=rsi(closes,14),atrValues=atr(closed,14);
+    const stale=marketVenue==="yahoo"||now-end>msFor(currentInterval)*2+60000||!quoteFresh;const shadowEnsemble=window.TarotAIStrategyEnsemble?window.TarotAIStrategyEnsemble.evaluateStrategyEnsemble({candles:closed,higherTrend:htf.direction,fresh:!stale}):null;paintStrategyEnsembleShadow(shadowEnsemble);const closes=closed.map(c=>c.close),e9=ema(closes,9),e21=ema(closes,21),e50=ema(closes,50),rsiValues=rsi(closes,14),atrValues=atr(closed,14);
     const prior=closed.slice(Math.max(0,i-20),i),recent=closed.slice(Math.max(0,i-7),i+1),priorHigh=Math.max(...prior.map(c=>c.high)),priorLow=Math.min(...prior.map(c=>c.low));
     const htf=trendFor(higherCache,higherMap[currentInterval]||"1d"),upBreak=last.close>priorHigh,downBreak=last.close<priorLow;
     const longChecks=[e9[i]>e21[i],last.close>e50[i],rsiValues[i]>=52&&rsiValues[i]<=70,e9[i]>e9[Math.max(0,i-3)]&&last.close>closed[i-1].close,upBreak];

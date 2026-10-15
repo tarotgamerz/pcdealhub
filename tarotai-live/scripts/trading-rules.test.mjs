@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {applySlippage,calculateFee,isStale,validateStops,resolveStopTarget,resolveTargetOnlyObservation,validateOrderRequest,calculatePaperQuantity,validatePaperExposure,validatePaperDailyRisk,PAPER_MAX_POSITION_EXPOSURE_PCT,PAPER_MAX_PORTFOLIO_EXPOSURE_PCT,PAPER_MAX_DAILY_LOSS_PCT,PAPER_MAX_ENTRIES_PER_UTC_DAY} from "../lib/trading-rules.mjs";
 import { evaluateLiveAgentSignal, runLiveAgentStrategyBacktest } from "../lib/live-agent-backtest.mjs";
+import strategyEnsemble from "../public/strategy-ensemble.js";
+const { evaluateStrategyEnsemble } = strategyEnsemble;
 test("autonomous paper daily safety limits remain explicit",()=>{
  assert.equal(PAPER_MAX_DAILY_LOSS_PCT,3);
  assert.equal(PAPER_MAX_ENTRIES_PER_UTC_DAY,5);
@@ -287,4 +289,62 @@ test("live-agent backtest validates non-finite segment indices and market volume
  assert.throws(()=>runLiveAgentStrategyBacktest(main,higher,{fromIndex:NaN}),/Invalid chronological segment indices/);
  const bad=main.map(c=>({...c}));bad[90].volume=NaN;
  assert.throws(()=>evaluateLiveAgentSignal(bad,higher,100),/finite non-negative volume/);
+});
+
+function syntheticEnsembleCandles(count, mode="up") {
+ const first=1_700_000_000_000, rows=[];
+ for(let i=0;i<count;i++){
+  const close=mode==="up"?100+i*0.2:mode==="down"?140-i*0.2:100+0.05*Math.sin(i*0.7);
+  const open=i===0?close-0.03:rows[i-1].close;
+  rows.push({time:first+i*300_000,open,high:Math.max(open,close)+0.04,low:Math.min(open,close)-0.04,close,volume:100});
+ }
+ return rows;
+}
+
+test("shadow strategy ensemble requires valid closed-candle history",()=>{
+ const short=evaluateStrategyEnsemble({candles:syntheticEnsembleCandles(40),higherTrend:"BULLISH"});
+ assert.equal(short.status,"WAIT");
+ assert.equal(short.bias,"WAIT");
+ assert.match(short.message,/80 closed candles/);
+ const stale=evaluateStrategyEnsemble({candles:syntheticEnsembleCandles(100),higherTrend:"BULLISH",fresh:false});
+ assert.equal(stale.bias,"WAIT");
+ assert.match(stale.message,/Stale or unsupported/);
+});
+
+test("shadow ensemble needs two unopposed strategy votes before suggesting a direction",()=>{
+ const long=evaluateStrategyEnsemble({candles:syntheticEnsembleCandles(120,"up"),higherTrend:"BULLISH"});
+ assert.equal(long.status,"READY");
+ assert.equal(long.bias,"LONG");
+ assert.ok(long.longVotes>=2);
+ assert.equal(long.shortVotes,0);
+ assert.equal(long.isProbability,false);
+ assert.match(long.message,/rule agreement, not a probability estimate/);
+ const short=evaluateStrategyEnsemble({candles:syntheticEnsembleCandles(120,"down"),higherTrend:"BEARISH"});
+ assert.equal(short.bias,"SHORT");
+ assert.ok(short.shortVotes>=2);
+ assert.equal(short.longVotes,0);
+});
+
+test("shadow ensemble does not manufacture a trend vote without higher-timeframe confirmation",()=>{
+ const result=evaluateStrategyEnsemble({candles:syntheticEnsembleCandles(120,"up"),higherTrend:"UNAVAILABLE"});
+ assert.equal(result.strategies.trend.bias,"WAIT");
+ assert.equal(result.bias,"WAIT");
+});
+
+test("shadow ensemble rejects malformed or unordered candle inputs",()=>{
+ const candles=syntheticEnsembleCandles(100);
+ assert.equal(evaluateStrategyEnsemble({candles,higherTrend:"BULLISH"}).status,"READY");
+ const bad=candles.map(c=>({...c}));bad[50].high=bad[50].low-1;
+ assert.equal(evaluateStrategyEnsemble({candles:bad,higherTrend:"BULLISH"}).bias,"WAIT");
+ const unordered=candles.map(c=>({...c}));[unordered[20].time,unordered[21].time]=[unordered[21].time,unordered[20].time];
+ assert.equal(evaluateStrategyEnsemble({candles:unordered,higherTrend:"BULLISH"}).status,"WAIT");
+});
+
+test("ensemble is wired into the trading dashboard as shadow-only, not an entry authority",()=>{
+ const {readFileSync}=await import("node:fs");
+ const desk=readFileSync(new URL("../public/trading-desk.html",import.meta.url),"utf8");
+ assert.match(desk,/strategy-ensemble\.js/);
+ assert.match(desk,/paintStrategyEnsembleShadow\(shadowEnsemble\)/);
+ assert.match(desk,/SHADOW · NO EXECUTION AUTHORITY/);
+ assert.match(desk,/existing entry approvals and risk gates are unchanged/);
 });
