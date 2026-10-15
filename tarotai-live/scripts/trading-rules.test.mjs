@@ -219,3 +219,46 @@ test("live-agent backtest keeps train and holdout trades in their own chronologi
  assert.ok(holdout.recentTrades.every(t=>t.entryTime>t.signalTime));
  assert.equal(train.assumptions.lookahead.includes("only candles closed by then"),true);
 });
+
+
+test("live-agent backtest records a target hit separately from a window-end close",()=>{
+ const main=syntheticLiveCandles(),higher=syntheticHigherCandles(main[0].time);
+ const candidate=findQualifiedLiveSignal(main,higher);
+ assert.ok(candidate,"fixture needs a qualified setup");
+ const mutated=main.map(c=>({...c})),bar=mutated[candidate.index+1],entry=mutated[candidate.index].close;
+ const long=candidate.side==="LONG",risk=Math.abs(entry-candidate.stop),target=long?entry+2*risk:entry-2*risk;
+ bar.open=entry;bar.close=entry;
+ bar.high=long?target+.2:Math.min(candidate.stop-.05,entry+.05);
+ bar.low=long?Math.max(candidate.stop+.05,entry-.05):target-.2;
+ const result=runLiveAgentStrategyBacktest(mutated,higher,{fromIndex:candidate.index,endIndex:candidate.index+2,signalStartIndex:candidate.index});
+ assert.equal(result.closedTrades,1);
+ assert.equal(result.targetExits,1);
+ assert.equal(result.stopExits,0);
+ assert.equal(result.windowEndCloses,0);
+ assert.equal(result.recentTrades[0].exitReason,"TARGET");
+ assert.ok(result.recentTrades[0].netPnl>0);
+ assert.ok(Number.isFinite(result.recentTrades[0].exitPrice));
+});
+
+test("live-agent backtest models gap-through-stop exits at the adverse opening price",()=>{
+ const main=syntheticLiveCandles(),higher=syntheticHigherCandles(main[0].time);
+ const candidate=findQualifiedLiveSignal(main,higher);
+ assert.ok(candidate,"fixture needs a qualified setup");
+ const mutated=main.map(c=>({...c})),entryBar=mutated[candidate.index+1],entry=mutated[candidate.index].close,long=candidate.side==="LONG";
+ entryBar.open=entry;entryBar.close=entry;entryBar.high=entry+.05;entryBar.low=entry-.05;
+ const gapBar=mutated[candidate.index+2],gapOpen=long?candidate.stop-.2:candidate.stop+.2;
+ gapBar.open=gapOpen;gapBar.close=gapOpen;gapBar.high=long?gapOpen+.05:gapOpen+.2;gapBar.low=long?gapOpen-.2:gapOpen-.05;
+ const result=runLiveAgentStrategyBacktest(mutated,higher,{fromIndex:candidate.index,endIndex:candidate.index+3,signalStartIndex:candidate.index});
+ assert.equal(result.closedTrades,1);
+ assert.equal(result.recentTrades[0].exitReason,"GAP_STOP");
+ assert.equal(result.stopExits,1);
+ if(long)assert.ok(result.recentTrades[0].exitPrice<candidate.stop);
+ else assert.ok(result.recentTrades[0].exitPrice>candidate.stop);
+});
+
+test("live-agent backtest validates non-finite segment indices and market volume",()=>{
+ const main=syntheticLiveCandles(),higher=syntheticHigherCandles(main[0].time);
+ assert.throws(()=>runLiveAgentStrategyBacktest(main,higher,{fromIndex:NaN}),/Invalid chronological segment indices/);
+ const bad=main.map(c=>({...c}));bad[90].volume=NaN;
+ assert.throws(()=>evaluateLiveAgentSignal(bad,higher,100),/finite non-negative volume/);
+});
