@@ -131,7 +131,8 @@ export async function POST(req:Request){
     const marketUrl=new URL("https://www.okx.com/api/v5/market/ticker");marketUrl.searchParams.set("instId",instId);
     marketResponse=await fetch(marketUrl,{cache:"no-store",signal:AbortSignal.timeout(6000)});marketQuote=await marketResponse.json();
     const ticker=marketQuote?.code==="0"&&Array.isArray(marketQuote?.data)?marketQuote.data[0]:null;
-    if(!marketResponse.ok||!Number.isFinite(Number(ticker?.last))||Number(ticker?.last)<=0)return NextResponse.json({error:"Fresh OKX swap last-trade price could not be verified; paper trade blocked"},{status:502});
+    const timestamp=Number(ticker?.ts),ageMs=Date.now()-timestamp;
+    if(!marketResponse.ok||!Number.isFinite(Number(ticker?.last))||Number(ticker?.last)<=0||!Number.isFinite(timestamp)||timestamp<=0||ageMs< -1500||ageMs>5000)return NextResponse.json({error:"Fresh OKX swap ticker could not be verified or is older than five seconds; paper trade blocked",ageMs:Number.isFinite(ageMs)?ageMs:null},{status:502});
     const bid=Number(ticker.bidPx),ask=Number(ticker.askPx);
     verifiedBidPrice=bid;verifiedAskPrice=ask;
     verifiedSpreadBps=Number.isFinite(bid)&&Number.isFinite(ask)&&bid>0&&ask>=bid?((ask-bid)/((ask+bid)/2))*10000:Number.NaN;
@@ -141,7 +142,8 @@ export async function POST(req:Request){
     const marketUrl=new URL("https://api.bybit.com/v5/market/tickers");marketUrl.searchParams.set("category","linear");marketUrl.searchParams.set("symbol",symbol);
     marketResponse=await fetch(marketUrl,{cache:"no-store",signal:AbortSignal.timeout(6000)});marketQuote=await marketResponse.json();
     const ticker=marketQuote?.retCode===0&&Array.isArray(marketQuote?.result?.list)?marketQuote.result.list[0]:null;
-    if(!marketResponse.ok||!Number.isFinite(Number(ticker?.lastPrice))||Number(ticker?.lastPrice)<=0)return NextResponse.json({error:"Fresh Bybit linear last-trade price could not be verified; paper trade blocked"},{status:502});
+    const timestamp=Number(marketQuote?.time),ageMs=Date.now()-timestamp;
+    if(!marketResponse.ok||!Number.isFinite(Number(ticker?.lastPrice))||Number(ticker?.lastPrice)<=0||!Number.isFinite(timestamp)||timestamp<=0||ageMs< -1500||ageMs>5000)return NextResponse.json({error:"Fresh Bybit linear ticker could not be verified or is older than five seconds; paper trade blocked",ageMs:Number.isFinite(ageMs)?ageMs:null},{status:502});
     const bid=Number(ticker.bid1Price),ask=Number(ticker.ask1Price);
     verifiedBidPrice=bid;verifiedAskPrice=ask;
     verifiedSpreadBps=Number.isFinite(bid)&&Number.isFinite(ask)&&bid>0&&ask>=bid?((ask-bid)/((ask+bid)/2))*10000:Number.NaN;
