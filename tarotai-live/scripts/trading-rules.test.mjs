@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {applySlippage,calculateFee,isStale,validateStops,resolveStopTarget,resolveTargetOnlyObservation,validateOrderRequest,calculatePaperQuantity,validatePaperExposure,PAPER_MAX_POSITION_EXPOSURE_PCT,PAPER_MAX_PORTFOLIO_EXPOSURE_PCT} from "../lib/trading-rules.mjs";
+import { evaluateLiveAgentSignal, runLiveAgentStrategyBacktest } from "../lib/live-agent-backtest.mjs";
 test("paper position sizing caps notional at 5% while respecting stop-risk budget",()=>{
  assert.equal(PAPER_MAX_POSITION_EXPOSURE_PCT,5);
  assert.equal(PAPER_MAX_PORTFOLIO_EXPOSURE_PCT,20);
@@ -127,4 +128,94 @@ test("trading agent prompt requires evidence-based plugin use and protects execu
  assert.match(prompt, /Do not execute arbitrary strategy code in a dry-run\/backtest tool unless the user has explicitly approved/i);
  assert.match(prompt, /Never place live-money orders/i);
  assert.match(prompt, /Do not claim model weights were trained/i);
+});
+
+
+function syntheticLiveCandles(count=320,intervalMs=300000){
+ const first=1_700_000_000_000,rows=[];
+ for(let i=0;i<count;i++){
+  const close=100+i*.03+.6*Math.sin(i*2*Math.PI/18)+.05*Math.sin(i*.83);
+  const open=i===0?close-.04:rows[i-1].close;
+  rows.push({time:first+i*intervalMs,open,high:Math.max(open,close)+.04,low:Math.min(open,close)-.04,close,volume:100,closeTime:first+(i+1)*intervalMs-1});
+ }
+ return rows;
+}
+function syntheticHigherCandles(mainStart,count=240,intervalMs=3600000){
+ const first=mainStart-count*intervalMs,rows=[];
+ for(let i=0;i<count;i++){
+  const close=75+i*.08+.18*Math.sin(i*.43),open=i===0?close-.03:rows[i-1].close;
+  rows.push({time:first+i*intervalMs,open,high:Math.max(open,close)+.06,low:Math.min(open,close)-.06,close,volume:100,closeTime:first+(i+1)*intervalMs-1});
+ }
+ return rows;
+}
+function findQualifiedLiveSignal(main,higher,start=MIN_LIVE_WARMUP){
+ for(let i=start;i<main.length-1;i++){const out=evaluateLiveAgentSignal(main,higher,i);if(out.signal)return {index:i,...out.signal};}
+ return null;
+}
+const MIN_LIVE_WARMUP=79;
+
+test("live-agent backtest emits only a closed-candle breakout with a previously closed higher-timeframe trend",()=>{
+ const main=syntheticLiveCandles(),higher=syntheticHigherCandles(main[0].time);
+ const candidate=findQualifiedLiveSignal(main,higher);
+ assert.ok(candidate,"synthetic history should include a deterministic qualified setup");
+ assert.ok(candidate.signalTime<candidate.signalCloseTime+1);
+ assert.ok(candidate.higherCandleTime<=candidate.signalCloseTime);
+ assert.ok(candidate.longScore>=4||candidate.shortScore>=4);
+ if(candidate.side==="LONG"){assert.ok(candidate.stop<candidate.entryReference);assert.ok(candidate.target>candidate.entryReference);assert.equal(candidate.higherTrend,"BULLISH");}
+ else {assert.ok(candidate.target<candidate.entryReference);assert.ok(candidate.stop>candidate.entryReference);assert.equal(candidate.higherTrend,"BEARISH");}
+});
+
+test("live-agent signal cannot leak a higher-timeframe candle that closes after the signal candle",()=>{
+ const main=syntheticLiveCandles(),higher=syntheticHigherCandles(main[0].time);
+ const candidate=findQualifiedLiveSignal(main,higher);
+ assert.ok(candidate,"fixture needs a signal to test higher-timeframe timing");
+ const baseline=evaluateLiveAgentSignal(main,higher,candidate.index);
+ const futureOnly=higher.map(c=>c.closeTime>main[candidate.index].closeTime?{...c,open:1,high:2,low:.5,close:1,volume:100}:c);
+ const afterFutureChange=evaluateLiveAgentSignal(main,futureOnly,candidate.index);
+ assert.deepEqual(afterFutureChange,baseline);
+});
+
+test("live-agent backtest enters at the next candle open and resolves ambiguous stop/target candles conservatively",()=>{
+ const main=syntheticLiveCandles(),higher=syntheticHigherCandles(main[0].time);
+ const candidate=findQualifiedLiveSignal(main,higher);
+ assert.ok(candidate,"fixture needs a qualified setup");
+ const mutated=main.map(c=>({...c}));
+ const entryBar=mutated[candidate.index+1],entryOpen=mutated[candidate.index].close;
+ const risk=Math.abs(entryOpen-candidate.stop),target=candidate.side==="LONG"?entryOpen+2*risk:entryOpen-2*risk;
+ entryBar.open=entryOpen;entryBar.close=entryOpen;
+ entryBar.high=Math.max(entryOpen,target)+.3;
+ entryBar.low=Math.min(entryOpen,candidate.stop)-.3;
+ const result=runLiveAgentStrategyBacktest(mutated,higher,{fromIndex:candidate.index,endIndex:candidate.index+2,signalStartIndex:candidate.index,intervalMs:300000});
+ assert.equal(result.closedTrades,1);
+ assert.equal(result.recentTrades[0].signalTime,mutated[candidate.index].time);
+ assert.equal(result.recentTrades[0].entryTime,mutated[candidate.index+1].time);
+ assert.equal(result.recentTrades[0].exitReason,"STOP_AMBIGUOUS");
+ assert.equal(result.ambiguousStopFirstExits,1);
+ assert.equal(result.stopExits,1);
+ assert.equal(result.targetExits,0);
+ assert.equal(result.windowEndCloses,0);
+ assert.ok(result.recentTrades[0].netPnl<0);
+});
+
+test("live-agent backtest refuses to chase a next-bar open more than one percent from the signal close",()=>{
+ const main=syntheticLiveCandles(),higher=syntheticHigherCandles(main[0].time);
+ const candidate=findQualifiedLiveSignal(main,higher);
+ assert.ok(candidate,"fixture needs a qualified setup");
+ const mutated=main.map(c=>({...c})),bar=mutated[candidate.index+1];
+ const jumpedOpen=candidate.side==="LONG"?candidate.entryReference*1.02:candidate.entryReference*.98;
+ bar.open=jumpedOpen;bar.close=jumpedOpen;bar.high=jumpedOpen+.05;bar.low=Math.max(.01,jumpedOpen-.05);
+ const result=runLiveAgentStrategyBacktest(mutated,higher,{fromIndex:candidate.index,endIndex:candidate.index+2,signalStartIndex:candidate.index,intervalMs:300000});
+ assert.equal(result.closedTrades,0);
+ assert.equal(result.skippedEntryDrift,1);
+});
+
+test("live-agent backtest keeps train and holdout trades in their own chronological segments",()=>{
+ const main=syntheticLiveCandles(520),higher=syntheticHigherCandles(main[0].time);
+ const split=364;
+ const train=runLiveAgentStrategyBacktest(main,higher,{fromIndex:79,endIndex:split,signalStartIndex:79,intervalMs:300000});
+ const holdout=runLiveAgentStrategyBacktest(main,higher,{fromIndex:split,endIndex:main.length,signalStartIndex:split,intervalMs:300000});
+ assert.ok(train.recentTrades.every(t=>t.signalTime<main[split].time));
+ assert.ok(holdout.recentTrades.every(t=>t.signalTime>=main[split].time));
+ assert.ok(holdout.recentTrades.every(t=>t.entryTime>t.signalTime));
+ assert.equal(train.assumptions.lookahead.includes("only candles closed by then"),true);
 });
