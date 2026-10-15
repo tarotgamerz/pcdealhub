@@ -236,7 +236,7 @@
 <div class="row"><div class="field" style="flex:1;min-width:120px"><label>Venue</label><select id="venue"><option value="binance">Binance USDⓈ-M Futures</option><option value="bybit">Bybit linear perpetual</option><option value="okx">OKX perpetual swap</option></select></div><div class="field" style="flex:1;min-width:120px"><label>Symbol</label><input id="marketSymbol" value="BTCUSDT"></div><div class="field" style="flex:1;min-width:100px"><label>Interval</label><select id="marketInterval"><option>1m</option><option>5m</option><option selected>15m</option><option>1h</option><option>4h</option><option>1d</option></select></div><button class="btn" id="marketBtn">Fetch market data</button></div>
 <div id="marketResult" class="log">Not connected. Unlock to fetch verified exchange response data.</div>
 <p class="muted" style="font-size:11px;line-height:1.55;margin:12px 0 6px">Research comparison: the exact live-agent rules use closed candles, a same-exchange higher-timeframe filter, next-open execution, price-drift rejection and the same capped paper-risk settings. The SMA line is only a simple baseline with different sizing assumptions. Small holdout samples are inconclusive.</p><div class="row" style="margin-top:12px"><div class="field" style="flex:1"><label>Fast SMA period</label><input id="fastPeriod" type="number" value="9" min="2" max="99"></div><div class="field" style="flex:1"><label>Slow SMA period</label><input id="slowPeriod" type="number" value="21" min="3" max="100"></div><div class="field" style="flex:1"><label>Fee (bps/side)</label><input id="feeBps" type="number" value="5" min="0" max="50"></div><div class="field" style="flex:1"><label>Slippage (bps/side)</label><input id="slippageBps" type="number" value="2" min="0" max="50"></div><button class="btn primary" id="backtestBtn">Run backtest</button></div>
-<div id="backtestSummary" class="backtest-summary" aria-live="polite"><div class="backtest-report-block"><div class="backtest-report-title">Backtest not run</div><div class="backtest-report-note">Run the research comparison to see live-agent-rule train/holdout results alongside the SMA baseline. No orders are placed.</div></div></div><details class="backtest-raw"><summary>Show raw backtest response</summary><div id="backtestResult" class="log">Backtest has not been run. Results are research-only and do not place orders.</div></details>
+<div id="backtestSummary" class="backtest-summary" aria-live="polite"><div class="backtest-report-block"><div class="backtest-report-title">Backtest not run</div><div class="backtest-report-note">Run the research comparison to see the existing live rules, the new ensemble walk-forward folds and the SMA baseline. Fees/slippage are applied; no orders are placed.</div></div></div><details class="backtest-raw"><summary>Show raw backtest response</summary><div id="backtestResult" class="log">Backtest has not been run. Results are research-only and do not place orders.</div></details>
 <div class="row" style="margin-top:12px"><button class="btn" id="ledgerBtn">Load paper ledger</button><input id="closeTradeId" placeholder="Open trade ID to close" style="padding:9px;background:#080e16;border:1px solid #334153;border-radius:8px;color:var(--text)"><button class="btn" id="closePaperBtn">Close paper position</button><button class="btn" id="replayBtn">Save market replay</button><button class="btn" id="signalsBtn">Check TradingView signals</button><button class="btn" id="stopCheckBtn">Evaluate paper stops</button></div>
 <div id="ledgerResult" class="log">Persistent paper ledger and signal queue require configured server-side Upstash Redis.</div>
 </section>\n<section class="panel full"><h2>Exchange demo/testnet order test</h2>
@@ -341,6 +341,9 @@ function renderBacktestSummary(report,httpStatus){
   if(result.skippedInvalidatedAtOpen!==undefined)metric(grid,'Stop invalidation skips',result.skippedInvalidatedAtOpen);
   if(result.skippedSizing!==undefined)metric(grid,'Sizing rejects',result.skippedSizing);
   if(result.ambiguousStopFirstExits!==undefined)metric(grid,'Ambiguous stop-first exits',result.ambiguousStopFirstExits);
+  if(result.sumSegmentNetPnlUSDT!==undefined)metric(grid,'Sum fold P&L (reset balance)',Number(result.sumSegmentNetPnlUSDT||0).toFixed(2)+' USDT');
+  if(result.totalFeesUSDT!==undefined)metric(grid,'Total modeled fees',Number(result.totalFeesUSDT||0).toFixed(2)+' USDT');
+  if(result.positiveFolds!==undefined)metric(grid,'Positive folds',result.positiveFolds);
   section.append(grid);
   if(Array.isArray(result.warnings)&&result.warnings.length){const list=document.createElement('ul');list.className='backtest-warnings';result.warnings.slice(0,4).forEach(w=>{const item=document.createElement('li');item.textContent=w;list.append(item)});section.append(list);}
   return section;
@@ -355,6 +358,57 @@ function renderBacktestSummary(report,httpStatus){
  }else{
   root.append(block('Live-agent rules','Higher-timeframe history or exact-rule scoring was unavailable.',{available:false,reason:rule?.reason||'The endpoint did not return live-agent rule results.'}));
  }
+ 
+ const wf=report.walkForwardComparison;
+ if(wf&&wf.available){
+  const verdictBox=document.createElement('div');verdictBox.className='backtest-report-block';
+  const verdictTitle=document.createElement('div');verdictTitle.className='backtest-report-title';verdictTitle.textContent='Strategy ensemble verdict · '+String(wf.comparison?.verdict||'UNAVAILABLE');
+  const verdictNote=document.createElement('div');verdictNote.className='backtest-report-note';
+  verdictNote.textContent=String(wf.comparison?.note||'No automated promotion is permitted.')+' Mean fold-return difference vs existing rules: '+Number(wf.comparison?.meanFoldReturnDeltaPctPoints||0).toFixed(3)+' percentage points; worst-fold drawdown difference: '+Number(wf.comparison?.worstFoldDrawdownDeltaPctPoints||0).toFixed(3)+' points. Promotion is hard-disabled.';
+  verdictBox.append(verdictTitle,verdictNote);root.append(verdictBox);
+  root.append(block('Ensemble · aggregated walk-forward folds','Three sequential non-overlapping out-of-sample segments. Net return is the mean fold return; P&L sums segments that each reset to the same starting balance.',{
+    available:wf.ensemble?.walkForward?.available,
+    closedTrades:wf.ensemble?.walkForward?.closedTrades,
+    netReturnPct:wf.ensemble?.walkForward?.meanFoldReturnPct,
+    maxDrawdownPct:wf.ensemble?.walkForward?.worstFoldDrawdownPct,
+    winRatePct:wf.ensemble?.walkForward?.winRatePct,
+    profitFactor:wf.ensemble?.walkForward?.profitFactor,
+    sumSegmentNetPnlUSDT:wf.ensemble?.walkForward?.sumSegmentNetPnlUSDT,
+    totalFeesUSDT:wf.ensemble?.walkForward?.totalFeesUSDT,
+    positiveFolds:wf.ensemble?.walkForward?.positiveFolds,
+    warnings:wf.ensemble?.walkForward?.warnings
+  }));
+  root.append(block('Existing live rules · same walk-forward folds','Reference strategy evaluated on the same sequential folds and with the same fills, risk sizing, fees and slippage.',{
+    available:wf.liveAgentRules?.walkForward?.available,
+    closedTrades:wf.liveAgentRules?.walkForward?.closedTrades,
+    netReturnPct:wf.liveAgentRules?.walkForward?.meanFoldReturnPct,
+    maxDrawdownPct:wf.liveAgentRules?.walkForward?.worstFoldDrawdownPct,
+    winRatePct:wf.liveAgentRules?.walkForward?.winRatePct,
+    profitFactor:wf.liveAgentRules?.walkForward?.profitFactor,
+    sumSegmentNetPnlUSDT:wf.liveAgentRules?.walkForward?.sumSegmentNetPnlUSDT,
+    totalFeesUSDT:wf.liveAgentRules?.walkForward?.totalFeesUSDT,
+    positiveFolds:wf.liveAgentRules?.walkForward?.positiveFolds,
+    warnings:wf.liveAgentRules?.walkForward?.warnings
+  }));
+  const tableWrap=document.createElement('div');tableWrap.className='backtest-report-block';
+  const foldTitle=document.createElement('div');foldTitle.className='backtest-report-title';foldTitle.textContent='Walk-forward fold-by-fold comparison';tableWrap.append(foldTitle);
+  const table=document.createElement('table');table.style.width='100%';table.style.borderCollapse='collapse';table.style.fontSize='12px';table.style.marginTop='8px';
+  const headers=['Window','Existing rules return / trades / DD','Ensemble return / trades / DD'];
+  const thead=document.createElement('thead'),hr=document.createElement('tr');
+  headers.forEach(label=>{const th=document.createElement('th');th.textContent=label;th.style.textAlign='left';th.style.padding='8px 5px';th.style.borderBottom='1px solid var(--border)';hr.append(th)});thead.append(hr);table.append(thead);
+  const tbody=document.createElement('tbody');
+  const rows=(wf.folds||[]).map(f=>({label:'Fold '+f.fold,baseline:f.liveAgentRules,candidate:f.ensemble}));
+  rows.push({label:'Final segment',baseline:wf.finalHoldout?.liveAgentRules,candidate:wf.finalHoldout?.ensemble});
+  rows.forEach(row=>{const tr=document.createElement('tr');const label=document.createElement('td');label.textContent=row.label;const baseline=document.createElement('td');const candidate=document.createElement('td');
+    const describe=x=>!x||x.available===false?'Unavailable':Number(x.netReturnPct||0).toFixed(2)+'% · '+Number(x.closedTrades||0)+' trades · '+Number(x.maxDrawdownPct||0).toFixed(2)+'% DD';
+    baseline.textContent=describe(row.baseline);candidate.textContent=describe(row.candidate);
+    [label,baseline,candidate].forEach(td=>{td.style.padding='8px 5px';td.style.borderBottom='1px solid var(--border)';td.style.verticalAlign='top'});tr.append(label,baseline,candidate);tbody.append(tr);
+  });table.append(tbody);tableWrap.append(table);root.append(tableWrap);
+  root.append(block('Final chronological segment · ensemble','Later time segment scored separately from the three walk-forward folds. Viewing these results means this segment must not be reused as an untouched final release test.',wf.finalHoldout?.ensemble));
+ }else{
+  root.append(block('Strategy ensemble · walk-forward comparison','The comparison could not be scored with the available closed history.',{available:false,reason:wf?.reason||'The comparison was unavailable because same-venue higher-timeframe candles could not be verified.'}));
+ }
+
  root.append(block('SMA crossover baseline · training segment','Simple baseline; uses 100% unlevered simulated equity and different position sizing from live-agent rules.',report.train));
  root.append(block('SMA crossover baseline · chronological holdout','Simple baseline only; compare cautiously because its sizing assumptions differ.',report.test));
  const ending=document.createElement('div');ending.className='backtest-report-note';ending.textContent='Research only. Do not treat a high win rate from a small sample as evidence of a reliable edge. Validate with a further untouched period, realistic spread/funding assumptions and persistent paper forward testing before considering any real-money use.';root.append(ending);

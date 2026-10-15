@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { isAuthorized } from "../../../../lib/auth";
 import { getIntervalMs, runSmaCrossoverBacktest, validateBacktestCandles } from "../../../../lib/trading-backtest.mjs";
-import { runLiveAgentStrategyBacktest } from "../../../../lib/live-agent-backtest.mjs";
+import { runLiveAgentStrategyBacktest, runWalkForwardStrategyComparison } from "../../../../lib/live-agent-backtest.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -166,6 +166,7 @@ export async function POST(request: Request) {
     const stepMs = getIntervalMs(interval)!;
     const higherInterval = HIGHER_INTERVAL[interval] || interval;
     let liveAgentStrategy: Record<string, unknown>;
+    let walkForwardComparison: Record<string, unknown>;
     let higherTimeframeContext: Record<string, unknown> | null = null;
     try {
       // Keep both strategy and higher-timeframe candles on the exact venue resolved for the main sample.
@@ -192,6 +193,7 @@ export async function POST(request: Request) {
         train: runLiveAgentStrategyBacktest(candles, higherCandles, { ...liveOptions, fromIndex: 79, endIndex: split, signalStartIndex: 79 }),
         holdout: runLiveAgentStrategyBacktest(candles, higherCandles, { ...liveOptions, fromIndex: split, endIndex: candles.length, signalStartIndex: split })
       };
+      walkForwardComparison = runWalkForwardStrategyComparison(candles, higherCandles, liveOptions);
     } catch (strategyError) {
       liveAgentStrategy = {
         available: false,
@@ -199,12 +201,14 @@ export async function POST(request: Request) {
         reason: strategyError instanceof Error ? strategyError.message : "Higher-timeframe history was unavailable",
         warnings: ["The SMA research baseline below ran separately. The exact live-agent rules were not scored because same-venue higher-timeframe data was unavailable."]
       };
+      walkForwardComparison = { available: false, mode: "RESEARCH_ONLY_NO_ORDERS", reason: liveAgentStrategy.reason || "Same-venue higher-timeframe history was unavailable." };
     }
     return NextResponse.json({
       mode: "RESEARCH_ONLY_NO_ORDERS",
       source: resolvedVenue === "binance" ? "Binance USDⓈ-M Futures public market history" : resolvedVenue === "bybit" ? "Bybit Linear Futures public market history" : "OKX USDT-margined swaps public market history",
       requestedVenue: venue, venue: resolvedVenue, sourceHost, symbol, interval, candles: candles.length, splitIndex: split,
       liveAgentStrategy,
+      walkForwardComparison,
       higherTimeframeContext,
       history: { firstClosedCandleTime: candles[0].time, lastClosedCandleTime: candles[candles.length - 1].time, lastCandleAgeMs: Date.now() - candles[candles.length - 1].time, candleIntervalMs: stepMs, unfinishedCandlesExcluded: true },
       strategy: { type: "simple moving-average crossover", fastPeriod: fast, slowPeriod: slow, signalCalculatedOn: "closed candle", executionAssumption: "next candle open" },
@@ -221,7 +225,8 @@ export async function POST(request: Request) {
         "The 70/30 split is chronological. Do not tune periods on the test segment; preserve a further untouched period for final confirmation.",
         "Treat the holdout as weak evidence when trade count is small; seek many more trades across different market regimes and symbols.",
         "A simple SMA crossover may have no edge after costs. Past simulation results do not guarantee future returns.",
-        "Live-agent strategy results are a rule-replication research test, not a claim of validated profitability. Treat empty/small holdout samples as inconclusive; use a further untouched period and paper forward testing."
+        "Live-agent strategy results are a rule-replication research test, not a claim of validated profitability. Treat empty/small holdout samples as inconclusive; use a further untouched period and paper forward testing.",
+        "The new three-fold ensemble comparison uses the same fill/risk assumptions for both rule families but is still OHLC-only research. It cannot authorize or change autonomous paper entries; automatedPromotionAllowed remains false."
       ]
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

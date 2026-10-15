@@ -44,3 +44,11 @@ All tests must run with live trading disabled and must never send production ord
 - Smoke-test deployed routes with authentication enabled.
 - Do not claim tests passed until actual results are recorded.
 - Keep live trading hard-disabled.
+
+## Ensemble walk-forward research
+- Score ensemble and current live rules on the same exact closed-candle history and chronological windows.
+- Keep the first 55% as historical indicator context; evaluate three consecutive non-overlapping folds across 55–85% and report the final 15% separately.
+- Use next-candle-open entry, identical stop/target handling, risk sizing, fees and slippage for both compared strategies.
+- Prevent future higher-timeframe candles from entering a signal; test fold boundaries and signal timestamps.
+- Report fold metrics and low-sample warnings; no result may automatically enable paper-entry authority or live order execution.
+- Treat OHLC-only backtests as incomplete because historical spread, funding, market impact, latency, partial fills and liquidation are not reconstructed.

@@ -71,3 +71,10 @@ The endpoint queues a signal for review only. It never executes an order. Use a 
 The trading desk includes a deterministic, three-family strategy ensemble in shadow mode: higher-timeframe trend following, breakout/momentum, and range-only mean reversion. It evaluates the same verified closed candles as the live chart, requires at least two unopposed directional votes to emit a shadow LONG/SHORT suggestion, and withholds votes for stale/invalid data. Rule agreement is not a calibrated probability and is not evidence of profitability. In this phase it is deliberately excluded from entry authority: existing chart approvals and server-side risk gates remain in force until a separate fee/slippage-aware, chronological walk-forward benchmark validates any strategy promotion.
 
 This is not DRL. There are no trained policy weights or online learning claims in this change.
+
+
+## Ensemble walk-forward backtest
+
+The private backtest endpoint now compares the frozen three-family strategy ensemble against the current live-chart rules on identical sequential windows, with the same next-candle-open entry logic, stop/2R handling, risk sizing, fee and slippage assumptions. The first 55% of history supplies context, 55–85% is split into three sequential non-overlapping evaluation folds, and the final 15% is reported separately. No thresholds are tuned against these folds.
+
+Results are research-only: the aggregate return is a mean across folds, and the summed fold P&L resets simulated starting balance for each fold; it must not be mistaken for continuous compounded account performance. The verdict requires at least 100 closed trades per strategy for a preliminary screen, never enables automatic promotion, and remains inconclusive with small samples. Funding, historic spread, market impact, latency, and liquidation are not modeled. DRL is not part of this upgrade.

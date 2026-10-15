@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {applySlippage,calculateFee,isStale,validateStops,resolveStopTarget,resolveTargetOnlyObservation,validateOrderRequest,calculatePaperQuantity,validatePaperExposure,validatePaperDailyRisk,PAPER_MAX_POSITION_EXPOSURE_PCT,PAPER_MAX_PORTFOLIO_EXPOSURE_PCT,PAPER_MAX_DAILY_LOSS_PCT,PAPER_MAX_ENTRIES_PER_UTC_DAY} from "../lib/trading-rules.mjs";
-import { evaluateLiveAgentSignal, runLiveAgentStrategyBacktest } from "../lib/live-agent-backtest.mjs";
+import { evaluateLiveAgentSignal, runLiveAgentStrategyBacktest, runWalkForwardStrategyComparison } from "../lib/live-agent-backtest.mjs";
 import strategyEnsemble from "../public/strategy-ensemble.js";
 const { evaluateStrategyEnsemble } = strategyEnsemble;
 test("autonomous paper daily safety limits remain explicit",()=>{
@@ -347,3 +347,49 @@ test("ensemble is wired into the trading dashboard as shadow-only, not an entry 
  assert.match(desk,/SHADOW · NO EXECUTION AUTHORITY/);
  assert.match(desk,/existing entry approvals and risk gates are unchanged/);
 });
+
+test("walk-forward comparison scores the ensemble and current rules on identical sequential folds",()=>{
+ const main=syntheticLiveCandles(600),higher=syntheticHigherCandles(main[0].time);
+ const result=runWalkForwardStrategyComparison(main,higher,{initialBalance:10000,riskPct:0.5,feeBps:5,slippageBps:2});
+ assert.equal(result.available,true);
+ assert.equal(result.mode,"RESEARCH_ONLY_NO_ORDERS");
+ assert.equal(result.folds.length,3);
+ assert.equal(result.ensemble.strategyMode,"strategy-ensemble");
+ assert.equal(result.liveAgentRules.strategyMode,"live-agent-rules");
+ assert.equal(result.comparison.automatedPromotionAllowed,false);
+ assert.equal(result.comparison.minimumTradesPerStrategyForScreen,100);
+ assert.ok(result.folds[0].fromIndex<result.folds[0].endIndex);
+ assert.equal(result.folds[0].endIndex,result.folds[1].fromIndex);
+ assert.equal(result.folds[1].endIndex,result.folds[2].fromIndex);
+ assert.equal(result.folds[2].endIndex,result.finalHoldout.fromIndex);
+ for(const fold of result.folds){
+  assert.ok(fold.liveAgentRules.recentTrades.every(t=>t.signalTime>=main[fold.fromIndex].time&&t.signalTime<main[fold.endIndex].time));
+  assert.ok(fold.ensemble.recentTrades.every(t=>t.signalTime>=main[fold.fromIndex].time&&t.signalTime<main[fold.endIndex].time));
+  assert.equal(fold.ensemble.strategyMode,"strategy-ensemble");
+ }
+ assert.ok(Number.isFinite(result.ensemble.walkForward.meanFoldReturnPct));
+ assert.ok(Number.isFinite(result.liveAgentRules.walkForward.worstFoldDrawdownPct));
+ assert.match(result.method,/No parameters are optimized/);
+});
+
+test("walk-forward comparison rejects insufficient history without inventing performance",()=>{
+ const main=syntheticLiveCandles(300),higher=syntheticHigherCandles(main[0].time);
+ const result=runWalkForwardStrategyComparison(main,higher);
+ assert.equal(result.available,false);
+ assert.equal(result.mode,"RESEARCH_ONLY_NO_ORDERS");
+ assert.match(result.reason,/at least 400 closed main-timeframe candles/);
+ assert.equal(result.finalHoldout,undefined);
+});
+
+test("ensemble walk-forward uses the same fees, slippage, sizing and no-order boundary as the baseline",()=>{
+ const main=syntheticLiveCandles(520),higher=syntheticHigherCandles(main[0].time);
+ const result=runWalkForwardStrategyComparison(main,higher,{initialBalance:5000,riskPct:0.3,feeBps:8,slippageBps:4});
+ assert.equal(result.assumptions.startingBalancePerSegmentUSDT,5000);
+ assert.equal(result.assumptions.riskPctPerTrade,0.3);
+ assert.equal(result.assumptions.feeBpsPerSide,8);
+ assert.equal(result.assumptions.slippageBpsPerSide,4);
+ assert.equal(result.comparison.automatedPromotionAllowed,false);
+ assert.equal(result.liveAgentRules.walkForward.initialBalancePerFold,5000);
+ assert.equal(result.ensemble.walkForward.initialBalancePerFold,5000);
+});
+

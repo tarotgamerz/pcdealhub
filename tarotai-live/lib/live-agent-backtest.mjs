@@ -1,4 +1,6 @@
 import { validateBacktestCandles } from "./trading-backtest.mjs";
+import strategyEnsemble from "../public/strategy-ensemble.js";
+const { evaluateStrategyEnsemble } = strategyEnsemble;
 
 const MIN_SIGNAL_HISTORY = 80;
 const HTF_LOOKBACK = 180;
@@ -91,6 +93,58 @@ function signalAt(candles, higher, i, ind) {
   } };
 }
 
+function signalAtEnsemble(candles, higher, i, ind) {
+  if (i < MIN_SIGNAL_HISTORY - 1 || i >= candles.length) return { signal: null, reason: "WARMUP" };
+  const last = candles[i], av = ind.atr[i], rv = ind.rsi[i];
+  if (!Number.isFinite(av) || av <= 0 || !Number.isFinite(rv)) return { signal: null, reason: "INDICATORS_UNAVAILABLE" };
+  // Evaluate only the history available at this signal candle; never pass future candles to the ensemble.
+  const htf = trendAt(higher, last.closeTime);
+  const htfDirection = !htf.ready ? "UNAVAILABLE" : htf.up ? "BULLISH" : htf.down ? "BEARISH" : "MIXED";
+  const vote = evaluateStrategyEnsemble({
+    candles: candles.slice(0, i + 1),
+    higherTrend: htfDirection,
+    fresh: true
+  });
+  if (vote.bias !== "LONG" && vote.bias !== "SHORT") {
+    return { signal: null, reason: vote.status === "WAIT" ? "ENSEMBLE_DATA_GATE" : "NO_ENSEMBLE_AGREEMENT", ensemble: vote };
+  }
+  const side = vote.bias;
+  const recent = candles.slice(Math.max(0, i - 7), i + 1);
+  const entry = last.close;
+  const stop = side === "LONG"
+    ? Math.min(entry - av * 1.5, Math.min(...recent.map((c) => c.low)) - av * 0.1)
+    : Math.max(entry + av * 1.5, Math.max(...recent.map((c) => c.high)) + av * 0.1);
+  if (!Number.isFinite(stop) || stop <= 0 || (side === "LONG" ? stop >= entry : stop <= entry)) {
+    return { signal: null, reason: "INVALID_STOP", ensemble: vote };
+  }
+  const risk = Math.abs(entry - stop);
+  return {
+    reason: "ENSEMBLE_AGREEMENT",
+    ensemble: vote,
+    signal: {
+      strategyMode: "strategy-ensemble",
+      side,
+      signalIndex: i,
+      signalTime: last.time,
+      signalCloseTime: last.closeTime,
+      entryReference: entry,
+      stop,
+      target: side === "LONG" ? entry + risk * 2 : entry - risk * 2,
+      atr: av,
+      rsi: rv,
+      longScore: vote.longVotes,
+      shortScore: vote.shortVotes,
+      higherTrend: htf.direction,
+      ensembleRegime: vote.regime,
+      ensembleVotes: {
+        trend: vote.strategies.trend.bias,
+        breakout: vote.strategies.breakout.bias,
+        meanReversion: vote.strategies.meanReversion.bias
+      }
+    }
+  };
+}
+
 export function evaluateLiveAgentSignal(mainCandles, higherCandles, index) {
   validateCandleSeries(mainCandles, "Main timeframe");
   validateCandleSeries(higherCandles, "Higher timeframe");
@@ -105,6 +159,8 @@ export function runLiveAgentStrategyBacktest(mainCandles, higherCandles, options
   const feeBps = Number(options.feeBps ?? 5), slippageBps = Number(options.slippageBps ?? 2);
   const maxPositionPct = Number(options.maxPositionExposurePct ?? 5), maxPortfolioPct = Number(options.maxPortfolioExposurePct ?? 20);
   const maxDriftPct = Number(options.maxEntryDriftPct ?? 1);
+  const strategyMode = String(options.strategyMode ?? "live-agent-rules");
+  if (!["live-agent-rules", "strategy-ensemble"].includes(strategyMode)) throw new Error("Unsupported backtest strategy mode");
   const rawFrom = Number(options.fromIndex ?? MIN_SIGNAL_HISTORY - 1);
   const rawEnd = Number(options.endIndex ?? mainCandles.length);
   const rawSignalFrom = Number(options.signalStartIndex ?? rawFrom);
@@ -118,7 +174,7 @@ export function runLiveAgentStrategyBacktest(mainCandles, higherCandles, options
       maxPositionPct <= 0 || maxPositionPct > 5 || maxPortfolioPct <= 0 || maxPortfolioPct > 20 ||
       maxDriftPct < 0 || maxDriftPct > 5) throw new Error("Invalid live-agent backtest settings");
   if (end - from < 2 || signalFrom >= end) return {
-    available: false, reason: "Not enough candles in this chronological segment.", initialBalance, endingBalance: initialBalance,
+    available: false, strategyMode, reason: "Not enough candles in this chronological segment.", initialBalance, endingBalance: initialBalance,
     netPnl: 0, netReturnPct: 0, buyHoldReturnPct: 0, closedTrades: 0, signalsEvaluated: 0, qualifiedSignals: 0,
     openedTrades: 0, skippedEntryDrift: 0, skippedInvalidatedAtOpen: 0, skippedSizing: 0,
     stopExits: 0, targetExits: 0, windowEndCloses: 0, ambiguousStopFirstExits: 0,
@@ -150,7 +206,7 @@ export function runLiveAgentStrategyBacktest(mainCandles, higherCandles, options
     equity += gross - exitFee;
     const plannedRisk = Math.abs(pos.entryFill - pos.stop) * pos.quantity;
     trades.push({
-      side: pos.side, signalTime: pos.signal.signalTime, entryTime: mainCandles[pos.entryIndex].time, exitTime: mainCandles[i].time,
+      side: pos.side, strategyMode: pos.signal.strategyMode || "live-agent-rules", signalTime: pos.signal.signalTime, entryTime: mainCandles[pos.entryIndex].time, exitTime: mainCandles[i].time,
       signalPrice: pos.signal.entryReference, entryPrice: Number(pos.entryFill.toFixed(8)), exitPrice: Number(exitFill.toFixed(8)), stopPrice: Number(pos.stop.toFixed(8)),
       targetPrice: Number(pos.target.toFixed(8)), quantity: Number(pos.quantity.toFixed(8)),
       notional: Number((pos.entryFill * pos.quantity).toFixed(8)), plannedRisk: Number(plannedRisk.toFixed(8)),
@@ -186,7 +242,9 @@ export function runLiveAgentStrategyBacktest(mainCandles, higherCandles, options
       } else updateDD(hypotheticalEquity(p.side === "LONG" ? bar.low : bar.high, p));
     }
     if (position || i < signalFrom || i < MIN_SIGNAL_HISTORY - 1 || i >= end - 1) continue;
-    const evaluated = signalAt(mainCandles, higherCandles, i, ind);
+    const evaluated = strategyMode === "strategy-ensemble"
+      ? signalAtEnsemble(mainCandles, higherCandles, i, ind)
+      : signalAt(mainCandles, higherCandles, i, ind);
     signalsEvaluated++;
     if (!evaluated.signal) continue;
     qualifiedSignals++;
@@ -220,12 +278,16 @@ export function runLiveAgentStrategyBacktest(mainCandles, higherCandles, options
   if (!trades.length) warnings.push("No trades qualified in this segment; no strategy edge is demonstrated.");
   if (ambiguousExits) warnings.push("Ambiguous OHLC bars touching stop and target were conservatively counted as stop exits.");
   warnings.push("OHLC-only research cannot reconstruct historical bid/ask, funding, market impact, latency or liquidation. It is not a live-execution result.");
+  if (strategyMode === "strategy-ensemble") warnings.push("Ensemble vote agreement is a deterministic rule result, not a calibrated probability or evidence of profitability.");
   return {
-    available: true, initialBalance, endingBalance: Number(equity.toFixed(8)), netPnl: Number(netPnl.toFixed(8)),
+    available: true, strategyMode, initialBalance, endingBalance: Number(equity.toFixed(8)), netPnl: Number(netPnl.toFixed(8)),
     netReturnPct: Number((netPnl / initialBalance * 100).toFixed(4)), buyHoldReturnPct: Number(buyHold.toFixed(4)),
     closedTrades: trades.length, signalsEvaluated, qualifiedSignals, openedTrades: trades.length,
     skippedEntryDrift: driftSkips, skippedInvalidatedAtOpen: invalidatedSkips, skippedSizing: sizingSkips,
     stopExits, targetExits, windowEndCloses, ambiguousStopFirstExits: ambiguousExits,
+    winningTrades: wins.length, losingTrades: losses.length,
+    grossProfit: Number(totalWins.toFixed(8)), grossLoss: Number(totalLosses.toFixed(8)),
+    totalFees: Number(trades.reduce((sum, trade) => sum + trade.fees, 0).toFixed(8)),
     winRatePct: trades.length ? Number((wins.length / trades.length * 100).toFixed(2)) : 0,
     profitFactor: totalLosses > 0 ? Number((totalWins / totalLosses).toFixed(3)) : totalWins > 0 ? null : 0,
     averageTradePnl: trades.length ? Number((netPnl / trades.length).toFixed(8)) : 0,
@@ -242,3 +304,182 @@ export function runLiveAgentStrategyBacktest(mainCandles, higherCandles, options
     }
   };
 }
+
+
+function aggregateWalkForwardRuns(runs, initialBalance) {
+  const closedTrades = runs.reduce((sum, run) => sum + Number(run.closedTrades || 0), 0);
+  const winningTrades = runs.reduce((sum, run) => sum + Number(run.winningTrades || 0), 0);
+  const losingTrades = runs.reduce((sum, run) => sum + Number(run.losingTrades || 0), 0);
+  const grossProfit = runs.reduce((sum, run) => sum + Number(run.grossProfit || 0), 0);
+  const grossLoss = runs.reduce((sum, run) => sum + Number(run.grossLoss || 0), 0);
+  const totalFees = runs.reduce((sum, run) => sum + Number(run.totalFees || 0), 0);
+  const meanFoldReturnPct = runs.length
+    ? runs.reduce((sum, run) => sum + Number(run.netReturnPct || 0), 0) / runs.length : 0;
+  const positiveFolds = runs.filter((run) => Number(run.netReturnPct || 0) > 0).length;
+  const worstFoldDrawdownPct = runs.length
+    ? Math.max(...runs.map((run) => Number(run.maxDrawdownPct || 0))) : 0;
+  const netPnlWithBalanceReset = runs.reduce((sum, run) => sum + Number(run.netPnl || 0), 0);
+  const warnings = [];
+  if (closedTrades < 30) warnings.push("Fewer than 30 out-of-sample closed trades across folds: results are highly uncertain.");
+  if (closedTrades < 100) warnings.push("Fewer than 100 out-of-sample closed trades: do not treat the fold aggregate as evidence of a robust edge.");
+  if (runs.some((run) => !run.available)) warnings.push("One or more chronological folds were unavailable; the comparison is incomplete.");
+  warnings.push("The P&L total adds segments that each reset to the same starting balance; it is not a continuous compounded-account result.");
+  warnings.push("Maximum drawdown is the worst individual fold drawdown; drawdown across a continuous live account may differ.");
+  return {
+    available: runs.length > 0 && runs.every((run) => run.available),
+    foldCount: runs.length,
+    initialBalancePerFold: initialBalance,
+    closedTrades,
+    winningTrades,
+    losingTrades,
+    meanFoldReturnPct: Number(meanFoldReturnPct.toFixed(4)),
+    positiveFolds,
+    sumSegmentNetPnlUSDT: Number(netPnlWithBalanceReset.toFixed(8)),
+    totalFeesUSDT: Number(totalFees.toFixed(8)),
+    winRatePct: closedTrades ? Number((winningTrades / closedTrades * 100).toFixed(2)) : 0,
+    profitFactor: grossLoss > 0 ? Number((grossProfit / grossLoss).toFixed(3)) : grossProfit > 0 ? null : 0,
+    worstFoldDrawdownPct: Number(worstFoldDrawdownPct.toFixed(4)),
+    warnings
+  };
+}
+
+/**
+ * Compares frozen strategies on sequential out-of-sample folds.
+ * The first 55% supplies historical context, 55–85% is split into
+ * three non-overlapping walk-forward folds, and the last 15% is scored
+ * separately as the final chronological segment. No parameters are tuned.
+ */
+export function runWalkForwardStrategyComparison(mainCandles, higherCandles, options = {}) {
+  validateCandleSeries(mainCandles, "Main timeframe");
+  validateCandleSeries(higherCandles, "Higher timeframe");
+  const initialBalance = Number(options.initialBalance ?? 10000);
+  const riskPct = Number(options.riskPct ?? 0.5);
+  const feeBps = Number(options.feeBps ?? 5);
+  const slippageBps = Number(options.slippageBps ?? 2);
+  const maxPositionExposurePct = Number(options.maxPositionExposurePct ?? 5);
+  const maxPortfolioExposurePct = Number(options.maxPortfolioExposurePct ?? 20);
+  const maxEntryDriftPct = Number(options.maxEntryDriftPct ?? 1);
+  const minimumHistory = 400;
+  if (![initialBalance, riskPct, feeBps, slippageBps, maxPositionExposurePct, maxPortfolioExposurePct, maxEntryDriftPct].every(Number.isFinite) ||
+      initialBalance < 100 || initialBalance > 10000000 || riskPct < 0.1 || riskPct > 1 ||
+      feeBps < 0 || feeBps > 50 || slippageBps < 0 || slippageBps > 50 ||
+      maxPositionExposurePct <= 0 || maxPositionExposurePct > 5 ||
+      maxPortfolioExposurePct <= 0 || maxPortfolioExposurePct > 20 ||
+      maxEntryDriftPct < 0 || maxEntryDriftPct > 5) {
+    throw new Error("Invalid walk-forward comparison settings");
+  }
+  const n = mainCandles.length;
+  if (n < minimumHistory) {
+    return {
+      available: false,
+      reason: "Walk-forward comparison needs at least " + minimumHistory + " closed main-timeframe candles; only " + n + " were supplied.",
+      minimumHistory,
+      candles: n,
+      mode: "RESEARCH_ONLY_NO_ORDERS"
+    };
+  }
+
+  const contextEnd = Math.floor(n * 0.55);
+  const walkForwardEnd = Math.floor(n * 0.85);
+  const totalOosBars = walkForwardEnd - contextEnd;
+  if (contextEnd < MIN_SIGNAL_HISTORY || totalOosBars < 6 || n - walkForwardEnd < 2) {
+    return { available: false, reason: "Insufficient candle count for the required chronological folds.", minimumHistory, candles: n, mode: "RESEARCH_ONLY_NO_ORDERS" };
+  }
+
+  const common = {
+    initialBalance, riskPct, feeBps, slippageBps,
+    maxPositionExposurePct, maxPortfolioExposurePct, maxEntryDriftPct
+  };
+  const folds = [];
+  const foldCount = 3;
+  for (let foldIndex = 0; foldIndex < foldCount; foldIndex++) {
+    const fromIndex = contextEnd + Math.floor(totalOosBars * foldIndex / foldCount);
+    const endIndex = contextEnd + Math.floor(totalOosBars * (foldIndex + 1) / foldCount);
+    const baseline = runLiveAgentStrategyBacktest(mainCandles, higherCandles, {
+      ...common, fromIndex, endIndex, signalStartIndex: fromIndex, strategyMode: "live-agent-rules"
+    });
+    const ensemble = runLiveAgentStrategyBacktest(mainCandles, higherCandles, {
+      ...common, fromIndex, endIndex, signalStartIndex: fromIndex, strategyMode: "strategy-ensemble"
+    });
+    folds.push({
+      fold: foldIndex + 1,
+      fromIndex,
+      endIndex,
+      firstTestCandleTime: mainCandles[fromIndex]?.time ?? null,
+      lastTestCandleTime: mainCandles[Math.max(fromIndex, endIndex - 1)]?.time ?? null,
+      liveAgentRules: baseline,
+      ensemble
+    });
+  }
+
+  const finalFrom = walkForwardEnd;
+  const finalHoldout = {
+    fromIndex: finalFrom,
+    endIndex: n,
+    firstTestCandleTime: mainCandles[finalFrom]?.time ?? null,
+    lastTestCandleTime: mainCandles[n - 1]?.time ?? null,
+    liveAgentRules: runLiveAgentStrategyBacktest(mainCandles, higherCandles, {
+      ...common, fromIndex: finalFrom, endIndex: n, signalStartIndex: finalFrom, strategyMode: "live-agent-rules"
+    }),
+    ensemble: runLiveAgentStrategyBacktest(mainCandles, higherCandles, {
+      ...common, fromIndex: finalFrom, endIndex: n, signalStartIndex: finalFrom, strategyMode: "strategy-ensemble"
+    })
+  };
+  const liveAgentAggregate = aggregateWalkForwardRuns(folds.map((fold) => fold.liveAgentRules), initialBalance);
+  const ensembleAggregate = aggregateWalkForwardRuns(folds.map((fold) => fold.ensemble), initialBalance);
+  const returnDelta = Number((ensembleAggregate.meanFoldReturnPct - liveAgentAggregate.meanFoldReturnPct).toFixed(4));
+  const drawdownDelta = Number((ensembleAggregate.worstFoldDrawdownPct - liveAgentAggregate.worstFoldDrawdownPct).toFixed(4));
+  let verdict;
+  if (!liveAgentAggregate.available || !ensembleAggregate.available ||
+      ensembleAggregate.closedTrades < 100 || liveAgentAggregate.closedTrades < 100) {
+    verdict = "INCONCLUSIVE_LOW_SAMPLE";
+  } else if (returnDelta > 0 && drawdownDelta <= 0) {
+    verdict = "PROMISING_NOT_VALIDATED";
+  } else {
+    verdict = "ENSEMBLE_NOT_BETTER_IN_THIS_SAMPLE";
+  }
+
+  return {
+    available: true,
+    mode: "RESEARCH_ONLY_NO_ORDERS",
+    method: "Frozen rules; first 55% historical context, three non-overlapping walk-forward folds over 55–85%, and a separately scored final 15% chronological segment. No parameters are optimized by this evaluation.",
+    sample: { totalClosedCandles: n, contextEndIndex: contextEnd, walkForwardEndIndex: walkForwardEnd, finalHoldoutStartIndex: finalFrom },
+    assumptions: {
+      startingBalancePerSegmentUSDT: initialBalance,
+      riskPctPerTrade: riskPct,
+      feeBpsPerSide: feeBps,
+      slippageBpsPerSide: slippageBps,
+      maxPositionNotionalPct: maxPositionExposurePct,
+      maxPortfolioNotionalPct: maxPortfolioExposurePct,
+      maxEntryDriftPct,
+      entry: "Next candle open after a closed-candle signal; entries beyond the drift cap are skipped",
+      exit: "Signal-derived stop, 2R target, conservative stop-first when stop and target are both touched within one OHLC candle",
+      costs: "Adverse entry and exit slippage plus entry and exit fees; funding, historical spread, market impact, latency and liquidation are not simulated",
+      higherTimeframe: "Only higher-timeframe candles closed by the signal candle close are eligible",
+      continuousCapital: "Each fold starts with the same simulated balance; aggregates report mean fold return and reset-balance P&L, not a compounded continuous account"
+    },
+    liveAgentRules: { strategyMode: "live-agent-rules", walkForward: liveAgentAggregate },
+    ensemble: { strategyMode: "strategy-ensemble", walkForward: ensembleAggregate },
+    folds,
+    finalHoldout,
+    comparison: {
+      verdict,
+      meanFoldReturnDeltaPctPoints: returnDelta,
+      worstFoldDrawdownDeltaPctPoints: drawdownDelta,
+      minimumTradesPerStrategyForScreen: 100,
+      automatedPromotionAllowed: false,
+      note: verdict === "PROMISING_NOT_VALIDATED"
+        ? "The ensemble passed a preliminary screen only; retain shadow mode and require additional unseen data plus forward paper trading."
+        : verdict === "ENSEMBLE_NOT_BETTER_IN_THIS_SAMPLE"
+          ? "The ensemble did not outperform on both average fold return and worst-fold drawdown. Do not promote it."
+          : "Trade count or sample quality is insufficient to decide. No strategy should be promoted based on this result."
+    },
+    warnings: [
+      "This is a frozen-rule walk-forward comparison, not DRL training and not proof of profitability.",
+      "Inspecting this final chronological segment consumes its untouched status; freeze all strategy decisions before using it as a final release gate.",
+      "A small number of candles or trades can produce misleading metrics. Repeat across multiple symbols, timeframes, regimes and longer history.",
+      "Historical OHLCV cannot faithfully reconstruct spread, funding, liquidation, partial fills or market impact. Live results can differ materially."
+    ]
+  };
+}
+
