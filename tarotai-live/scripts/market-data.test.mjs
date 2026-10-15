@@ -601,6 +601,11 @@ test("strategy chart, agent context and paper checks stay on the same selected l
 
 test("paper entry checks a live OKX last-trade ticker and blocks material quote drift", () => {
   assert.match(paperRoute, /api\/v5\/market\/ticker/);
+  assert.match(paperRoute, /const timestamp=Number\(ticker\?\.ts\),ageMs=Date\.now\(\)-timestamp/);
+  assert.match(paperRoute, /OKX swap ticker could not be verified or is older than five seconds/);
+  assert.match(paperRoute, /const timestamp=Number\(marketQuote\?\.time\),ageMs=Date\.now\(\)-timestamp/);
+  assert.match(paperRoute, /Bybit linear ticker could not be verified or is older than five seconds/);
+  assert.match(paperRoute, /ageMs < -1500\|\|ageMs>5000/);
   assert.match(paperRoute, /action==="OPEN"&&priceDrift>0\.002/);
   assert.match(paperRoute, /executionReferencePrice=canUseBook\?\(side==="BUY"\?verifiedAskPrice:verifiedBidPrice\):verifiedMarketPrice/);
   assert.match(paperRoute, /fapi\.binance\.com\/fapi\/v1\/ticker\/bookTicker/);
