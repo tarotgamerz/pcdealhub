@@ -873,4 +873,6 @@ test("NIFTY 50 and Gold are mapped to read-only delayed Yahoo reference data",()
   assert.ok(futuresDesk.includes('REFERENCE ONLY —'));
   assert.ok(futuresDesk.includes('marketVenue==="yahoo"||isReferenceMarket(byId("liveSymbol").value)'));
   assert.ok(futuresDesk.includes('AUTO PAPER BLOCKED: NIFTY 50 and Gold are delayed reference markets'));
+  assert.ok(futuresDesk.includes('sourceMaxAge=reference?(currentMarketReference?.marketOpen?20*60*1000:7*24*60*60*1000)'),"last official reference quotes remain visible briefly after the market closes");
+  assert.ok(futuresDesk.includes(' · MARKET CLOSED'),"closed reference sessions are labelled rather than called live");
 });
