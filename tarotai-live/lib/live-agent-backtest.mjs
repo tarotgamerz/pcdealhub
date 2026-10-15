@@ -5,8 +5,8 @@ const HTF_LOOKBACK = 180;
 
 function validateCandleSeries(candles, label) {
   validateBacktestCandles(candles);
-  if (candles.some((c) => !Number.isFinite(c.closeTime) || c.closeTime <= c.time)) {
-    throw new Error(label + " candles require closeTime after open time");
+  if (candles.some((c) => !Number.isFinite(c.closeTime) || c.closeTime <= c.time || !Number.isFinite(c.volume) || c.volume < 0)) {
+    throw new Error(label + " candles require closeTime after open time and a finite non-negative volume");
   }
 }
 function ema(values, period) {
@@ -105,15 +105,26 @@ export function runLiveAgentStrategyBacktest(mainCandles, higherCandles, options
   const feeBps = Number(options.feeBps ?? 5), slippageBps = Number(options.slippageBps ?? 2);
   const maxPositionPct = Number(options.maxPositionExposurePct ?? 5), maxPortfolioPct = Number(options.maxPortfolioExposurePct ?? 20);
   const maxDriftPct = Number(options.maxEntryDriftPct ?? 1);
-  const from = Math.max(0, Math.floor(Number(options.fromIndex ?? MIN_SIGNAL_HISTORY - 1)));
-  const end = Math.min(mainCandles.length, Math.floor(Number(options.endIndex ?? mainCandles.length)));
-  const signalFrom = Math.max(from, Math.floor(Number(options.signalStartIndex ?? from)));
+  const rawFrom = Number(options.fromIndex ?? MIN_SIGNAL_HISTORY - 1);
+  const rawEnd = Number(options.endIndex ?? mainCandles.length);
+  const rawSignalFrom = Number(options.signalStartIndex ?? rawFrom);
+  if (![rawFrom, rawEnd, rawSignalFrom].every(Number.isFinite)) throw new Error("Invalid chronological segment indices");
+  const from = Math.min(mainCandles.length, Math.max(0, Math.floor(rawFrom)));
+  const end = Math.min(mainCandles.length, Math.max(0, Math.floor(rawEnd)));
+  const signalFrom = Math.min(mainCandles.length, Math.max(from, Math.floor(rawSignalFrom)));
   if (![initialBalance, riskPct, feeBps, slippageBps, maxPositionPct, maxPortfolioPct, maxDriftPct].every(Number.isFinite) ||
       initialBalance < 100 || initialBalance > 10000000 || riskPct < 0.1 || riskPct > 1 ||
       feeBps < 0 || feeBps > 50 || slippageBps < 0 || slippageBps > 50 ||
       maxPositionPct <= 0 || maxPositionPct > 5 || maxPortfolioPct <= 0 || maxPortfolioPct > 20 ||
       maxDriftPct < 0 || maxDriftPct > 5) throw new Error("Invalid live-agent backtest settings");
-  if (end - from < 2 || signalFrom >= end) return { available: false, reason: "Not enough candles in this chronological segment.", closedTrades: 0, warnings: ["No performance claim is made from an empty sample."] };
+  if (end - from < 2 || signalFrom >= end) return {
+    available: false, reason: "Not enough candles in this chronological segment.", initialBalance, endingBalance: initialBalance,
+    netPnl: 0, netReturnPct: 0, buyHoldReturnPct: 0, closedTrades: 0, signalsEvaluated: 0, qualifiedSignals: 0,
+    openedTrades: 0, skippedEntryDrift: 0, skippedInvalidatedAtOpen: 0, skippedSizing: 0,
+    stopExits: 0, targetExits: 0, windowEndCloses: 0, ambiguousStopFirstExits: 0,
+    winRatePct: 0, profitFactor: 0, averageTradePnl: 0, averageR: 0, maxDrawdownPct: 0, recentTrades: [],
+    warnings: ["No performance claim is made from an empty sample."]
+  };
 
   const ind = calculateIndicators(mainCandles), fee = feeBps / 10000, slip = slippageBps / 10000;
   let equity = initialBalance, peak = initialBalance, maxDD = 0, position = null;
