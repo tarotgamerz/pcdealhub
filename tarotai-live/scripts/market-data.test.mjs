@@ -329,6 +329,12 @@ test("historical backtest uses closed production candles and next-bar execution"
 });
 
 test("research backtest measures the actual live-agent rules with aligned higher-timeframe history",()=>{
+  assert.match(futuresDesk, /function renderBacktestSummary\(report,httpStatus\)/);
+  assert.match(futuresDesk, /id="backtestSummary"/);
+  assert.match(futuresDesk, /Show raw backtest response/);
+  assert.match(futuresDesk, /Fee \(bps\/side\)/);
+  assert.match(futuresDesk, /Slippage \(bps\/side\)/);
+  assert.match(futuresDesk, /liveAgentRiskPct:Number\(\$\('livePaperRisk'\)\.value\)/);
   assert.match(backtestRoute, /import \{ runLiveAgentStrategyBacktest \}/);
   assert.match(backtestRoute, /const HIGHER_INTERVAL/);
   assert.match(backtestRoute, /fetchHistory\(resolvedVenue, symbol, higherInterval/);
