@@ -38,7 +38,7 @@
 .live-trade-title{font-size:17px;font-weight:800;margin:0 0 4px}
 .live-feed-pill{display:inline-flex;align-items:center;gap:7px;border:1px solid #2c5949;background:#0b211a;color:var(--green);padding:6px 10px;border-radius:99px;font-size:11px;font-weight:750}
 .live-feed-pill:before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
-.live-controls{display:grid;grid-template-columns:minmax(150px,1fr) minmax(130px,1fr) auto;gap:10px;align-items:end;margin-bottom:12px}
+.live-controls{display:grid;grid-template-columns:minmax(150px,1fr) minmax(130px,1fr) auto auto;gap:10px;align-items:end;margin-bottom:12px}
 .live-metrics{display:grid;grid-template-columns:1.25fr repeat(3,minmax(0,1fr));gap:9px;margin:12px 0}
 .live-metric{min-width:0;padding:11px;background:#0a1119;border:1px solid #243345;border-radius:11px}
 .live-metric label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}
@@ -261,7 +261,7 @@ function updateTradingViewChart(source="tv"){
 $("tvRefresh").addEventListener("click",()=>updateTradingViewChart("tv"));
 $("tvSymbol").addEventListener("change",()=>updateTradingViewChart("tv"));
 $("tvInterval").addEventListener("change",()=>updateTradingViewChart("tv"));
-$("venue").addEventListener("change",()=>{$("tvStatus").textContent="Research venue is separate. The live chart stays on "+((window.tarotaiMarketVenue||"binance")==="binance"?"Binance Futures":"the selected live venue")+" and share the same live tick."});
+$("venue").addEventListener("change",()=>{$("tvStatus").textContent="Research venue is separate. The live chart stays on "+((window.tarotaiMarketVenue||"binance")==="binance"?"Binance Futures":"the selected live venue")+" and uses the same live quote."});
 $("tvAskAgent").addEventListener("click",()=>{updateTradingViewChart("live");if($("liveAgentPanel")?.hidden){$("liveAgentPanel").hidden=false;$("toggleLiveAgentTeam").textContent="Hide 8-agent trading team";$("toggleLiveAgentTeam").setAttribute("aria-expanded","true");}$("live-agent-chart").scrollIntoView({behavior:"smooth",block:"start"});$("runLiveAgentTeam").click();});
 updateTradingViewChart();
 
