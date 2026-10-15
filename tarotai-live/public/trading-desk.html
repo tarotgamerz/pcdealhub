@@ -400,11 +400,10 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   function hasFreshLiveQuote(now=Date.now()){
     const reference=marketVenue==="yahoo";
     if(!["binance","okx","yahoo"].includes(marketVenue)||!currentSymbol||quoteSymbol!==currentSymbol||!Number.isFinite(lastTradePrice)||lastTradePrice<=0||!Number.isFinite(lastTradeAt))return false;
-    if(reference&&currentMarketReference?.marketOpen===false)return false;
     const localAge=now-lastTradeAt;
     if(localAge<0||localAge>(reference?20000:3000))return false;
     const exchangeAge=now-Number(lastQuoteSourceTimestamp);
-    const sourceMaxAge=reference?20*60*1000:lastQuoteSource===marketVenue+"-rest-ticker"?3500:3000;
+    const sourceMaxAge=reference?(currentMarketReference?.marketOpen?20*60*1000:7*24*60*60*1000):lastQuoteSource===marketVenue+"-rest-ticker"?3500:3000;
     if(!Number.isFinite(exchangeAge)||exchangeAge < -1500||exchangeAge>sourceMaxAge)return false;
     return reference?lastQuoteSource==="yahoo-rest-ticker":lastQuoteSource===marketVenue+"-websocket"||lastQuoteSource===marketVenue+"-rest-ticker";
   }
@@ -417,7 +416,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     window.tarotaiSharedLastTradeAt=fresh?lastTradeAt:0;
     window.tarotaiSharedQuoteSource=fresh?lastQuoteSource:"stale";
     if(typeof window.tarotaiUpdateStrategyLiveQuote==="function")window.tarotaiUpdateStrategyLiveQuote(price,now);
-    if(fresh&&marketVenue==="yahoo")setFeed("YAHOO FINANCE · DELAYED REFERENCE ONLY","neutral");
+    if(fresh&&marketVenue==="yahoo")setFeed("YAHOO FINANCE · DELAYED REFERENCE ONLY"+(currentMarketReference?.marketOpen===false?" · MARKET CLOSED":" · SESSION OPEN"),"neutral");
     else if(fresh)setFeed((marketVenue==="binance"?"BINANCE USDⓈ-M FUTURES":"OKX USDT PERPETUAL")+" · "+(lastQuoteSource===marketVenue+"-websocket"?(marketVenue==="binance"?"LIVE BID/ASK MIDPOINT STREAM":"LIVE TRADE STREAM"):"REST TICK FALLBACK"),"good");
     else setFeed((marketVenue==="yahoo"?"YAHOO FINANCE REFERENCE QUOTE STALE":marketVenue==="binance"?"BINANCE USDⓈ-M FUTURES · LIVE QUOTE STALE":"OKX USDT PERPETUAL · LIVE QUOTE STALE"),"bad");
     updateDemoAgentTicket();
