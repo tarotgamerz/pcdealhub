@@ -118,7 +118,7 @@ export function runLiveAgentStrategyBacktest(mainCandles, higherCandles, options
   const ind = calculateIndicators(mainCandles), fee = feeBps / 10000, slip = slippageBps / 10000;
   let equity = initialBalance, peak = initialBalance, maxDD = 0, position = null;
   let signalsEvaluated = 0, qualifiedSignals = 0, driftSkips = 0, invalidatedSkips = 0, sizingSkips = 0;
-  let stopExits = 0, targetExits = 0, ambiguousExits = 0;
+  let stopExits = 0, targetExits = 0, windowEndCloses = 0, ambiguousExits = 0;
   const trades = [];
   const updateDD = (markedEquity) => {
     if (!Number.isFinite(markedEquity)) return;
@@ -149,7 +149,7 @@ export function runLiveAgentStrategyBacktest(mainCandles, higherCandles, options
       rsiAtSignal: Number(pos.signal.rsi.toFixed(2)), longScore: pos.signal.longScore, shortScore: pos.signal.shortScore,
       equityAfter: Number(equity.toFixed(8))
     });
-    if (reason.includes("STOP")) stopExits++; else targetExits++;
+    if (reason.includes("STOP")) stopExits++; else if (reason.startsWith("TARGET")) targetExits++; else if (reason === "WINDOW_END") windowEndCloses++;
     if (ambiguous) ambiguousExits++;
     updateDD(equity); position = null;
   };
@@ -214,7 +214,7 @@ export function runLiveAgentStrategyBacktest(mainCandles, higherCandles, options
     netReturnPct: Number((netPnl / initialBalance * 100).toFixed(4)), buyHoldReturnPct: Number(buyHold.toFixed(4)),
     closedTrades: trades.length, signalsEvaluated, qualifiedSignals, openedTrades: trades.length,
     skippedEntryDrift: driftSkips, skippedInvalidatedAtOpen: invalidatedSkips, skippedSizing: sizingSkips,
-    stopExits, targetExits, ambiguousStopFirstExits: ambiguousExits,
+    stopExits, targetExits, windowEndCloses, ambiguousStopFirstExits: ambiguousExits,
     winRatePct: trades.length ? Number((wins.length / trades.length * 100).toFixed(2)) : 0,
     profitFactor: totalLosses > 0 ? Number((totalWins / totalLosses).toFixed(3)) : totalWins > 0 ? null : 0,
     averageTradePnl: trades.length ? Number((netPnl / trades.length).toFixed(8)) : 0,
