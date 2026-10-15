@@ -314,6 +314,7 @@ test("dependency audit fails closed when unavailable or when vulnerabilities are
 
 
 const backtestEngine = readFileSync(new URL("../lib/trading-backtest.mjs", import.meta.url), "utf8");
+const liveAgentBacktestEngine = readFileSync(new URL("../lib/live-agent-backtest.mjs", import.meta.url), "utf8");
 const futuresDesk = readFileSync(new URL("../public/trading-desk.html", import.meta.url), "utf8");
 
 test("historical backtest uses closed production candles and next-bar execution", () => {
@@ -325,6 +326,24 @@ test("historical backtest uses closed production candles and next-bar execution"
   assert.match(backtestRoute, /fundingCostsIncluded: false/);
   assert.match(backtestEngine, /const fillCandle = candles\[i \+ 1\]/);
   assert.match(backtestEngine, /at candle i\+1's open/);
+});
+
+test("research backtest measures the actual live-agent rules with aligned higher-timeframe history",()=>{
+  assert.match(backtestRoute, /import \{ runLiveAgentStrategyBacktest \}/);
+  assert.match(backtestRoute, /const HIGHER_INTERVAL/);
+  assert.match(backtestRoute, /fetchHistory\(resolvedVenue, symbol, higherInterval/);
+  assert.match(backtestRoute, /fullSample: runLiveAgentStrategyBacktest/);
+  assert.match(backtestRoute, /holdout: runLiveAgentStrategyBacktest/);
+  assert.match(backtestRoute, /Only higher-timeframe candles whose closeTime is at or before each main signal candle close are considered/);
+  assert.match(backtestRoute, /RESEARCH_ONLY_NO_ORDERS/);
+  assert.match(liveAgentBacktestEngine, /const upBreak = last\.close > priorHigh, downBreak = last\.close < priorLow/);
+  assert.match(liveAgentBacktestEngine, /rv >= 52 && rv <= 70/);
+  assert.match(liveAgentBacktestEngine, /rv >= 30 && rv <= 48/);
+  assert.match(liveAgentBacktestEngine, /end - from < 2/);
+  assert.match(liveAgentBacktestEngine, /drift > maxDriftPct \/ 100/);
+  assert.match(liveAgentBacktestEngine, /STOP_AMBIGUOUS/);
+  assert.match(liveAgentBacktestEngine, /Fewer than 100 closed trades/);
+  assert.match(liveAgentBacktestEngine, /higher-timeframe uses only candles closed by then/);
 });
 
 test("live chart requires matching higher-timeframe trend for a current setup", () => {
