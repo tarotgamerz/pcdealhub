@@ -337,7 +337,7 @@ test("research backtest measures the actual live-agent rules with aligned higher
   assert.match(futuresDesk, /Fee \(bps\/side\)/);
   assert.match(futuresDesk, /Slippage \(bps\/side\)/);
   assert.match(futuresDesk, /liveAgentRiskPct:Number\(\$\('livePaperRisk'\)\.value\)/);
-  assert.match(backtestRoute, /import \{ runLiveAgentStrategyBacktest \}/);
+  assert.match(backtestRoute, /import \{ runLiveAgentStrategyBacktest, runWalkForwardStrategyComparison \}/);
   assert.match(backtestRoute, /const HIGHER_INTERVAL/);
   assert.match(backtestRoute, /fetchHistory\(resolvedVenue, symbol, higherInterval/);
   assert.match(backtestRoute, /fullSample: runLiveAgentStrategyBacktest/);
