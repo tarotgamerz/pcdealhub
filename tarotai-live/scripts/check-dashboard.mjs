@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { Script } from "node:vm";
 
-const pages = ["console.html", "agents.html", "trading-desk.html", "trading.html"];
+const pages = ["console.html", "agents.html", "trading-desk.html", "trading.html", "trading-strategy-room.html", "connected-apps.html"];
 for (const page of pages) {
   const html = readFileSync(new URL("../public/" + page, import.meta.url), "utf8");
   const matches = [...html.matchAll(/<script>([\s\S]*?)<\/script>/gi)];

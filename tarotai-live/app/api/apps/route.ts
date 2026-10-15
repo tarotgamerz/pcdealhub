@@ -4,7 +4,7 @@ import { authorized, memoryEnabled, privateUserId } from "@/lib/store";
 function config() {
   return {
     hasKey: Boolean(process.env.COMPOSIO_API_KEY),
-    callbackUrl: "https://tarotai-core.vercel.app/console.html?connected=1"
+    callbackUrl: "https://tarotai-core.vercel.app/connected-apps.html?connected=1"
   };
 }
 
