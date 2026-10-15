@@ -34,7 +34,7 @@
 
 /* Live agent trading chart */
 #visual-strategy-panel{display:none!important}
-.live-trade-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.live-trade-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}.live-head-status{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;max-width:100%}.chart-sync-legacy{display:none!important}
 .live-trade-title{font-size:17px;font-weight:800;margin:0 0 4px}
 .live-feed-pill{display:inline-flex;align-items:center;gap:7px;border:1px solid #2c5949;background:#0b211a;color:var(--green);padding:6px 10px;border-radius:99px;font-size:11px;font-weight:750}
 .live-feed-pill:before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
@@ -135,22 +135,22 @@
 <section class="panel wide"><h2>Paper trade journal</h2><p class="muted">Open and closed positions, simulated fills, fees, stops, targets, P&amp;L and agent decision source are recorded in the persistent Paper Trading panel. Local-only demo plans are disabled.</p></section>
 <section class="panel"><h2>Research pipeline</h2><div class="step"><span class="tag">01</span><div><strong>Market data</strong><div class="sub">Source + timestamp verification required</div></div></div><div class="step"><span class="tag">02</span><div><strong>Historical backtest</strong><div class="sub">Fees, funding, slippage, out-of-sample split</div></div></div><div class="step"><span class="tag">03</span><div><strong>Forward test</strong><div class="sub">Paper results across varied regimes</div></div></div><div class="step"><span class="tag">04</span><div><strong>Risk review</strong><div class="sub">Independent veto + exposure caps</div></div></div><div class="step"><span class="tag">05</span><div><strong>Human approval</strong><div class="sub">Required before any future live-trading feature</div></div></div></section>
 
-<section class="panel full" id="tradingview-panel"><div class="row" style="justify-content:space-between;margin-bottom:12px"><div><h2 style="margin:0">Synchronized market chart</h2><div class="sub">This chart and the live-analysis chart below share one Binance Futures candle source and the same verified live quote stream.</div></div><span class="tag">ONE CANONICAL FEED</span></div>
-<div class="row" style="margin-bottom:12px"><div class="field" style="flex:1;min-width:150px;margin:0"><label for="tvSymbol">Chart market</label><select id="tvSymbol"><option value="BTCUSDT">BTCUSDT perpetual</option><option value="ETHUSDT">ETHUSDT perpetual</option><option value="BNBUSDT">BNBUSDT perpetual</option><option value="SOLUSDT">SOLUSDT perpetual</option></select></div><div class="field" style="flex:1;min-width:120px;margin:0"><label for="tvInterval">Chart timeframe</label><select id="tvInterval"><option value="1">1 minute</option><option value="5">5 minutes</option><option value="15" selected>15 minutes</option><option value="60">1 hour</option><option value="240">4 hours</option></select></div><button class="btn" id="tvRefresh">Update chart</button><div id="chartAgentCounter" class="chart-agent-counter warn" role="status" aria-live="polite" title="Eight deterministic local rule roles, not eight separate AI model calls."><strong id="chartAgentCounterValue">0/8 ACTIVE · STARTING</strong><span id="chartAgentCounterDetail">Waiting for fresh market candles…</span></div></div>
-<div class="live-chart-shell" id="tvSyncedChartShell"><div id="tvSyncedChart" style="width:100%;height:100%"></div><div class="live-chart-overlay"><strong id="tvSyncedPrice">WAITING FOR SHARED LIVE PRICE</strong><span id="tvSyncedMeta">Waiting for Binance Futures live quote stream…</span></div></div>
-<div class="row" style="margin-top:12px"><button class="btn primary" id="tvAskAgent">Run AI-enhanced 8-agent review</button><a class="btn" id="tvOpenExternal" href="https://www.tradingview.com/chart/?symbol=BINANCE%3ABTCUSDT.P" target="_blank" rel="noopener noreferrer" style="text-decoration:none">Open official TradingView (external)</a><span class="muted" id="tvStatus" style="font-size:12px">Waiting for shared OKX feed…</span></div>
-<p class="muted" style="font-size:11px;margin-bottom:0">Both charts inside TarotAI display the same candles and exact same live quote. The official TradingView website is external and may have independent feed latency; its quote is not used for paper execution.</p></section>
-
-
-<section class="panel full" id="live-agent-chart">
+<div class="chart-sync-legacy" hidden aria-hidden="true">
+  <select id="tvSymbol"><option value="BTCUSDT">BTCUSDT</option><option value="ETHUSDT">ETHUSDT</option><option value="BNBUSDT">BNBUSDT</option><option value="SOLUSDT">SOLUSDT</option><option value="XRPUSDT">XRPUSDT</option><option value="DOGEUSDT">DOGEUSDT</option></select>
+  <select id="tvInterval"><option value="1">1 minute</option><option value="5">5 minutes</option><option value="15" selected>15 minutes</option><option value="60">1 hour</option><option value="240">4 hours</option></select>
+  <button type="button" id="tvRefresh">Sync main chart controls</button>
+  <a id="tvOpenExternal" href="https://www.tradingview.com/chart/?symbol=BINANCE%3ABTCUSDT.P"></a>
+  <span id="tvSyncedPrice"></span><span id="tvSyncedMeta"></span><span id="tvStatus"></span>
+</div><section class="panel full" id="live-agent-chart">
   <div class="live-trade-head">
-    <div><h2 class="live-trade-title">Live Market Chart &amp; 8 Continuous Agents</h2><div class="sub">Live exchange WebSocket · interactive candles · EMA 9/21/50 · RSI 14 · ATR 14 · 20-bar structure · higher-timeframe confirmation · eight continuous rule-based roles</div></div>
-    <span id="liveFeedPill" class="live-feed-pill">CONNECTING TO MARKET</span>
+    <div><h2 class="live-trade-title">Unified Live Market Chart &amp; Agent Analysis</h2><div class="sub">One chart · verified live quote · EMA 9/21/50 · RSI 14 · ATR 14 · support/resistance · trendlines · entry/stop/target annotations</div></div>
+    <div class="live-head-status"><span id="liveFeedPill" class="live-feed-pill">CONNECTING TO MARKET</span><div id="chartAgentCounter" class="chart-agent-counter warn" role="status" aria-live="polite" title="Eight deterministic local rule roles, not eight separate AI model calls."><strong id="chartAgentCounterValue">0/8 ACTIVE · STARTING</strong><span id="chartAgentCounterDetail">Waiting for fresh market candles…</span></div></div>
   </div>
   <div class="live-controls">
-    <div class="field" style="margin:0"><label for="liveSymbol">Perpetual market</label><select id="liveSymbol"><option value="BTCUSDT">BTC/USDT</option><option value="ETHUSDT">ETH/USDT</option><option value="BNBUSDT">BNB/USDT</option><option value="SOLUSDT">SOL/USDT</option><option value="XRPUSDT">XRP/USDT</option><option value="DOGEUSDT">DOGE/USDT</option></select></div>
-    <div class="field" style="margin:0"><label for="liveInterval">Chart timeframe</label><select id="liveInterval"><option value="1m">1 minute</option><option value="5m">5 minutes</option><option value="15m" selected>15 minutes</option><option value="1h">1 hour</option><option value="4h">4 hours</option></select></div>
-    <button class="btn primary" id="liveRefresh" type="button">Analyze live market</button>
+    <div class="field" style="margin:0"><label for="liveSymbol">Market</label><select id="liveSymbol"><option value="BTCUSDT">BTC/USDT perpetual</option><option value="ETHUSDT">ETH/USDT perpetual</option><option value="BNBUSDT">BNB/USDT perpetual</option><option value="SOLUSDT">SOL/USDT perpetual</option><option value="XRPUSDT">XRP/USDT perpetual</option><option value="DOGEUSDT">DOGE/USDT perpetual</option></select></div>
+    <div class="field" style="margin:0"><label for="liveInterval">Timeframe</label><select id="liveInterval"><option value="1m">1 minute</option><option value="5m">5 minutes</option><option value="15m" selected>15 minutes</option><option value="1h">1 hour</option><option value="4h">4 hours</option></select></div>
+    <button class="btn primary" id="liveRefresh" type="button">Refresh / analyze</button>
+    <button class="btn" id="tvAskAgent" type="button">Run AI-enhanced 8-agent review</button>
   </div>
   <div class="live-history-bar"><button class="btn" id="liveLoadOlder" type="button">Load older candles</button><span id="liveHistoryStatus" aria-live="polite">The chart will load older candles when you pan to the left.</span></div>
   <div class="live-multi-actions"><button class="btn" id="toggleLiveAgentTeam" type="button" aria-expanded="true" aria-controls="liveAgentPanel">Hide 8-agent trading team</button><span class="live-multi-hint">Run seven trade-lifecycle agents plus one operations supervisor against the same verified closed-candle snapshot.</span></div>
@@ -255,14 +255,14 @@ function updateTradingViewChart(source="tv"){
   if($("marketInterval"))$("marketInterval").value=interval;
   const symbol=tradingViewSymbol();
   $("tvOpenExternal").href="https://www.tradingview.com/chart/?symbol="+encodeURIComponent(symbol);
-  $("tvStatus").textContent="IN-APP CHARTS SYNCED · "+symbol+" · "+interval+" · shared "+((window.tarotaiMarketVenue||"binance")==="binance"?"Binance Futures":"selected-exchange")+" candles and the same live quote.";
+  $("tvStatus").textContent="MAIN CHART SYNCED · "+symbol+" · "+interval+" · shared "+((window.tarotaiMarketVenue||"binance")==="binance"?"Binance Futures":"selected-exchange")+" candles and the same live quote.";
   if(source!=="live"&&typeof window.tarotaiReloadLiveChart==="function")window.tarotaiReloadLiveChart();
 }
 $("tvRefresh").addEventListener("click",()=>updateTradingViewChart("tv"));
 $("tvSymbol").addEventListener("change",()=>updateTradingViewChart("tv"));
 $("tvInterval").addEventListener("change",()=>updateTradingViewChart("tv"));
-$("venue").addEventListener("change",()=>{$("tvStatus").textContent="Research venue is separate. The linked live charts stay on "+((window.tarotaiMarketVenue||"binance")==="binance"?"Binance Futures":"the selected live venue")+" and share the same live tick."});
-$("tvAskAgent").addEventListener("click",()=>{updateTradingViewChart("tv");if($("liveAgentPanel")?.hidden){$("liveAgentPanel").hidden=false;$("toggleLiveAgentTeam").textContent="Hide 8-agent trading team";$("toggleLiveAgentTeam").setAttribute("aria-expanded","true");}$("live-agent-chart").scrollIntoView({behavior:"smooth",block:"start"});$("runLiveAgentTeam").click();});
+$("venue").addEventListener("change",()=>{$("tvStatus").textContent="Research venue is separate. The live chart stays on "+((window.tarotaiMarketVenue||"binance")==="binance"?"Binance Futures":"the selected live venue")+" and share the same live tick."});
+$("tvAskAgent").addEventListener("click",()=>{updateTradingViewChart("live");if($("liveAgentPanel")?.hidden){$("liveAgentPanel").hidden=false;$("toggleLiveAgentTeam").textContent="Hide 8-agent trading team";$("toggleLiveAgentTeam").setAttribute("aria-expanded","true");}$("live-agent-chart").scrollIntoView({behavior:"smooth",block:"start"});$("runLiveAgentTeam").click();});
 updateTradingViewChart();
 
 $('loginBtn').addEventListener('click',async()=>{try{const r=await fetch('/api/auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({code:$('accessCode').value})});const d=await r.json();connectedLog('marketResult',d);if(r.ok)log('Private research APIs unlocked for this browser session.')}catch(e){connectedLog('marketResult','Authentication request failed: '+e)}});
@@ -363,11 +363,11 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       if(badge)badge.textContent=fresh?currentSymbol+" · "+fmt(price)+" USDT":"LIVE PRICE STALE";
       const venueLabel=marketVenue==="binance"?"Binance USDⓈ-M Futures":"OKX perpetual";
       if(meta)meta.textContent=fresh
-        ?(lastQuoteSource===marketVenue+"-websocket"?"Same "+venueLabel+" live quote in both charts · WebSocket · "+new Date(lastTradeAt).toLocaleTimeString():"Same "+venueLabel+" live quote in both charts · REST fallback · source age "+Math.max(0,Math.round(now-lastQuoteSourceTimestamp))+" ms")
+        ?(lastQuoteSource===marketVenue+"-websocket"?"Shared "+venueLabel+" live quote · WebSocket · "+new Date(lastTradeAt).toLocaleTimeString():"Shared "+venueLabel+" live quote · REST fallback · source age "+Math.max(0,Math.round(now-lastQuoteSourceTimestamp))+" ms")
         :"No verified live quote. Candles remain visible, but this is not a live price; paper entries are blocked.";
       byId("tvStatus").textContent=fresh
         ?"IN-APP CHARTS SYNCED · "+currentSymbol+" "+currentInterval+" · shared "+(marketVenue==="binance"?"Binance Futures":"OKX")+" live quote "+fmt(price)+" · "+(lastQuoteSource===marketVenue+"-websocket"?"WebSocket":"REST fallback")+"."
-        :"LIVE QUOTE STALE · internal charts are showing candles only; waiting for a verified "+(marketVenue==="binance"?"Binance":"OKX")+" quote.";
+        :"LIVE QUOTE STALE · main chart shows candles only; waiting for a verified "+(marketVenue==="binance"?"Binance":"OKX")+" quote.";
       lastQuoteRenderAt=now;
     }
     if(now-lastLiveLineUpdateAt>=350){
