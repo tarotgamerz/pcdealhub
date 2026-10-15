@@ -548,7 +548,7 @@ test("all live chart panels share one OKX swap symbol/timeframe and current WebS
   assert.match(futuresDesk, /wss:\/\/ws\.okx\.com\/ws\/v5\/business/);
   assert.match(futuresDesk, /wss:\/\/ws\.okx\.com\/ws\/v5\/public/);
   assert.match(futuresDesk, /candleChannel="candle"\+/);
-  assert.match(futuresDesk, /for\(const venue of \[marketVenue\]\)/);
+  assert.match(futuresDesk, /const requestedVenue=isReferenceMarket\(symbol\)\?"yahoo":\(\["binance","okx"\]\.includes\(marketVenue\)\?marketVenue:"binance"\)/);
   assert.match(parallelAgentsRoute, /const venues=\[preferred\],failures:string\[\]=\[\]/);
 });
 
