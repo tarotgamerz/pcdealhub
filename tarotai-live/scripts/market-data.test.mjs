@@ -548,7 +548,7 @@ test("all live chart panels share one OKX swap symbol/timeframe and current WebS
   assert.match(futuresDesk, /wss:\/\/ws\.okx\.com\/ws\/v5\/business/);
   assert.match(futuresDesk, /wss:\/\/ws\.okx\.com\/ws\/v5\/public/);
   assert.match(futuresDesk, /candleChannel="candle"\+/);
-  assert.match(futuresDesk, /for\(const venue of \[marketVenue\]\)/);
+  assert.match(futuresDesk, /const requestedVenue=isReferenceMarket\(symbol\)\?"yahoo":\(\["binance","okx"\]\.includes\(marketVenue\)\?marketVenue:"binance"\)/);
   assert.match(parallelAgentsRoute, /const venues=\[preferred\],failures:string\[\]=\[\]/);
 });
 
@@ -622,7 +622,7 @@ test("paper entry checks a live OKX last-trade ticker and blocks material quote 
 
 test("continuous local agents veto missing or stale last-trade ticks", () => {
   assert.match(futuresDesk, /quoteFresh=hasFreshLiveQuote\(now\)/);
-  assert.match(futuresDesk, /const stale=now-end>msFor\(currentInterval\)\*2\+60000\|\|!quoteFresh/);
+  assert.match(futuresDesk, /const stale=marketVenue==="yahoo"\|\|now-end>msFor\(currentInterval\)\*2\+60000\|\|!quoteFresh/);
   assert.match(futuresDesk, /livePrice=Number\(currentMarketPrice\(\)\)/);
   assert.match(futuresDesk, /STALE QUOTE — ENTRIES BLOCKED/);
 });
@@ -649,8 +649,8 @@ test("Binance Futures is the canonical live chart source selected by the user", 
 
 
 test("independent strategy confirmation supports every market listed on the main chart",()=>{
-  assert.match(futuresDesk, /id="liveSymbol"><option value="BTCUSDT">BTC\/USDT perpetual<\/option><option value="ETHUSDT">ETH\/USDT perpetual<\/option><option value="BNBUSDT">BNB\/USDT perpetual<\/option><option value="SOLUSDT">SOL\/USDT perpetual<\/option><option value="XRPUSDT">XRP\/USDT perpetual<\/option><option value="DOGEUSDT">DOGE\/USDT perpetual<\/option>/);
-  assert.match(futuresDesk, /id="strategySymbol"><option value="BTCUSDT">BTC\/USDT<\/option><option value="ETHUSDT">ETH\/USDT<\/option><option value="BNBUSDT">BNB\/USDT<\/option><option value="SOLUSDT">SOL\/USDT<\/option><option value="XRPUSDT">XRP\/USDT<\/option><option value="DOGEUSDT">DOGE\/USDT<\/option>/);
+  assert.ok(futuresDesk.includes('id="liveSymbol"><option value="BTCUSDT">BTC/USDT perpetual') && futuresDesk.includes('<option value="NIFTY50">NIFTY 50 (NSE · delayed reference)</option><option value="GOLD">Gold Futures (COMEX · USD/oz · delayed reference)</option>'),"main chart lists both added reference markets after the crypto contracts");
+  assert.ok(futuresDesk.includes('id="strategySymbol"><option value="BTCUSDT">BTC/USDT') && futuresDesk.includes('<option value="NIFTY50">NIFTY 50 (reference only)</option><option value="GOLD">Gold Futures (reference only)</option>'),"strategy chart recognizes both reference symbols");
   assert.match(futuresDesk, /\$\("strategySymbol"\)\.value=base/);
 });
 
@@ -846,13 +846,13 @@ test("the single live chart quote marker updates without rewriting traded candle
   assert.match(futuresDesk, /mainLivePriceLine=candleSeries\.createPriceLine\(\{price,color:"#54c8ff"/);
   assert.match(futuresDesk, /liveP=Number\(window\.tarotaiSharedLastPrice\)/);
   assert.match(futuresDesk, /if\(liveQuoteFresh&&liveP>=min&&liveP<=max\)/);
-  assert.match(futuresDesk, /const sourceMaxAge=lastQuoteSource===marketVenue\+"-rest-ticker"\?3500:3000/);
+  assert.match(futuresDesk, /const sourceMaxAge=reference\?\(currentMarketReference\?\.marketOpen\?20\*60\*1000:7\*24\*60\*60\*1000\):lastQuoteSource===marketVenue\+"-rest-ticker"\?3500:3000/);
   assert.match(futuresDesk, /const bid=Number\(tick\.b\),ask=Number\(tick\.a\),price=\(bid\+ask\)\/2,ts=Number\(tick\.E\|\|tick\.T\),receivedAt=Date\.now\(\),exchangeAge=receivedAt-ts/);
   assert.match(futuresDesk, /const price=Number\(tick\.px\),quoteAt=Date\.now\(\),ts=Number\(tick\.ts\),exchangeAge=quoteAt-ts/);
   assert.doesNotMatch(futuresDesk, /syncLiveQuoteToCurrentCandle/);
   assert.doesNotMatch(futuresDesk, /forming\.close=quote/);
   assert.match(futuresDesk, /streamWasStale=Date\.now\(\)-lastMarketUpdateAt>5000/);
-  assert.match(futuresDesk, /pollTimer=setInterval\(\(\)=>\{if\(document\.visibilityState==="visible"&&Date\.now\(\)-lastMarketUpdateAt>5000\)void refresh\(true\);\},5000\)/);
+  assert.match(futuresDesk, /pollTimer=setInterval\(\(\)=>\{if\(document\.visibilityState==="visible"&&Date\.now\(\)-lastMarketUpdateAt>\(marketVenue==="yahoo"\?15000:5000\)\)void refresh\(true\);\},5000\)/);
 });
 
 test("strategy signal calculations remain based on closed candles while displaying the active candle", () => {
@@ -861,4 +861,18 @@ test("strategy signal calculations remain based on closed candles while displayi
   assert.match(futuresDesk, /view\.push\(\{\.\.\.activeCandle,index:candles\.length,fast:visualFast/);
   assert.match(futuresDesk, /const last=candles\.length-1,prev=candles\[last-1\]/);
   assert.match(futuresDesk, /closedOnly\(rows,currentInterval\)/);
+});
+
+
+test("NIFTY 50 and Gold are mapped to read-only delayed Yahoo reference data",()=>{
+  assert.ok(source.includes('NIFTY50:{providerSymbol:"^NSEI"'));
+  assert.ok(source.includes('GOLD:{providerSymbol:"GC=F"'));
+  assert.ok(source.includes('marketDataMode:"delayed-reference-read-only"'));
+  assert.ok(source.includes('readOnly:true,orderPlacement:false'));
+  assert.ok(liveQuoteRoute.includes('Yahoo Finance delayed reference price'));
+  assert.ok(futuresDesk.includes('REFERENCE ONLY —'));
+  assert.ok(futuresDesk.includes('marketVenue==="yahoo"||isReferenceMarket(byId("liveSymbol").value)'));
+  assert.ok(futuresDesk.includes('AUTO PAPER BLOCKED: NIFTY 50 and Gold are delayed reference markets'));
+  assert.ok(futuresDesk.includes('sourceMaxAge=reference?(currentMarketReference?.marketOpen?20*60*1000:7*24*60*60*1000)'),"last official reference quotes remain visible briefly after the market closes");
+  assert.ok(futuresDesk.includes(' · MARKET CLOSED'),"closed reference sessions are labelled rather than called live");
 });
