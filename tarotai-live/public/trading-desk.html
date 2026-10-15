@@ -102,7 +102,7 @@
 </head>
 <body><main class="app">
 <header class="top"><button class="feature-trigger" id="featureTrigger" type="button" aria-label="Open TarotAI features" aria-haspopup="dialog" aria-expanded="false">⋮</button><div class="brand"><div class="logo">T</div><div><h1>TarotAI <span class="muted">/ Futures Lab</span></h1><div class="sub">Multi-agent research desk · Binance USDⓈ-M Futures live data</div></div></div><span class="pill">● LIVE TRADING DISABLED</span></header>
-<div class="notice"><strong>Paper-only safety mode:</strong> TarotAI reads public Binance USDⓈ-M Futures market data and can save simulated trades to its private persistent paper ledger. It never sends real exchange orders. The two in-dashboard charts share one feed; the official TradingView site is external. Never enter exchange API keys here.</div>
+<div class="notice"><strong>Paper-only safety mode:</strong> Crypto perpetuals use verified exchange data for simulated paper trades. NIFTY 50 (NSE) and Gold Futures (COMEX) are delayed Yahoo Finance reference charts only; no paper entries or automated execution are allowed for them. TarotAI never sends real exchange orders. Never enter exchange API keys here.</div>
 <section class="stats"><div class="stat"><label>Environment</label><strong class="green">TEST MODE</strong></div><div class="stat"><label>Simulated equity</label><strong id="equity">$10,000.00</strong></div><div class="stat"><label>Open demo positions</label><strong id="openCount">0</strong></div><div class="stat"><label>Daily demo P&amp;L</label><strong id="pnl">$0.00</strong></div></section>
 <div class="grid">
 <section class="panel wide"><h2>Agent room</h2><div class="agents"><div class="agent"><div class="agenthead"><div class="ico">⌁</div><div><strong>Market Structure Analyst</strong><div class="sub">Trend, swing structure and higher-timeframe alignment</div></div></div><span class="tag">MARKET</span></div>
@@ -136,7 +136,7 @@
 <section class="panel"><h2>Research pipeline</h2><div class="step"><span class="tag">01</span><div><strong>Market data</strong><div class="sub">Source + timestamp verification required</div></div></div><div class="step"><span class="tag">02</span><div><strong>Historical backtest</strong><div class="sub">Fees, funding, slippage, out-of-sample split</div></div></div><div class="step"><span class="tag">03</span><div><strong>Forward test</strong><div class="sub">Paper results across varied regimes</div></div></div><div class="step"><span class="tag">04</span><div><strong>Risk review</strong><div class="sub">Independent veto + exposure caps</div></div></div><div class="step"><span class="tag">05</span><div><strong>Human approval</strong><div class="sub">Required before any future live-trading feature</div></div></div></section>
 
 <div class="chart-sync-legacy" hidden aria-hidden="true">
-  <select id="tvSymbol"><option value="BTCUSDT">BTCUSDT</option><option value="ETHUSDT">ETHUSDT</option><option value="BNBUSDT">BNBUSDT</option><option value="SOLUSDT">SOLUSDT</option><option value="XRPUSDT">XRPUSDT</option><option value="DOGEUSDT">DOGEUSDT</option></select>
+  <select id="tvSymbol"><option value="BTCUSDT">BTCUSDT</option><option value="ETHUSDT">ETHUSDT</option><option value="BNBUSDT">BNBUSDT</option><option value="SOLUSDT">SOLUSDT</option><option value="XRPUSDT">XRPUSDT</option><option value="DOGEUSDT">DOGEUSDT</option><option value="NIFTY50">NIFTY50</option><option value="GOLD">GOLD</option></select>
   <select id="tvInterval"><option value="1">1 minute</option><option value="5">5 minutes</option><option value="15" selected>15 minutes</option><option value="60">1 hour</option><option value="240">4 hours</option></select>
   <button type="button" id="tvRefresh">Sync main chart controls</button>
   <a id="tvOpenExternal" href="https://www.tradingview.com/chart/?symbol=BINANCE%3ABTCUSDT.P"></a>
@@ -147,7 +147,7 @@
     <div class="live-head-status"><span id="liveFeedPill" class="live-feed-pill">CONNECTING TO MARKET</span><div id="chartAgentCounter" class="chart-agent-counter warn" role="status" aria-live="polite" title="Eight deterministic local rule roles, not eight separate AI model calls."><strong id="chartAgentCounterValue">0/8 ACTIVE · STARTING</strong><span id="chartAgentCounterDetail">Waiting for fresh market candles…</span></div></div>
   </div>
   <div class="live-controls">
-    <div class="field" style="margin:0"><label for="liveSymbol">Market</label><select id="liveSymbol"><option value="BTCUSDT">BTC/USDT perpetual</option><option value="ETHUSDT">ETH/USDT perpetual</option><option value="BNBUSDT">BNB/USDT perpetual</option><option value="SOLUSDT">SOL/USDT perpetual</option><option value="XRPUSDT">XRP/USDT perpetual</option><option value="DOGEUSDT">DOGE/USDT perpetual</option></select></div>
+    <div class="field" style="margin:0"><label for="liveSymbol">Market</label><select id="liveSymbol"><option value="BTCUSDT">BTC/USDT perpetual</option><option value="ETHUSDT">ETH/USDT perpetual</option><option value="BNBUSDT">BNB/USDT perpetual</option><option value="SOLUSDT">SOL/USDT perpetual</option><option value="XRPUSDT">XRP/USDT perpetual</option><option value="DOGEUSDT">DOGE/USDT perpetual</option><option value="NIFTY50">NIFTY 50 (NSE · delayed reference)</option><option value="GOLD">Gold Futures (COMEX · USD/oz · delayed reference)</option></select></div>
     <div class="field" style="margin:0"><label for="liveInterval">Timeframe</label><select id="liveInterval"><option value="1m">1 minute</option><option value="5m">5 minutes</option><option value="15m" selected>15 minutes</option><option value="1h">1 hour</option><option value="4h">4 hours</option></select></div>
     <button class="btn primary" id="liveRefresh" type="button">Refresh / analyze</button>
     <button class="btn" id="tvAskAgent" type="button">Run AI-enhanced 8-agent review</button>
@@ -196,7 +196,7 @@
 </section>
 
 <div class="strategy-engine-legacy" hidden aria-hidden="true">
-  <select id="strategySymbol"><option value="BTCUSDT">BTC/USDT</option><option value="ETHUSDT">ETH/USDT</option><option value="BNBUSDT">BNB/USDT</option><option value="SOLUSDT">SOL/USDT</option><option value="XRPUSDT">XRP/USDT</option><option value="DOGEUSDT">DOGE/USDT</option></select>
+  <select id="strategySymbol"><option value="BTCUSDT">BTC/USDT</option><option value="ETHUSDT">ETH/USDT</option><option value="BNBUSDT">BNB/USDT</option><option value="SOLUSDT">SOL/USDT</option><option value="XRPUSDT">XRP/USDT</option><option value="DOGEUSDT">DOGE/USDT</option><option value="NIFTY50">NIFTY 50 (reference only)</option><option value="GOLD">Gold Futures (reference only)</option></select>
   <select id="strategyInterval"><option value="1m">1 minute</option><option value="5m" selected>5 minutes</option><option value="15m">15 minutes</option><option value="1h">1 hour</option><option value="4h">4 hours</option></select>
   <button type="button" id="drawStrategy">Refresh independent strategy confirmation</button>
   <canvas id="strategyCanvas" width="1200" height="440" aria-hidden="true"></canvas>
@@ -226,6 +226,11 @@
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 <script>
 const $=id=>document.getElementById(id);
+const REFERENCE_MARKETS=Object.freeze({
+  NIFTY50:{name:"NIFTY 50",providerSymbol:"^NSEI",currency:"INR",unit:"index points",tradingViewSymbol:"NSE:NIFTY"},
+  GOLD:{name:"Gold Futures (COMEX)",providerSymbol:"GC=F",currency:"USD",unit:"USD per troy ounce",tradingViewSymbol:"COMEX:GC1!"}
+});
+const isReferenceMarket=symbol=>Object.prototype.hasOwnProperty.call(REFERENCE_MARKETS,String(symbol||""));
 
 const featureOverlay=$('featureOverlay');
 function toggleFeatureMenu(open){featureOverlay.classList.toggle('open',!!open);$('featureTrigger').setAttribute('aria-expanded',String(!!open));document.body.style.overflow=open?'hidden':'';if(open)$('featureClose').focus();else $('featureTrigger').focus()}
@@ -258,7 +263,7 @@ window.tarotaiUpdateStrategyLiveQuote=function(price,now){const symbol=$('strate
 function tradingViewInterval(){return $('tvInterval').value}
 const tvToLiveInterval={"1":"1m","5":"5m","15":"15m","60":"1h","240":"4h"};
 const liveToTvInterval={"1m":"1","5m":"5","15m":"15","1h":"60","4h":"240"};
-function tradingViewSymbol(){const base=$("liveSymbol")?.value||$("tvSymbol").value,venue=window.tarotaiMarketVenue||"binance",exchange=venue==="okx"?"OKX":venue==="bybit"?"BYBIT":"BINANCE";return exchange+":"+base+".P";}
+function tradingViewSymbol(){const base=$("liveSymbol")?.value||$("tvSymbol").value;if(REFERENCE_MARKETS[base])return REFERENCE_MARKETS[base].tradingViewSymbol;const venue=window.tarotaiMarketVenue||"binance",exchange=venue==="okx"?"OKX":venue==="bybit"?"BYBIT":"BINANCE";return exchange+":"+base+".P";}
 function updateTradingViewChart(source="tv"){
   let base,interval;
   if(source==="strategy"){base=$("strategySymbol").value;interval=$("strategyInterval").value;}
@@ -267,11 +272,11 @@ function updateTradingViewChart(source="tv"){
   if(!Object.hasOwn(liveToTvInterval,interval))interval="15m";
   $("tvSymbol").value=base;$("liveSymbol").value=base;$("strategySymbol").value=base;
   $("liveInterval").value=interval;$("strategyInterval").value=interval;$("tvInterval").value=liveToTvInterval[interval];
-  if($("marketSymbol"))$("marketSymbol").value=base;
+  if($("marketSymbol")&&Array.from($("marketSymbol").options||[]).some(o=>o.value===base))$("marketSymbol").value=base;
   if($("marketInterval"))$("marketInterval").value=interval;
   const symbol=tradingViewSymbol();
   $("tvOpenExternal").href="https://www.tradingview.com/chart/?symbol="+encodeURIComponent(symbol);
-  $("tvStatus").textContent="MAIN CHART SYNCED · "+symbol+" · "+interval+" · shared "+((window.tarotaiMarketVenue||"binance")==="binance"?"Binance Futures":"selected-exchange")+" candles and the same live quote.";
+  $("tvStatus").textContent=REFERENCE_MARKETS[base]?"REFERENCE CHART · "+symbol+" · Yahoo Finance delayed data · no paper trading.":"MAIN CHART SYNCED · "+symbol+" · "+interval+" · shared "+((window.tarotaiMarketVenue||"binance")==="binance"?"Binance Futures":"selected-exchange")+" candles and the same live quote.";
   if(source!=="live"&&typeof window.tarotaiReloadLiveChart==="function")window.tarotaiReloadLiveChart();
 }
 $("tvRefresh").addEventListener("click",()=>updateTradingViewChart("tv"));
@@ -349,7 +354,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   const higherMap={"1m":"15m","5m":"1h","15m":"4h","1h":"1d","4h":"1d"};
   let chart=null,candleSeries=null,ema9Series=null,ema21Series=null,ema50Series=null,supportSeries=null,resistanceSeries=null,risingTrendSeries=null,fallingTrendSeries=null,socketReconnectTimer=null;let lastMarketUpdateAt=0;
   let mirrorChart=null,mirrorCandleSeries=null,mirrorEma9Series=null,mirrorEma21Series=null,mirrorEma50Series=null,mirrorSupportSeries=null,mirrorResistanceSeries=null,mirrorRisingTrendSeries=null,mirrorFallingTrendSeries=null,mirrorResizeObserver=null,rangeSyncLock=false,mirrorPriceLines=[],mainLivePriceLine=null,mirrorLivePriceLine=null,lastLiveLineUpdateAt=0;
-  let rows=[],marketVenue="binance",feedSocket=null,quoteSocket=null,quoteReconnectTimer=null,quoteSymbol="",lastTradePrice=NaN,lastTradeAt=0,lastQuoteSource="none",lastQuoteSourceTimestamp=0,lastWsTradeAt=0,lastQuoteFallbackErrorAt=0,quoteFallbackTimer=null,quoteFallbackBusy=false,lastQuoteRenderAt=0,pollTimer=null,resizeObserver=null,lastAnalyzedClosedCandleTime=0;window.tarotaiMarketVenue=marketVenue;
+  let rows=[],marketVenue="binance",currentMarketReference=null,feedSocket=null,quoteSocket=null,quoteReconnectTimer=null,quoteSymbol="",lastTradePrice=NaN,lastTradeAt=0,lastQuoteSource="none",lastQuoteSourceTimestamp=0,lastWsTradeAt=0,lastQuoteFallbackErrorAt=0,quoteFallbackTimer=null,quoteFallbackBusy=false,lastQuoteRenderAt=0,pollTimer=null,resizeObserver=null,lastAnalyzedClosedCandleTime=0;window.tarotaiMarketVenue=marketVenue;
   let currentSymbol="",currentInterval="",higherCache=[],higherCacheKey="",higherCacheAt=0,priceLines=[],busy=false,firstRender=true,lastWsCandleTime=0,historyBusy=false,historyExhausted=false,historyPages=0,historyLoadAllowedAt=0;
   const fmt=(n)=>Number.isFinite(n)?n.toLocaleString("en-US",{maximumFractionDigits:n>=1000?2:n>=1?4:7}):"—";
   const msFor=i=>intervalMs[i]||300000;
@@ -393,13 +398,15 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     mirrorChart.timeScale().subscribeVisibleLogicalRangeChange(range=>{if(!range||!chart||rangeSyncLock)return;rangeSyncLock=true;try{chart.timeScale().setVisibleLogicalRange(range);}catch(e){}finally{rangeSyncLock=false;}});
   }
   function hasFreshLiveQuote(now=Date.now()){
-    if(!["binance","okx"].includes(marketVenue)||!currentSymbol||quoteSymbol!==currentSymbol||!Number.isFinite(lastTradePrice)||lastTradePrice<=0||!Number.isFinite(lastTradeAt))return false;
+    const reference=marketVenue==="yahoo";
+    if(!["binance","okx","yahoo"].includes(marketVenue)||!currentSymbol||quoteSymbol!==currentSymbol||!Number.isFinite(lastTradePrice)||lastTradePrice<=0||!Number.isFinite(lastTradeAt))return false;
+    if(reference&&currentMarketReference?.marketOpen===false)return false;
     const localAge=now-lastTradeAt;
-    if(localAge<0||localAge>3000)return false;
+    if(localAge<0||localAge>(reference?20000:3000))return false;
     const exchangeAge=now-Number(lastQuoteSourceTimestamp);
-    const sourceMaxAge=lastQuoteSource===marketVenue+"-rest-ticker"?3500:3000;
+    const sourceMaxAge=reference?20*60*1000:lastQuoteSource===marketVenue+"-rest-ticker"?3500:3000;
     if(!Number.isFinite(exchangeAge)||exchangeAge < -1500||exchangeAge>sourceMaxAge)return false;
-    return lastQuoteSource===marketVenue+"-websocket"||lastQuoteSource===marketVenue+"-rest-ticker";
+    return reference?lastQuoteSource==="yahoo-rest-ticker":lastQuoteSource===marketVenue+"-websocket"||lastQuoteSource===marketVenue+"-rest-ticker";
   }
   function currentMarketPrice(){if(hasFreshLiveQuote())return lastTradePrice;return rows.length?Number(rows[rows.length-1].close):NaN;}
   function renderSharedQuote(_price){
@@ -410,20 +417,21 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     window.tarotaiSharedLastTradeAt=fresh?lastTradeAt:0;
     window.tarotaiSharedQuoteSource=fresh?lastQuoteSource:"stale";
     if(typeof window.tarotaiUpdateStrategyLiveQuote==="function")window.tarotaiUpdateStrategyLiveQuote(price,now);
-    if(fresh)setFeed((marketVenue==="binance"?"BINANCE USDⓈ-M FUTURES":"OKX USDT PERPETUAL")+" · "+(lastQuoteSource===marketVenue+"-websocket"?(marketVenue==="binance"?"LIVE BID/ASK MIDPOINT STREAM":"LIVE TRADE STREAM"):"REST TICK FALLBACK"),"good");
-    else setFeed((marketVenue==="binance"?"BINANCE USDⓈ-M FUTURES":"OKX USDT PERPETUAL")+" · LIVE QUOTE STALE","bad");
+    if(fresh&&marketVenue==="yahoo")setFeed("YAHOO FINANCE · DELAYED REFERENCE ONLY","neutral");
+    else if(fresh)setFeed((marketVenue==="binance"?"BINANCE USDⓈ-M FUTURES":"OKX USDT PERPETUAL")+" · "+(lastQuoteSource===marketVenue+"-websocket"?(marketVenue==="binance"?"LIVE BID/ASK MIDPOINT STREAM":"LIVE TRADE STREAM"):"REST TICK FALLBACK"),"good");
+    else setFeed((marketVenue==="yahoo"?"YAHOO FINANCE REFERENCE QUOTE STALE":marketVenue==="binance"?"BINANCE USDⓈ-M FUTURES · LIVE QUOTE STALE":"OKX USDT PERPETUAL · LIVE QUOTE STALE"),"bad");
     updateDemoAgentTicket();
     if(now-lastQuoteRenderAt>=100){
       byId("livePrice").textContent=fresh?fmt(price):"STALE";
       const badge=byId("tvSyncedPrice"),meta=byId("tvSyncedMeta");
-      if(badge)badge.textContent=fresh?currentSymbol+" · "+fmt(price)+" USDT":"LIVE PRICE STALE";
-      const venueLabel=marketVenue==="binance"?"Binance USDⓈ-M Futures":"OKX perpetual";
+      if(badge)badge.textContent=fresh?currentSymbol+" · "+fmt(price)+(marketVenue==="yahoo"?" "+(currentMarketReference?.currency||"reference")+" · DELAYED":" USDT"):"LIVE PRICE STALE";
+      const venueLabel=marketVenue==="yahoo"?"Yahoo Finance delayed reference":marketVenue==="binance"?"Binance USDⓈ-M Futures":"OKX perpetual";
       if(meta)meta.textContent=fresh
-        ?(lastQuoteSource===marketVenue+"-websocket"?"Shared "+venueLabel+" live quote · WebSocket · "+new Date(lastTradeAt).toLocaleTimeString():"Shared "+venueLabel+" live quote · REST fallback · source age "+Math.max(0,Math.round(now-lastQuoteSourceTimestamp))+" ms")
-        :"No verified live quote. Candles remain visible, but this is not a live price; paper entries are blocked.";
+        ?(marketVenue==="yahoo"?"Yahoo Finance delayed reference · provider timestamp "+new Date(lastQuoteSourceTimestamp).toLocaleString()+" · "+(currentMarketReference?.unit||"reference units")+" · no executable bid/ask.":lastQuoteSource===marketVenue+"-websocket"?"Shared "+venueLabel+" live quote · WebSocket · "+new Date(lastTradeAt).toLocaleTimeString():"Shared "+venueLabel+" live quote · REST fallback · source age "+Math.max(0,Math.round(now-lastQuoteSourceTimestamp))+" ms")
+        :"No verified fresh quote. Historical candles may remain visible; new paper entries stay blocked.";
       byId("tvStatus").textContent=fresh
-        ?"IN-APP CHARTS SYNCED · "+currentSymbol+" "+currentInterval+" · shared "+(marketVenue==="binance"?"Binance Futures":"OKX")+" live quote "+fmt(price)+" · "+(lastQuoteSource===marketVenue+"-websocket"?"WebSocket":"REST fallback")+"."
-        :"LIVE QUOTE STALE · main chart shows candles only; waiting for a verified "+(marketVenue==="binance"?"Binance":"OKX")+" quote.";
+        ?(marketVenue==="yahoo"?"REFERENCE FEED · "+(currentMarketReference?.assetName||currentSymbol)+" · delayed price "+fmt(price)+" "+(currentMarketReference?.currency||"")+" · read-only; paper entries disabled.":"IN-APP CHARTS SYNCED · "+currentSymbol+" "+currentInterval+" · shared "+(marketVenue==="binance"?"Binance Futures":"OKX")+" live quote "+fmt(price)+" · "+(lastQuoteSource===marketVenue+"-websocket"?"WebSocket":"REST fallback")+".")
+        :"QUOTE STALE · chart may show last available candles; paper entries are blocked.";
       lastQuoteRenderAt=now;
     }
     if(now-lastLiveLineUpdateAt>=350){
@@ -431,15 +439,15 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
         if(candleSeries&&mainLivePriceLine){candleSeries.removePriceLine(mainLivePriceLine);mainLivePriceLine=null;}
         if(mirrorCandleSeries&&mirrorLivePriceLine){mirrorCandleSeries.removePriceLine(mirrorLivePriceLine);mirrorLivePriceLine=null;}
         if(fresh){
-          if(candleSeries)mainLivePriceLine=candleSeries.createPriceLine({price,color:"#54c8ff",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dotted,axisLabelVisible:true,title:marketVenue==="binance"?"BID/ASK MID":"LAST TRADE"});
-          if(mirrorCandleSeries)mirrorLivePriceLine=mirrorCandleSeries.createPriceLine({price,color:"#54c8ff",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dotted,axisLabelVisible:true,title:marketVenue==="binance"?"BID/ASK MID":"LAST TRADE"});
+          if(candleSeries)mainLivePriceLine=candleSeries.createPriceLine({price,color:"#54c8ff",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dotted,axisLabelVisible:true,title:marketVenue==="yahoo"?"YAHOO DELAYED":marketVenue==="binance"?"BID/ASK MID":"LAST TRADE"});
+          if(mirrorCandleSeries)mirrorLivePriceLine=mirrorCandleSeries.createPriceLine({price,color:"#54c8ff",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dotted,axisLabelVisible:true,title:marketVenue==="yahoo"?"YAHOO DELAYED":marketVenue==="binance"?"BID/ASK MID":"LAST TRADE"});
         }
       }catch(e){}
       lastLiveLineUpdateAt=now;
     }
   }
   async function refreshQuoteFallback(){
-    if(quoteFallbackBusy||document.visibilityState!=="visible"||!currentSymbol||!["binance","okx"].includes(marketVenue)||(hasFreshLiveQuote()&&lastQuoteSource===marketVenue+"-websocket"))return;
+    if(quoteFallbackBusy||document.visibilityState!=="visible"||!currentSymbol||!["binance","okx","yahoo"].includes(marketVenue)||(marketVenue==="yahoo"&&lastTradeAt>0&&Date.now()-lastTradeAt<15000)||(marketVenue==="yahoo"&&Date.now()-lastQuoteFallbackErrorAt<15000)||(hasFreshLiveQuote()&&lastQuoteSource===marketVenue+"-websocket"))return;
     const symbol=currentSymbol,startedAt=Date.now();quoteFallbackBusy=true;
     try{
       const quoteVenue=marketVenue;const url="/api/exchanges/quote?"+new URLSearchParams({venue:quoteVenue,symbol});
@@ -449,9 +457,9 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       if(symbol!==currentSymbol||marketVenue!==quoteVenue)return;
       if(lastWsTradeAt>=startedAt&&Date.now()-lastWsTradeAt<=3000)return;
       const price=Number(data.price),timestamp=Number(data.timestamp),sourceAge=Number(data.ageMs);
-      if(!Number.isFinite(price)||price<=0||!Number.isFinite(timestamp)||timestamp<=0||!Number.isFinite(sourceAge)||sourceAge < -1500||sourceAge>3000)throw new Error("Exchange ticker is stale or invalid");
+      const maxSourceAge=quoteVenue==="yahoo"?20*60*1000:3000;if(!Number.isFinite(price)||price<=0||!Number.isFinite(timestamp)||timestamp<=0||!Number.isFinite(sourceAge)||sourceAge < -1500||sourceAge>maxSourceAge)throw new Error(quoteVenue==="yahoo"?"Yahoo reference quote is delayed beyond the 20-minute freshness limit":"Exchange ticker is stale or invalid");
       if(lastQuoteSource===quoteVenue+"-rest-ticker"&&Number.isFinite(lastQuoteSourceTimestamp)&&timestamp<lastQuoteSourceTimestamp)return;
-      lastTradePrice=price;lastTradeAt=Date.now();lastQuoteSource=quoteVenue+"-rest-ticker";lastQuoteSourceTimestamp=timestamp;
+      lastTradePrice=price;lastTradeAt=Date.now();lastQuoteSource=quoteVenue+"-rest-ticker";lastQuoteSourceTimestamp=timestamp;if(quoteVenue==="yahoo")currentMarketReference={...(currentMarketReference||{}),assetName:data.assetName||currentMarketReference?.assetName,currency:data.currency||currentMarketReference?.currency,unit:data.unit||currentMarketReference?.unit,marketOpen:data.marketOpen,delayed:true};
       renderSharedQuote(price);
     }catch(e){
       if(Date.now()-lastQuoteFallbackErrorAt>5000){
@@ -608,7 +616,10 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     let action="HOLD / WAIT",entry=NaN,stop=NaN,target=NaN,rr=NaN,detail="",selected=longChecks,marker={time:toSec(last.time),position:"aboveBar",color:"#f2c46f",shape:"circle",text:"HOLD / WAIT"};
     const htfCheck={pass:htf.up,detail:htf.ready?htf.direction:"Higher timeframe unavailable",neutral:!htf.ready};
     const staleness=Date.now()-(Number.isFinite(last.closeTime)?last.closeTime:last.time+msFor(currentInterval));
-    if(staleness>msFor(currentInterval)*2+60000){
+    if(marketVenue==="yahoo"){
+      detail="REFERENCE ONLY — "+(currentMarketReference?.assetName||currentSymbol)+" uses Yahoo Finance delayed chart data. The displayed indicators and support/resistance are informational only; TarotAI will not issue actionable BUY/SELL signals or permit paper entries for this market.";
+      selected=longScore>=shortScore?longChecks:shortChecks;
+    }else if(staleness>msFor(currentInterval)*2+60000){
       detail="HOLD / WAIT — market data is stale ("+Math.round(staleness/1000)+"s since last closed candle). No setup is issued until fresh exchange data returns.";
       selected=longScore>=shortScore?longChecks:shortChecks;
     }else if(htf.ready&&htf.up&&longScore>=4&&upBreak){
@@ -643,7 +654,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     window.tarotaiLiveDecision={action,symbol:currentSymbol,interval:currentInterval,entry:Number.isFinite(entry)?entry:null,stop:Number.isFinite(stop)?stop:null,target:Number.isFinite(target)?target:null,rr:Number.isFinite(rr)?rr:null,candleTime:last.time,higherTrend:htf.direction,decisionAt:Date.now()};
     const paperButton=byId("livePaperOpen");if(paperButton)paperButton.disabled=paperOpening||!["BUY / LONG","SELL / SHORT"].includes(action);
 
-    status("Source: "+({binance:"Binance USDⓈ-M Futures",bybit:"Bybit linear perpetual",okx:"OKX perpetual swap"}[marketVenue]||String(marketVenue).toUpperCase())+" public market data · "+closed.length+" closed candles analyzed · latest closed candle "+new Date(last.time).toLocaleString()+" · EMA 9/21/50 · RSI "+rv[i].toFixed(1)+" · ATR "+fmt(av[i])+" · long score "+longScore+"/5 · short score "+shortScore+"/5 · HTF "+htf.direction+". Rules are deterministic and transparent; no profit guarantee.");
+    status(marketVenue==="yahoo"?"REFERENCE ONLY · "+(currentMarketReference?.assetName||currentSymbol)+" · Yahoo Finance delayed data · "+closed.length+" historical closed candles · "+(currentMarketReference?.currency||"")+" · EMA 9/21/50 · RSI "+rv[i].toFixed(1)+" · ATR "+fmt(av[i])+" · technical scores long "+longScore+"/5, short "+shortScore+"/5 · no executable trade recommendation or paper entry.":"Source: "+({binance:"Binance USDⓈ-M Futures",bybit:"Bybit linear perpetual",okx:"OKX perpetual swap"}[marketVenue]||String(marketVenue).toUpperCase())+" public market data · "+closed.length+" closed candles analyzed · latest closed candle "+new Date(last.time).toLocaleString()+" · EMA 9/21/50 · RSI "+rv[i].toFixed(1)+" · ATR "+fmt(av[i])+" · long score "+longScore+"/5 · short score "+shortScore+"/5 · HTF "+htf.direction+". Rules are deterministic and transparent; no profit guarantee.");
   }
   function renderLiveAgentResults(results,targetId="liveAgentResults"){
     const box=byId(targetId);if(!box)return;box.replaceChildren();
@@ -671,7 +682,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     if(closed.length<80){statusPanel.className="live-agent-consensus warn";title.textContent="Continuous team: WAITING FOR DATA";detail.textContent="Need at least 80 closed candles; currently "+closed.length+". All entries remain blocked.";setChartAgentCounter("0/8 AGENTS ACTIVE","Waiting for 80 closed candles · "+closed.length+"/80 available","warn");return;}
     const now=Date.now(),i=closed.length-1,last=closed[i],end=Number.isFinite(last.closeTime)&&last.closeTime>last.time?last.closeTime:last.time+msFor(currentInterval)-1;
     const quoteAgeMs=Number.isFinite(lastTradeAt)?now-lastTradeAt:Infinity,quoteFresh=hasFreshLiveQuote(now);
-    const stale=now-end>msFor(currentInterval)*2+60000||!quoteFresh,closes=closed.map(c=>c.close),e9=ema(closes,9),e21=ema(closes,21),e50=ema(closes,50),rsiValues=rsi(closes,14),atrValues=atr(closed,14);
+    const stale=marketVenue==="yahoo"||now-end>msFor(currentInterval)*2+60000||!quoteFresh,closes=closed.map(c=>c.close),e9=ema(closes,9),e21=ema(closes,21),e50=ema(closes,50),rsiValues=rsi(closes,14),atrValues=atr(closed,14);
     const prior=closed.slice(Math.max(0,i-20),i),recent=closed.slice(Math.max(0,i-7),i+1),priorHigh=Math.max(...prior.map(c=>c.high)),priorLow=Math.min(...prior.map(c=>c.low));
     const htf=trendFor(higherCache,higherMap[currentInterval]||"1d"),upBreak=last.close>priorHigh,downBreak=last.close<priorLow;
     const longChecks=[e9[i]>e21[i],last.close>e50[i],rsiValues[i]>=52&&rsiValues[i]<=70,e9[i]>e9[Math.max(0,i-3)]&&last.close>closed[i-1].close,upBreak];
@@ -850,6 +861,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   async function runLiveAgentTeam(){
     window.tarotaiAgentCommitteeApproval=null;
     const runButton=byId("runLiveAgentTeam"),statusEl=byId("liveAgentRunStatus"),summary=byId("liveAgentConsensus");
+    if(marketVenue==="yahoo"||isReferenceMarket(byId("liveSymbol").value)){statusEl.textContent="AI trade-lifecycle approval is disabled for Yahoo reference markets. The unified chart still shows technical indicators; no paper entries are allowed.";return;}
     const selections=Array.from(document.querySelectorAll("[data-agent-role]")).map(s=>s.value).filter(Boolean);
     if(selections.length!==8){statusEl.textContent="Select all eight trading agents before running analysis.";return;}
     if(new Set(selections).size!==selections.length){statusEl.textContent="Each slot must use a different specialist.";return;}
@@ -910,7 +922,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   async function fetchMarketWithFallback(symbol,interval,limit,before){
     const failures=[];
     // Single-source chart invariant: never silently swap exchanges; perpetual prices can differ.
-    for(const venue of [marketVenue]){
+    const requestedVenue=isReferenceMarket(symbol)?"yahoo":(["binance","okx"].includes(marketVenue)?marketVenue:"binance");
+    for(const venue of [requestedVenue]){
       try{
         const params=new URLSearchParams({venue,symbol,interval,limit:String(limit),public:"1"});if(Number.isFinite(before)&&before>0)params.set("before",String(Math.floor(before)));
         const data=await fetchJSON("/api/exchanges/market?"+params);
@@ -963,6 +976,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const data=await fetchMarketWithFallback(currentSymbol,currentInterval,250);
       const nextVenue=data.venue||"binance",venueChanged=marketVenue!==nextVenue;
       marketVenue=nextVenue;window.tarotaiMarketVenue=marketVenue;
+      currentMarketReference=marketVenue==="yahoo"?{assetName:data.assetName||REFERENCE_MARKETS[currentSymbol]?.name||currentSymbol,providerSymbol:data.providerSymbol||REFERENCE_MARKETS[currentSymbol]?.providerSymbol,currency:data.currency||REFERENCE_MARKETS[currentSymbol]?.currency,unit:data.unit||REFERENCE_MARKETS[currentSymbol]?.unit,marketOpen:data.marketOpen,marketState:data.marketState,delayed:true,quoteAgeMs:data.quoteAgeMs}:null;
       if(venueChanged||changed||streamWasStale||!feedSocket||feedSocket.readyState!==WebSocket.OPEN)connectSocket();
       rows=changed?orderedCandles(data.candles):orderedCandles([...rows,...data.candles]);lastMarketUpdateAt=Date.now();updateHistoryStatus("Loaded "+rows.length.toLocaleString()+" candles. Pan left or tap Load older candles to inspect older patterns.");
       if(rows.length<80)throw new Error("Only "+rows.length+" valid candles were returned; need at least 80.");
@@ -983,6 +997,10 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   function connectSocket(){
     if(feedSocket){feedSocket.onclose=null;try{feedSocket.close();}catch(e){}feedSocket=null;}
     if(!currentSymbol||!currentInterval)return;
+    if(marketVenue==="yahoo"){
+      if(feedSocket){feedSocket.onclose=null;try{feedSocket.close();}catch(e){}feedSocket=null;}
+      setFeed("YAHOO FINANCE · DELAYED REFERENCE ONLY","neutral");connectQuoteSocket();return;
+    }
     if(marketVenue==="binance"){
       connectQuoteSocket();
       setFeed("BINANCE USDⓈ-M FUTURES · CONNECTING CANDLES","neutral");
@@ -1108,7 +1126,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const d=window.tarotaiLiveDecision,qualifies=d&&["BUY / LONG","SELL / SHORT"].includes(d.action)&&d.symbol===byId("liveSymbol").value&&d.interval===byId("liveInterval").value;
     const closedNow=closedOnly(rows,currentInterval).slice(-1)[0],approvals=[window.tarotaiContinuousTeamApproval,window.tarotaiAgentCommitteeApproval].filter(Boolean);
     const teamApproved=!!closedNow&&approvals.some(a=>a.symbol===d?.symbol&&a.interval===d?.interval&&Number(a.candleTime)===Number(closedNow.time)&&a.action===d?.action&&["continuous-local-team","ai-eight-agent-review"].includes(a.source));
-    byId("livePaperOpen").disabled=paperOpening||!qualifies||!teamApproved||opened.some(t=>t.symbol===byId("liveSymbol").value);
+    byId("livePaperOpen").disabled=marketVenue==="yahoo"||isReferenceMarket(byId("liveSymbol").value)||paperOpening||!qualifies||!teamApproved||opened.some(t=>t.symbol===byId("liveSymbol").value);
     updateDemoAgentTicket();
     if(opened.some(t=>t.symbol===byId("liveSymbol").value))paperStatus("A paper position for this market is already open. Close it before opening another.");
   }
@@ -1183,6 +1201,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     }
   }
   async function paperOpenSignal(){
+    if(marketVenue==="yahoo"||isReferenceMarket(byId("liveSymbol").value)){paperStatus("Paper entry blocked: NIFTY 50 and Gold use a delayed reference feed without a verified executable bid/ask or supported contract-risk model.",true);return;}
     if(paperOpening)return;
     if(!paperStoreReady||!Array.isArray(window.tarotaiPaperLedger)){paperStatus("Paper entry blocked: persistent paper ledger must be loaded before sizing or opening a position.",true);return;}
     const d=window.tarotaiLiveDecision,now=Date.now();
@@ -1232,6 +1251,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   }
   async function paperOpenObservation(){
     const button=byId("livePaperObservationOpen");
+    if(marketVenue==="yahoo"||isReferenceMarket(byId("liveSymbol").value)){paperStatus("Observation trade blocked: NIFTY 50 and Gold are reference-only; quote/spread and contract-risk checks are not supported.",true);return;}
     if(paperOpening)return;
     paperOpening=true;button.disabled=true;button.textContent="Verifying live quote…";
     try{
@@ -1289,6 +1309,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   async function setAutoPaperEnabled(next){
     const button=byId("livePaperAutoToggle"),status=byId("livePaperAutoStatus");
     if(next===autoPaperEnabled)return;
+    if(next&&(marketVenue==="yahoo"||isReferenceMarket(byId("liveSymbol").value))){status.textContent="AUTO PAPER BLOCKED: NIFTY 50 and Gold are delayed reference markets without supported execution/contract-risk verification. Select a supported crypto perpetual for paper trading.";status.style.color="var(--red)";button.setAttribute("aria-pressed","false");return;}
     if(next){
       if(!await ensurePrivateSession()){button.setAttribute("aria-pressed","false");return;}
       await paperRefresh(false);
@@ -1307,13 +1328,13 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   paperRefresh(true).finally(updateDemoAgentTicket);
   setInterval(()=>{if(document.visibilityState==="visible")paperRefresh(true).finally(updateDemoAgentTicket);},10000);
 
-  byId("liveSymbol").addEventListener("change",()=>{updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;window.tarotaiContinuousTeamApproval=null;window.tarotaiAgentCommitteeApproval=null;void refresh(true).then(()=>runContinuousAgentCycle());});
+  byId("liveSymbol").addEventListener("change",()=>{if(autoPaperEnabled&&isReferenceMarket(byId("liveSymbol").value))void setAutoPaperEnabled(false);updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;window.tarotaiContinuousTeamApproval=null;window.tarotaiAgentCommitteeApproval=null;void refresh(true).then(()=>runContinuousAgentCycle());});
   byId("liveInterval").addEventListener("change",()=>{updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;window.tarotaiContinuousTeamApproval=null;window.tarotaiAgentCommitteeApproval=null;void refresh(true).then(()=>runContinuousAgentCycle());});
   window.tarotaiReloadLiveChart=()=>{higherCache=[];higherCacheKey="";higherCacheAt=0;void refresh(true).then(()=>runContinuousAgentCycle());};
   startContinuousAgentMonitor();
-  if(quoteFallbackTimer)clearInterval(quoteFallbackTimer);quoteFallbackTimer=setInterval(()=>{if(document.visibilityState==="visible"&&(!hasFreshLiveQuote()||lastQuoteSource!==marketVenue+"-websocket"))void refreshQuoteFallback();},2000);
+  if(quoteFallbackTimer)clearInterval(quoteFallbackTimer);quoteFallbackTimer=setInterval(()=>{if(document.visibilityState==="visible"&&(marketVenue==="yahoo"?(Date.now()-lastTradeAt>15000&&Date.now()-lastQuoteFallbackErrorAt>15000):(!hasFreshLiveQuote()||lastQuoteSource!==marketVenue+"-websocket")))void refreshQuoteFallback();},2000);
   refresh(true).then(()=>{connectSocket();runContinuousAgentCycle();void refreshQuoteFallback();});
-  pollTimer=setInterval(()=>{if(document.visibilityState==="visible"&&Date.now()-lastMarketUpdateAt>5000)void refresh(true);},5000);
+  pollTimer=setInterval(()=>{if(document.visibilityState==="visible"&&Date.now()-lastMarketUpdateAt>(marketVenue==="yahoo"?15000:5000))void refresh(true);},5000);
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){void refresh(true).then(()=>runContinuousAgentCycle());void refreshQuoteFallback();}});
   window.addEventListener("beforeunload",()=>{if(pollTimer)clearInterval(pollTimer);if(quoteFallbackTimer)clearInterval(quoteFallbackTimer);if(feedSocket)feedSocket.close();if(quoteSocket)quoteSocket.close();if(resizeObserver)resizeObserver.disconnect();});
 })();
