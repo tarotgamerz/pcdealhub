@@ -851,7 +851,7 @@ test("the single live chart quote marker updates without rewriting traded candle
   assert.match(futuresDesk, /const price=Number\(tick\.px\),quoteAt=Date\.now\(\),ts=Number\(tick\.ts\),exchangeAge=quoteAt-ts/);
   assert.doesNotMatch(futuresDesk, /syncLiveQuoteToCurrentCandle/);
   assert.doesNotMatch(futuresDesk, /forming\.close=quote/);
-  assert.match(futuresDesk, /streamWasStale=Date\.now\(\)-lastMarketUpdateAt>5000/);
+  assert.match(futuresDesk, /streamWasStale=marketVenue!=="yahoo"&&Date\.now\(\)-lastMarketUpdateAt>5000/);
   assert.match(futuresDesk, /pollTimer=setInterval\(\(\)=>\{if\(document\.visibilityState==="visible"&&Date\.now\(\)-lastMarketUpdateAt>\(marketVenue==="yahoo"\?15000:5000\)\)void refresh\(true\);\},5000\)/);
 });
 
@@ -875,4 +875,19 @@ test("NIFTY 50 and Gold are mapped to read-only delayed Yahoo reference data",()
   assert.ok(futuresDesk.includes('AUTO PAPER BLOCKED: NIFTY 50 and Gold are delayed reference markets'));
   assert.ok(futuresDesk.includes('sourceMaxAge=reference?(currentMarketReference?.marketOpen?20*60*1000:7*24*60*60*1000)'),"last official reference quotes remain visible briefly after the market closes");
   assert.ok(futuresDesk.includes(' · MARKET CLOSED'),"closed reference sessions are labelled rather than called live");
+});
+
+
+test("Yahoo reference candles use quote freshness for daily HTF and interval-aware candle freshness",()=>{
+  assert.match(source,/const freshnessAgeMs=interval==="1d"\?quoteAgeMs:candleAgeMs/);
+  assert.match(source,/const freshnessLimitMs=interval==="1d"\?25\*60\*1000:25\*60\*1000\+Math\.max\(0,\(DURATIONS\[interval\]\|\|60000\)-15\*60\*1000\)/);
+  assert.match(source,/freshnessAgeMs>freshnessLimitMs/);
+});
+
+test("Yahoo chart polling preserves its cached quote and keeps reference-feed status explicit",()=>{
+  assert.match(futuresDesk,/symbolChanged=sym!==currentSymbol,changed=symbolChanged\|\|interval!==currentInterval/);
+  assert.match(futuresDesk,/if\(venueChanged\|\|symbolChanged\|\|\(changed&&marketVenue!==\"yahoo\"\)\|\|streamWasStale\|\|\(marketVenue!==\"yahoo\"&&\(!feedSocket\|\|feedSocket\.readyState!==WebSocket\.OPEN\)\)\)connectSocket\(\)/);
+  assert.match(futuresDesk,/YAHOO FINANCE · DELAYED REFERENCE ONLY · "\+state/);
+  assert.match(futuresDesk,/if\(marketVenue!==\"yahoo\"\)connectSocket\(\)/);
+  assert.match(futuresDesk,/void refreshQuoteFallback\(\)/);
 });

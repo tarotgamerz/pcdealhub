@@ -968,23 +968,29 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   }
   async function refresh(force){
     if(busy)return;busy=true;byId("liveRefresh").disabled=true;
-    if(!force)status("Refreshing fresh perpetual-futures candles…");
+    if(!force)status(isReferenceMarket(byId("liveSymbol").value)?"Refreshing delayed Yahoo Finance reference candles…":"Refreshing fresh perpetual-futures candles…");
     try{
-      const sym=byId("liveSymbol").value,interval=byId("liveInterval").value,changed=sym!==currentSymbol||interval!==currentInterval,streamWasStale=Date.now()-lastMarketUpdateAt>5000;
+      const sym=byId("liveSymbol").value,interval=byId("liveInterval").value,symbolChanged=sym!==currentSymbol,changed=symbolChanged||interval!==currentInterval,streamWasStale=marketVenue!=="yahoo"&&Date.now()-lastMarketUpdateAt>5000;
       if(changed){currentSymbol=sym;currentInterval=interval;higherCache=[];higherCacheKey="";higherCacheAt=0;firstRender=true;rows=[];historyExhausted=false;historyPages=0;lastWsCandleTime=0;}
       const data=await fetchMarketWithFallback(currentSymbol,currentInterval,250);
       const nextVenue=data.venue||"binance",venueChanged=marketVenue!==nextVenue;
       marketVenue=nextVenue;window.tarotaiMarketVenue=marketVenue;
       currentMarketReference=marketVenue==="yahoo"?{assetName:data.assetName||REFERENCE_MARKETS[currentSymbol]?.name||currentSymbol,providerSymbol:data.providerSymbol||REFERENCE_MARKETS[currentSymbol]?.providerSymbol,currency:data.currency||REFERENCE_MARKETS[currentSymbol]?.currency,unit:data.unit||REFERENCE_MARKETS[currentSymbol]?.unit,marketOpen:data.marketOpen,marketState:data.marketState,delayed:true,quoteAgeMs:data.quoteAgeMs}:null;
-      if(venueChanged||changed||streamWasStale||!feedSocket||feedSocket.readyState!==WebSocket.OPEN)connectSocket();
+      if(venueChanged||symbolChanged||(changed&&marketVenue!=="yahoo")||streamWasStale||(marketVenue!=="yahoo"&&(!feedSocket||feedSocket.readyState!==WebSocket.OPEN)))connectSocket();
       rows=changed?orderedCandles(data.candles):orderedCandles([...rows,...data.candles]);lastMarketUpdateAt=Date.now();updateHistoryStatus("Loaded "+rows.length.toLocaleString()+" candles. Pan left or tap Load older candles to inspect older patterns.");
       if(rows.length<80)throw new Error("Only "+rows.length+" valid candles were returned; need at least 80.");
       renderRows(firstRender);
       try{await loadHigher(false);analyze();}catch(e){higherCache=[];higherCacheKey="";byId("liveHtf").textContent="UNAVAILABLE";analyze();status("Chart data loaded, but the higher-timeframe confirmation failed: "+e.message+". Signal stays HOLD until trend confirmation succeeds.");}
       const last=rows[rows.length-1],latestClosed=closedOnly(rows,currentInterval).slice(-1)[0],latestClosedEnd=latestClosed?(Number.isFinite(latestClosed.closeTime)&&latestClosed.closeTime>latestClosed.time?latestClosed.closeTime:latestClosed.time+msFor(currentInterval)-1):NaN,age=Number.isFinite(latestClosedEnd)?Math.max(0,Date.now()-latestClosedEnd):NaN;
-      const venueLabel=({binance:"BINANCE USDⓈ-M FUTURES",bybit:"BYBIT LINEAR PERPETUAL",okx:"OKX USDT PERPETUAL"})[marketVenue]||String(marketVenue).toUpperCase();
-      setFeed(venueLabel+" · "+(marketVenue==="binance"&&feedSocket&&feedSocket.readyState===1?"LIVE STREAM":"REST REFRESH"),marketVenue==="binance"&&feedSocket&&feedSocket.readyState===1?"good":"neutral");
-      status("Source: "+(data.sourceHost||(marketVenue==="binance"?"Binance Futures":"OKX perpetual swap"))+". Latest closed candle age "+(Number.isFinite(age)?Math.round(age/1000)+"s":"unavailable")+"; candle snapshot fetched "+new Date(data.fetchedAt||Date.now()).toLocaleTimeString()+". "+(marketVenue==="binance"&&feedSocket&&feedSocket.readyState===1?"Live Futures kline and best-bid/ask midpoint WebSockets active.":marketVenue==="binance"?"REST candle refresh plus live midpoint quote fallback.":feedSocket&&feedSocket.readyState===1?"WebSocket candle updates active.":"Polling fallback active.")+" No orders are sent.");
+      if(marketVenue==="yahoo"){
+        const assetName=currentMarketReference?.assetName||currentSymbol,state=currentMarketReference?.marketOpen===false?"MARKET CLOSED":currentMarketReference?.marketOpen===true?"SESSION OPEN":"SESSION UNKNOWN",quoteAge=Number(data.quoteAgeMs);
+        setFeed("YAHOO FINANCE · DELAYED REFERENCE ONLY · "+state,"neutral");
+        status("REFERENCE ONLY · "+assetName+" · Yahoo Finance delayed data ("+(data.sourceHost||"public reference feed")+") · "+state+" · last closed candle "+(Number.isFinite(age)?Math.round(age/1000)+"s ago":"age unavailable")+" · reference quote age "+(Number.isFinite(quoteAge)?Math.round(quoteAge/1000)+"s":"unavailable")+". Prices are informational only; no AI trade-lifecycle approval or paper entries are enabled.");
+      }else{
+        const venueLabel=({binance:"BINANCE USDⓈ-M FUTURES",bybit:"BYBIT LINEAR PERPETUAL",okx:"OKX USDT PERPETUAL"})[marketVenue]||String(marketVenue).toUpperCase();
+        setFeed(venueLabel+" · "+(marketVenue==="binance"&&feedSocket&&feedSocket.readyState===1?"LIVE STREAM":"REST REFRESH"),marketVenue==="binance"&&feedSocket&&feedSocket.readyState===1?"good":"neutral");
+        status("Source: "+(data.sourceHost||(marketVenue==="binance"?"Binance Futures":"OKX perpetual swap"))+". Latest closed candle age "+(Number.isFinite(age)?Math.round(age/1000)+"s":"unavailable")+"; candle snapshot fetched "+new Date(data.fetchedAt||Date.now()).toLocaleTimeString()+". "+(marketVenue==="binance"&&feedSocket&&feedSocket.readyState===1?"Live Futures kline and best-bid/ask midpoint WebSockets active.":marketVenue==="binance"?"REST candle refresh plus live midpoint quote fallback.":feedSocket&&feedSocket.readyState===1?"WebSocket candle updates active.":"Polling fallback active.")+" No orders are sent.");
+      }
     }catch(e){
       setFeed("MARKET DATA ERROR","bad");
       byId("liveHtf").textContent="UNAVAILABLE";
@@ -1327,12 +1333,12 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   paperRefresh(true).finally(updateDemoAgentTicket);
   setInterval(()=>{if(document.visibilityState==="visible")paperRefresh(true).finally(updateDemoAgentTicket);},10000);
 
-  byId("liveSymbol").addEventListener("change",()=>{if(autoPaperEnabled&&isReferenceMarket(byId("liveSymbol").value))void setAutoPaperEnabled(false);updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;window.tarotaiContinuousTeamApproval=null;window.tarotaiAgentCommitteeApproval=null;void refresh(true).then(()=>runContinuousAgentCycle());});
-  byId("liveInterval").addEventListener("change",()=>{updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;window.tarotaiContinuousTeamApproval=null;window.tarotaiAgentCommitteeApproval=null;void refresh(true).then(()=>runContinuousAgentCycle());});
+  byId("liveSymbol").addEventListener("change",()=>{if(autoPaperEnabled&&isReferenceMarket(byId("liveSymbol").value))void setAutoPaperEnabled(false);updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;window.tarotaiContinuousTeamApproval=null;window.tarotaiAgentCommitteeApproval=null;void refresh(true).then(()=>{runContinuousAgentCycle();void refreshQuoteFallback();});});
+  byId("liveInterval").addEventListener("change",()=>{updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;window.tarotaiContinuousTeamApproval=null;window.tarotaiAgentCommitteeApproval=null;void refresh(true).then(()=>{runContinuousAgentCycle();void refreshQuoteFallback();});});
   window.tarotaiReloadLiveChart=()=>{higherCache=[];higherCacheKey="";higherCacheAt=0;void refresh(true).then(()=>runContinuousAgentCycle());};
   startContinuousAgentMonitor();
   if(quoteFallbackTimer)clearInterval(quoteFallbackTimer);quoteFallbackTimer=setInterval(()=>{if(document.visibilityState==="visible"&&(marketVenue==="yahoo"?(Date.now()-lastTradeAt>15000&&Date.now()-lastQuoteFallbackErrorAt>15000):(!hasFreshLiveQuote()||lastQuoteSource!==marketVenue+"-websocket")))void refreshQuoteFallback();},2000);
-  refresh(true).then(()=>{connectSocket();runContinuousAgentCycle();void refreshQuoteFallback();});
+  refresh(true).then(()=>{if(marketVenue!=="yahoo")connectSocket();runContinuousAgentCycle();void refreshQuoteFallback();});
   pollTimer=setInterval(()=>{if(document.visibilityState==="visible"&&Date.now()-lastMarketUpdateAt>(marketVenue==="yahoo"?15000:5000))void refresh(true);},5000);
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){void refresh(true).then(()=>runContinuousAgentCycle());void refreshQuoteFallback();}});
   window.addEventListener("beforeunload",()=>{if(pollTimer)clearInterval(pollTimer);if(quoteFallbackTimer)clearInterval(quoteFallbackTimer);if(feedSocket)feedSocket.close();if(quoteSocket)quoteSocket.close();if(resizeObserver)resizeObserver.disconnect();});

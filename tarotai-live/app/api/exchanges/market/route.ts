@@ -70,7 +70,7 @@ async function yahooMarketData(symbol:string,interval:string,limit:number,before
  const quoteTime=Number(result.meta?.regularMarketTime)*1000;
  const quoteAgeMs=Number.isFinite(quoteTime)&&quoteTime>0?Math.max(0,now-quoteTime):candleAgeMs;
  const marketOpen=yahooMarketIsOpen(result.meta,now);
- const stale=marketOpen&&(!Number.isFinite(candleAgeMs)||candleAgeMs>25*60*1000);
+ const freshnessAgeMs=interval==="1d"?quoteAgeMs:candleAgeMs;const freshnessLimitMs=interval==="1d"?25*60*1000:25*60*1000+Math.max(0,(DURATIONS[interval]||60000)-15*60*1000);const stale=marketOpen&&(!Number.isFinite(freshnessAgeMs)||freshnessAgeMs>freshnessLimitMs);
  return {venue:"yahoo",symbol,providerSymbol:market.providerSymbol,assetName:market.name,currency:String(result.meta?.currency||market.currency),unit:market.unit,interval,fetchedAt:new Date(now).toISOString(),sourceHost,marketOpen,marketState:String(result.meta?.marketState|| (marketOpen?"OPEN":"CLOSED")),delayed:true,quoteTimestamp:Number.isFinite(quoteTime)&&quoteTime>0?quoteTime:null,quoteAgeMs,candleAgeMs,latestClosedCandleTime:lastClosed?.time??null,latestCandleTime:latest.time,latestCandleInProgress:latest.closeTime>=now-300,closedCandleCount:closed.length,marketDataMode:"delayed-reference-read-only",stale:before!==null?false:stale,historyPage:before!==null,candles,readOnly:true,orderPlacement:false,warning:"Yahoo Finance data may be delayed. NIFTY 50 and Gold are reference-only in TarotAI; paper orders and automated execution are disabled for these markets."};
 }
 
