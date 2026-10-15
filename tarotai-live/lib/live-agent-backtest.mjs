@@ -151,7 +151,7 @@ export function runLiveAgentStrategyBacktest(mainCandles, higherCandles, options
     const plannedRisk = Math.abs(pos.entryFill - pos.stop) * pos.quantity;
     trades.push({
       side: pos.side, signalTime: pos.signal.signalTime, entryTime: mainCandles[pos.entryIndex].time, exitTime: mainCandles[i].time,
-      signalPrice: pos.signal.entryReference, entryPrice: Number(pos.entryFill.toFixed(8)), stopPrice: Number(pos.stop.toFixed(8)),
+      signalPrice: pos.signal.entryReference, entryPrice: Number(pos.entryFill.toFixed(8)), exitPrice: Number(exitFill.toFixed(8)), stopPrice: Number(pos.stop.toFixed(8)),
       targetPrice: Number(pos.target.toFixed(8)), quantity: Number(pos.quantity.toFixed(8)),
       notional: Number((pos.entryFill * pos.quantity).toFixed(8)), plannedRisk: Number(plannedRisk.toFixed(8)),
       grossPnl: Number(gross.toFixed(8)), fees: Number((pos.entryFee + exitFee).toFixed(8)),
