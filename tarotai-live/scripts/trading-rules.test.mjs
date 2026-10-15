@@ -341,7 +341,6 @@ test("shadow ensemble rejects malformed or unordered candle inputs",()=>{
 });
 
 test("ensemble is wired into the trading dashboard as shadow-only, not an entry authority",()=>{
- const {readFileSync}=await import("node:fs");
  const desk=readFileSync(new URL("../public/trading-desk.html",import.meta.url),"utf8");
  assert.match(desk,/strategy-ensemble\.js/);
  assert.match(desk,/paintStrategyEnsembleShadow\(shadowEnsemble\)/);
