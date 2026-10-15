@@ -622,7 +622,7 @@ test("paper entry checks a live OKX last-trade ticker and blocks material quote 
 
 test("continuous local agents veto missing or stale last-trade ticks", () => {
   assert.match(futuresDesk, /quoteFresh=hasFreshLiveQuote\(now\)/);
-  assert.match(futuresDesk, /const stale=now-end>msFor\(currentInterval\)\*2\+60000\|\|!quoteFresh/);
+  assert.match(futuresDesk, /const stale=marketVenue==="yahoo"\|\|now-end>msFor\(currentInterval\)\*2\+60000\|\|!quoteFresh/);
   assert.match(futuresDesk, /livePrice=Number\(currentMarketPrice\(\)\)/);
   assert.match(futuresDesk, /STALE QUOTE — ENTRIES BLOCKED/);
 });
@@ -846,13 +846,13 @@ test("the single live chart quote marker updates without rewriting traded candle
   assert.match(futuresDesk, /mainLivePriceLine=candleSeries\.createPriceLine\(\{price,color:"#54c8ff"/);
   assert.match(futuresDesk, /liveP=Number\(window\.tarotaiSharedLastPrice\)/);
   assert.match(futuresDesk, /if\(liveQuoteFresh&&liveP>=min&&liveP<=max\)/);
-  assert.match(futuresDesk, /const sourceMaxAge=lastQuoteSource===marketVenue\+"-rest-ticker"\?3500:3000/);
+  assert.match(futuresDesk, /const sourceMaxAge=reference\?20\*60\*1000:lastQuoteSource===marketVenue\+"-rest-ticker"\?3500:3000/);
   assert.match(futuresDesk, /const bid=Number\(tick\.b\),ask=Number\(tick\.a\),price=\(bid\+ask\)\/2,ts=Number\(tick\.E\|\|tick\.T\),receivedAt=Date\.now\(\),exchangeAge=receivedAt-ts/);
   assert.match(futuresDesk, /const price=Number\(tick\.px\),quoteAt=Date\.now\(\),ts=Number\(tick\.ts\),exchangeAge=quoteAt-ts/);
   assert.doesNotMatch(futuresDesk, /syncLiveQuoteToCurrentCandle/);
   assert.doesNotMatch(futuresDesk, /forming\.close=quote/);
   assert.match(futuresDesk, /streamWasStale=Date\.now\(\)-lastMarketUpdateAt>5000/);
-  assert.match(futuresDesk, /pollTimer=setInterval\(\(\)=>\{if\(document\.visibilityState==="visible"&&Date\.now\(\)-lastMarketUpdateAt>5000\)void refresh\(true\);\},5000\)/);
+  assert.match(futuresDesk, /pollTimer=setInterval\(\(\)=>\{if\(document\.visibilityState==="visible"&&Date\.now\(\)-lastMarketUpdateAt>\(marketVenue==="yahoo"\?15000:5000\)\)void refresh\(true\);\},5000\)/);
 });
 
 test("strategy signal calculations remain based on closed candles while displaying the active candle", () => {
