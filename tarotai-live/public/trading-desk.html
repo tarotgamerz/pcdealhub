@@ -1252,6 +1252,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   const paperFmt=v=>Number.isFinite(v)?v.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
   function paperStatus(msg,bad=false){byId("livePaperStatus").textContent=msg;byId("livePaperStatus").style.color=bad?"var(--red)":"var(--muted)";}
   function paperOpened(ledger){const closed=new Set(ledger.filter(t=>t.parentTradeId&&paperClosedStatuses.has(t.status)).map(t=>t.parentTradeId));return ledger.filter(t=>t.status==="PAPER_OPEN"&&!closed.has(t.id));}
+  const PAPER_UI_MAX_POSITION_EXPOSURE_PCT=25,PAPER_UI_MAX_PORTFOLIO_EXPOSURE_PCT=100,PAPER_UI_MAX_OPEN_RISK_PCT=3,PAPER_UI_MAX_OPEN_POSITIONS=10,PAPER_UI_MAX_POSITIONS_PER_SYMBOL=5;
+  function paperOpenRisk(open){return open.reduce((sum,t)=>{const stored=t.plannedRisk===null||t.plannedRisk===undefined?NaN:Number(t.plannedRisk);if(Number.isFinite(stored)&&stored>=0)return sum+stored;const mark=Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice),stop=Number(t.stopPrice),qty=Number(t.quantity);return Number.isFinite(mark)&&mark>0&&Number.isFinite(stop)&&stop>0&&Number.isFinite(qty)&&qty>0?sum+Math.abs(mark-stop)*qty:NaN;},0);}
   function updateAgentOrderBar(){
     const root=byId("agentOrderBar");if(!root)return;
     const put=(id,value)=>{const e=byId(id);if(e)e.textContent=value;};
@@ -1323,6 +1325,27 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     if(source.includes("okx"))return "okx";
     return "okx";
   }
+  function renderPaperAccount(ledger){
+    const input=byId("livePaperBalance"),opened=paperOpened(Array.isArray(ledger)?ledger:[]);
+    if(opened.length&&input){
+      const recorded=opened.map(t=>Number(t.paperBalance));
+      if(recorded.every(n=>Number.isFinite(n)&&n>=100&&n<=10000000)&&recorded.every(n=>Math.abs(n-recorded[0])<=Math.max(.01,recorded[0]*1e-9))){
+        input.value=String(recorded[0]);
+        try{localStorage.setItem("tarotaiPaperBalance",String(recorded[0]));}catch(_){}
+      }
+    }
+    if(input)input.disabled=opened.length>0;
+    const balance=Number(input?.value),closeRows=(Array.isArray(ledger)?ledger:[]).filter(t=>t.parentTradeId&&paperClosedStatuses.has(t.status));
+    const realized=closeRows.reduce((sum,t)=>{const pnl=Number(t.pnlNet);return sum+(Number.isFinite(pnl)?pnl:0);},0);
+    const notional=opened.reduce((sum,t)=>sum+Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice)*Number(t.quantity),0);
+    const openRisk=paperOpenRisk(opened),capitalPlusRealized=balance+realized,available=Math.max(0,capitalPlusRealized-notional);
+    const put=(id,value)=>{const el=byId(id);if(el)el.textContent=value;};
+    put("livePaperAccountStart",Number.isFinite(balance)?paperFmt(balance)+" USDT":"—");
+    put("livePaperAccountEquity",Number.isFinite(capitalPlusRealized)?paperFmt(capitalPlusRealized)+" USDT":"—");
+    put("livePaperAccountNotional",Number.isFinite(notional)?paperFmt(notional)+" USDT":"—");
+    put("livePaperAccountAvailable",Number.isFinite(available)?paperFmt(available)+" USDT":"—");
+    put("livePaperAccountRisk",Number.isFinite(openRisk)?paperFmt(openRisk)+" / "+paperFmt(balance*PAPER_UI_MAX_OPEN_RISK_PCT/100)+" USDT":"—");
+  }
   async function paperRefresh(checkStops=true){
     if(paperBusy)return;paperBusy=true;
     try{
@@ -1333,14 +1356,14 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
         if(checks.length){d=await paperRequest("/api/trading/paper");ledger=Array.isArray(d.ledger)?d.ledger:[];}
         window.tarotaiPaperWarnings=warnings;
       }
-      paperRender(ledger);
+      paperRender(ledger);renderPaperAccount(ledger);
       if(window.tarotaiPaperWarnings?.length)paperStatus("WARNING: "+window.tarotaiPaperWarnings.join("; ")+". Verify or manually close these positions; old stops cannot be reconstructed from the available candle window.",true);
       else if(paperOpened(ledger).some(t=>t.experimentMode==="target-only-observation"))paperStatus("Target-only observation is open. Stop touches will not auto-close this paper test; it waits for an unambiguous profit-target touch on a closed 1-minute candle. Manual close remains available. Observation trials are excluded from signal win-rate statistics.");
       else if(!paperOpened(ledger).length)paperStatus("Paper ledger connected · persistent storage · no real orders. "+ledger.length+" records loaded.");
       else paperStatus("Paper ledger connected. Strategy positions are checked against historical closed 1-minute candles; normal strategy trades use stop-first handling if stop and target touch in one candle.");
     }catch(e){
       paperStoreReady=false;
-      ["livePaperOpenCount","livePaperClosedCount","livePaperNetPnl","livePaperWinRate","livePaperAiWinRate","livePaperLocalWinRate"].forEach(id=>byId(id).textContent="—");
+      ["livePaperOpenCount","livePaperClosedCount","livePaperNetPnl","livePaperWinRate","livePaperAiWinRate","livePaperLocalWinRate","livePaperAccountStart","livePaperAccountEquity","livePaperAccountNotional","livePaperAccountAvailable","livePaperAccountRisk"].forEach(id=>byId(id).textContent="—");
       byId("livePaperPositions").textContent="Ledger unavailable. Unlock private APIs and configure Upstash Redis. No paper trade was created.";
       byId("livePaperOpen").disabled=true;paperStatus("Paper ledger unavailable: "+e.message+". Authentication and persistent storage must work before entry.",true);
     }finally{paperBusy=false;}
