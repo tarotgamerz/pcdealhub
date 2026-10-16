@@ -125,6 +125,25 @@
 @media(max-width:700px){.orderflow-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.orderflow-canvas-wrap{height:250px}.orderflow-title{font-size:13px}}
 
 </style>
+<style id="agentRoomStyles">
+.agent-room-controls{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
+.agent-room-directive{width:100%;min-height:76px;resize:vertical;background:var(--panel,rgba(255,255,255,.035));color:inherit;border:1px solid var(--line,#334155);border-radius:10px;padding:10px;font:inherit}
+.agent-room-transcript{display:flex;flex-direction:column;gap:9px;max-height:470px;overflow:auto;padding:2px}
+.agent-room-empty{border:1px dashed var(--line,#334155);border-radius:10px;padding:18px;color:var(--muted,#9ca3af);text-align:center}
+.agent-room-post{border:1px solid var(--line,#334155);border-radius:12px;padding:12px;min-width:0;background:rgba(255,255,255,.025)}
+.agent-room-post-head{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:7px}
+.agent-room-post-meta{font-size:11px;color:var(--muted,#9ca3af)}
+.agent-room-post-body{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;line-height:1.55}
+.agent-room-tag{display:inline-flex;border:1px solid var(--line,#334155);border-radius:999px;padding:2px 8px;font-size:10px;letter-spacing:.04em}
+.agent-room-tag.clear{color:#86efac;border-color:rgba(34,197,94,.35)}
+.agent-room-tag.flagged{color:#fbbf24;border-color:rgba(245,158,11,.4)}
+.agent-room-tag.blocked{color:#fca5a5;border-color:rgba(239,68,68,.4)}
+.agent-room-issues{color:#fbbf24;font-size:11px;margin-top:8px;white-space:pre-wrap}
+.agent-room-supervisor{padding:10px 12px;border:1px solid rgba(34,197,94,.3);border-radius:10px;background:rgba(34,197,94,.06);font-size:12px}
+.agent-room-supervisor.warn{border-color:rgba(245,158,11,.4);background:rgba(245,158,11,.06)}
+.agent-room-supervisor.bad{border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.06)}
+@media(min-width:760px){.agent-room-controls{grid-template-columns:minmax(220px,.8fr) minmax(0,1.2fr)}}
+</style>
 </head>
 <body><main class="app">
 <header class="top"><button class="feature-trigger" id="featureTrigger" type="button" aria-label="Open TarotAI features" aria-haspopup="dialog" aria-expanded="false">⋮</button><div class="brand"><div class="logo">T</div><div><h1>TarotAI <span class="muted">/ Futures Lab</span></h1><div class="sub">Multi-agent research desk · Binance USDⓈ-M Futures live data</div></div></div><span class="pill">● LIVE TRADING DISABLED</span></header>
@@ -139,6 +158,23 @@
 <div class="agent"><div class="agenthead"><div class="ico">◉</div><div><strong>Live Position Manager</strong><div class="sub">Checks paper-position stops and targets on fresh live ticks while this chart is open</div></div></div><span class="tag">POSITION</span></div>
 <div class="agent"><div class="agenthead"><div class="ico">▤</div><div><strong>Trade Journal & Review Analyst</strong><div class="sub">Reviews completed paper trades without inventing history</div></div></div><span class="tag">JOURNAL</span></div>
 <div class="agent"><div class="agenthead"><div class="ico">🛡</div><div><strong>Agent Operations Supervisor</strong><div class="sub">Audits reports, contradictions and fail-closed risk controls</div></div></div><span class="tag">SUPERVISOR</span></div></div><div class="row" style="margin-top:13px"><button class="btn primary" id="runReview">Run 8-agent risk review</button><span class="muted" id="reviewStatus">Checks live candles and agent votes; paper only.</span></div></section>
+<section class="panel wide" id="agentDiscussionRoom" aria-labelledby="agentDiscussionHeading">
+  <h2 id="agentDiscussionHeading">Agent Discussion Room <span class="tag">TRADING ONLY</span></h2>
+  <p class="muted">When enabled, the seven specialists complete two peer-to-peer discussion rounds. They respond to each other, challenge assumptions, ask for evidence and answer follow-up questions. The Agent Operations Supervisor checks every message before it is passed into the next round.</p>
+  <div class="agent-room-controls">
+    <div>
+      <div class="switchrow"><div><strong>Allow agent-to-agent discussion</strong><div class="sub">Your permission for this run. Supervisor monitoring stays on.</div></div><input class="switch" type="checkbox" id="enableAgentDiscussion" checked aria-label="Allow agent-to-agent trading discussion"></div>
+      <div class="field" style="margin-top:12px"><label for="agentDiscussionDirective">Your instructions for the discussion (optional)</label><textarea id="agentDiscussionDirective" class="agent-room-directive" maxlength="500" placeholder="Example: Challenge the breakout thesis, ask the risk agent to verify stop distance, and compare long vs short evidence."></textarea><small class="muted">Trading and risk topics only · up to 500 characters · no tools or external actions.</small></div>
+      <div class="row" style="margin-top:10px"><button class="btn" id="clearAgentRoom" type="button">Clear room history</button></div>
+    </div>
+    <div>
+      <div id="agentRoomSupervisorStatus" class="agent-room-supervisor" role="status" aria-live="polite">Supervisor monitor: ON · every room post is checked before being shared with the next round.</div>
+      <p id="agentRoomStatus" class="muted" style="margin:10px 0">Room ready. Start an 8-agent risk review to begin a moderated discussion.</p>
+    </div>
+  </div>
+  <div id="agentRoomTranscript" class="agent-room-transcript" role="log" aria-live="polite" aria-label="Trading-only agent discussion transcript"><div class="agent-room-empty">No agent discussion yet. The transcript will appear here while the team discusses the current market.</div></div>
+  <p class="muted" style="font-size:11px;margin-top:10px">Important: discussion messages are advisory and never approve trades by themselves. Off-topic or policy-breaking posts are blocked; unsupported claims are flagged and withheld from the next discussion round. Paper-only execution remains enforced.</p>
+</section>
 <section class="panel" id="agentPaperTicket"><h2>Agent-controlled paper order ticket</h2>
 <p class="muted">No manual entry, stop or target inputs. The ticket uses the selected live-analysis chart, its latest live quote and the current agent-approved setup. Orders are simulated in the persistent paper ledger only.</p>
 <div class="row"><div class="field" style="flex:1"><label>Market</label><strong id="demoMarketSymbol">Waiting for chart</strong></div><div class="field" style="flex:1"><label>Venue</label><strong id="demoMarketVenue">—</strong></div></div>
@@ -1007,6 +1043,40 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     }catch(e){showAgentAuthGate(e&&e.message?e.message:String(e));}
     finally{button.disabled=false;button.textContent="Unlock & continue";}
   }
+  const AGENT_ROOM_STORAGE_KEY="tarotai_agent_discussion_room_v1";
+  let activeAgentRoomRunId="";
+  function loadAgentRoomHistory(){try{const value=JSON.parse(localStorage.getItem(AGENT_ROOM_STORAGE_KEY)||"[]");return Array.isArray(value)?value.filter(x=>x&&typeof x.text==="string").slice(-100):[];}catch(_){return [];}}
+  function saveAgentRoomHistory(messages){try{localStorage.setItem(AGENT_ROOM_STORAGE_KEY,JSON.stringify(messages.slice(-100)));}catch(_){byId("agentRoomStatus").textContent="Room history is only available for this page session because browser storage is unavailable.";}}
+  function renderAgentRoomHistory(){
+    const box=byId("agentRoomTranscript");if(!box)return;const messages=loadAgentRoomHistory();box.replaceChildren();
+    if(!messages.length){const empty=document.createElement("div");empty.className="agent-room-empty";empty.textContent="No agent discussion yet. The transcript will appear here while the team discusses the current market.";box.append(empty);return;}
+    for(const m of messages){
+      const article=document.createElement("article");article.className="agent-room-post";
+      const head=document.createElement("div");head.className="agent-room-post-head";
+      const name=document.createElement("strong");name.textContent=String(m.name||"Trading room").slice(0,100);
+      const tag=document.createElement("span");tag.className="agent-room-tag "+String(m.status||"clear").toLowerCase();tag.textContent=m.status==="BLOCKED"?"BLOCKED":m.status==="FLAGGED"?"FLAGGED":"SUPERVISOR CHECKED";
+      const meta=document.createElement("span");meta.className="agent-room-post-meta";meta.textContent=(m.round===0?"ROOM NOTICE":("ROUND "+String(m.round||"—")))+(m.targetName?" · to "+m.targetName:"")+" · "+String(m.at||"").slice(0,32);
+      head.append(name,tag);article.append(head,meta);
+      const body=document.createElement("p");body.className="agent-room-post-body";body.textContent=m.text;article.append(body);
+      if(Array.isArray(m.issues)&&m.issues.length){const issues=document.createElement("div");issues.className="agent-room-issues";issues.textContent="Supervisor note: "+m.issues.join(" ");article.append(issues);}
+      box.append(article);
+    }
+    box.scrollTop=box.scrollHeight;
+  }
+  function appendAgentRoomMessage(message){
+    if(!message||typeof message.text!=="string")return;
+    const stored=loadAgentRoomHistory(),id=String(message.id||"room-message");
+    stored.push({...message,id:(activeAgentRoomRunId||"room")+"-"+id,at:new Date().toLocaleTimeString()});
+    saveAgentRoomHistory(stored);renderAgentRoomHistory();
+  }
+  function updateAgentRoomMonitor(event){
+    const el=byId("agentRoomSupervisorStatus");if(!el)return;
+    const blocked=Number(event.blocked)||0,flagged=Number(event.flagged)||0,clear=Number(event.clear)||0;
+    el.className="agent-room-supervisor"+(blocked?" bad":flagged?" warn":"");
+    el.textContent="Supervisor: "+String(event.reviewed||0)+"/"+String(event.total||14)+" posts checked · "+clear+" clear · "+flagged+" flagged · "+blocked+" blocked. Each message is checked before the next round.";
+  }
+  renderAgentRoomHistory();
+  byId("clearAgentRoom")?.addEventListener("click",()=>{if(confirm("Clear the saved trading agent-room history from this browser?")){saveAgentRoomHistory([]);renderAgentRoomHistory();byId("agentRoomStatus").textContent="Room history cleared from this browser.";byId("agentRoomSupervisorStatus").className="agent-room-supervisor";byId("agentRoomSupervisorStatus").textContent="Supervisor monitor: ON · every room post is checked before it is shared with the next round.";}});
   async function runLiveAgentTeam(){
     window.tarotaiAgentCommitteeApproval=null;
     const runButton=byId("runLiveAgentTeam"),statusEl=byId("liveAgentRunStatus"),summary=byId("liveAgentConsensus");
