@@ -848,12 +848,12 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const ledger=Array.isArray(window.tarotaiPaperLedger)?window.tarotaiPaperLedger:[];
     const terminal=new Set(["PAPER_CLOSE","PAPER_STOP","PAPER_TARGET"]),closedIds=new Set(ledger.filter(t=>t.parentTradeId&&terminal.has(t.status)).map(t=>t.parentTradeId));
     const open=ledger.filter(t=>t.status==="PAPER_OPEN"&&!closedIds.has(t.id)),onSymbol=open.filter(t=>t.symbol===currentSymbol);
-    const existingOpenNotional=open.reduce((sum,t)=>sum+Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice)*Number(t.quantity),0);
-    const sizingInputsReady=bias!=="WAIT"&&Number.isFinite(balance)&&balance>=100&&balance<=10000000&&Number.isFinite(riskPct)&&riskPct>=.1&&riskPct<=1&&Number.isFinite(entry)&&entry>0&&Number.isFinite(dist)&&dist>0&&Number.isFinite(existingOpenNotional)&&existingOpenNotional>=0;
-    const positionNotionalCap=balance*PAPER_UI_MAX_POSITION_EXPOSURE_PCT/100,portfolioNotionalCap=balance*PAPER_UI_MAX_PORTFOLIO_EXPOSURE_PCT/100,remainingPortfolioNotional=Math.max(0,portfolioNotionalCap-existingOpenNotional);
-    const qty=sizingInputsReady?Math.min((balance*riskPct/100)/dist,positionNotionalCap/entry,remainingPortfolioNotional/entry):NaN;
+    const existingOpenNotional=open.reduce((sum,t)=>sum+Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice)*Number(t.quantity),0),existingOpenRisk=paperOpenRisk(open);
+    const sizingInputsReady=bias!=="WAIT"&&Number.isFinite(balance)&&balance>=100&&balance<=10000000&&Number.isFinite(riskPct)&&riskPct>=.1&&riskPct<=1&&Number.isFinite(entry)&&entry>0&&Number.isFinite(dist)&&dist>0&&Number.isFinite(existingOpenNotional)&&existingOpenNotional>=0&&Number.isFinite(existingOpenRisk)&&existingOpenRisk>=0;
+    const positionNotionalCap=balance*PAPER_UI_MAX_POSITION_EXPOSURE_PCT/100,portfolioNotionalCap=balance*PAPER_UI_MAX_PORTFOLIO_EXPOSURE_PCT/100,remainingPortfolioNotional=Math.max(0,portfolioNotionalCap-existingOpenNotional),remainingPortfolioRisk=Math.max(0,balance*PAPER_UI_MAX_OPEN_RISK_PCT/100-existingOpenRisk),permittedRisk=Math.min(balance*riskPct/100,remainingPortfolioRisk);
+    const qty=sizingInputsReady&&permittedRisk>0?Math.min(permittedRisk/dist,positionNotionalCap/entry,remainingPortfolioNotional/entry):NaN;
     const sizingTolerance=Number.isFinite(balance)?Math.max(1e-8,balance*1e-10):0;
-    const sizeReady=sizingInputsReady&&Number.isFinite(qty)&&qty>0&&qty*dist<=balance*riskPct/100+sizingTolerance&&qty*entry<=positionNotionalCap+sizingTolerance&&existingOpenNotional+qty*entry<=portfolioNotionalCap+sizingTolerance;
+    const sizeReady=sizingInputsReady&&Number.isFinite(qty)&&qty>0&&qty*dist<=permittedRisk+sizingTolerance&&qty*entry<=positionNotionalCap+sizingTolerance&&existingOpenNotional+qty*entry<=portfolioNotionalCap+sizingTolerance&&existingOpenRisk+qty*dist<=balance*PAPER_UI_MAX_OPEN_RISK_PCT/100+sizingTolerance;
     const alerts=onSymbol.filter(t=>Number.isFinite(Number(t.stopPrice))&&Number.isFinite(Number(t.targetPrice))&&(t.experimentMode==="target-only-observation"?(t.side==="BUY"?livePrice>=Number(t.targetPrice):livePrice<=Number(t.targetPrice)):(t.side==="BUY"?livePrice<=Number(t.stopPrice)||livePrice>=Number(t.targetPrice):livePrice>=Number(t.stopPrice)||livePrice<=Number(t.targetPrice))));
     const observationStopTouches=onSymbol.filter(t=>t.experimentMode==="target-only-observation"&&Number.isFinite(Number(t.stopPrice))&&(t.side==="BUY"?livePrice<=Number(t.stopPrice):livePrice>=Number(t.stopPrice)));
     const finished=ledger.filter(t=>t.parentTradeId&&terminal.has(t.status)),pnl=finished.map(t=>Number(t.pnlNet)).filter(Number.isFinite),net=pnl.reduce((a,b)=>a+b,0),wins=pnl.filter(v=>v>0).length;
@@ -886,7 +886,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     ]));
     reports.push(localReport("sizing",sizeReady?bias:"WAIT",bias!=="WAIT"&&!sizeReady,[
       "BIAS: "+(sizeReady?bias:"WAIT"),"VETO: "+(bias!=="WAIT"&&!sizeReady?"YES":"NO"),
-      "EVIDENCE: "+(sizeReady?"paper equity "+fmt(balance)+" USDT · risk "+riskPct+"% · cash-risk cap "+fmt(balance*riskPct/100)+" · quantity "+qty.toPrecision(7)+" · per-position notional cap "+fmt(positionNotionalCap)+" USDT (5%) · total open notional "+fmt(existingOpenNotional)+" / "+fmt(portfolioNotionalCap)+" USDT (20%).":"Sizing withheld: no valid signal, balance/stop distance, or remaining exposure capacity under the 5% position and 20% portfolio caps."),
+      "EVIDENCE: "+(sizeReady?"paper starting capital "+fmt(balance)+" USDT · risk "+riskPct+"% · additional stop-risk budget "+fmt(permittedRisk)+" USDT · quantity "+qty.toPrecision(7)+" · per-position notional cap "+fmt(positionNotionalCap)+" USDT (25%) · total open notional "+fmt(existingOpenNotional)+" / "+fmt(portfolioNotionalCap)+" USDT (100%) · combined planned stop-risk "+fmt(existingOpenRisk)+" / "+fmt(balance*PAPER_UI_MAX_OPEN_RISK_PCT/100)+" USDT (3%).":"Sizing withheld: no valid signal, balance/stop distance, or remaining position/notional/open-risk capacity."),
       "HISTORICAL: sizing arithmetic does not imply a profitable strategy.",
       "TRIGGER: "+(sizeReady?"use this quantity only for a manually confirmed paper trade":"WAIT; no quantity approved."),
       "INVALIDATION: recompute if entry, stop, equity or risk percentage changes.",
@@ -1381,11 +1381,11 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const valid=Number.isFinite(entry)&&entry>0&&Number.isFinite(stop)&&stop>0&&(long?stop<entry:stop>entry);
     const distance=valid?Math.abs(entry-stop):NaN,target=valid?(long?entry+2*distance:entry-2*distance):NaN;
     const balance=Number(byId("livePaperBalance")?.value),riskPct=Number(byId("livePaperRisk")?.value),riskBudget=balance*riskPct/100;
-    const openLedger=Array.isArray(window.tarotaiPaperLedger)?paperOpened(window.tarotaiPaperLedger):[],existingOpenNotional=openLedger.reduce((sum,t)=>sum+Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice)*Number(t.quantity),0);
-    const sizingReady=valid&&paperStoreReady&&Number.isFinite(balance)&&balance>=100&&Number.isFinite(riskPct)&&riskPct>=.1&&riskPct<=1&&Number.isFinite(existingOpenNotional)&&existingOpenNotional>=0;
-    const remainingPortfolioNotional=Math.max(0,balance*PAPER_UI_MAX_PORTFOLIO_EXPOSURE_PCT/100-existingOpenNotional),positionNotionalCap=balance*PAPER_UI_MAX_POSITION_EXPOSURE_PCT/100;
-    const quantity=sizingReady&&Number.isFinite(riskBudget)&&riskBudget>0?Math.min(riskBudget/distance,positionNotionalCap/entry,remainingPortfolioNotional/entry):NaN;
-    const usable=approved&&valid&&fresh&&paperStoreReady&&!paperOpening&&Number.isFinite(quantity)&&quantity>0&&quantity*distance<=riskBudget+Math.max(1e-8,balance*1e-10);
+    const openLedger=Array.isArray(window.tarotaiPaperLedger)?paperOpened(window.tarotaiPaperLedger):[],existingOpenNotional=openLedger.reduce((sum,t)=>sum+Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice)*Number(t.quantity),0),existingOpenRisk=paperOpenRisk(openLedger);
+    const sizingReady=valid&&paperStoreReady&&Number.isFinite(balance)&&balance>=100&&Number.isFinite(riskPct)&&riskPct>=.1&&riskPct<=1&&Number.isFinite(existingOpenNotional)&&existingOpenNotional>=0&&Number.isFinite(existingOpenRisk)&&existingOpenRisk>=0;
+    const remainingPortfolioNotional=Math.max(0,balance*PAPER_UI_MAX_PORTFOLIO_EXPOSURE_PCT/100-existingOpenNotional),positionNotionalCap=balance*PAPER_UI_MAX_POSITION_EXPOSURE_PCT/100,remainingPortfolioRisk=Math.max(0,balance*PAPER_UI_MAX_OPEN_RISK_PCT/100-existingOpenRisk),permittedRisk=Math.min(riskBudget,remainingPortfolioRisk);
+    const quantity=sizingReady&&permittedRisk>0?Math.min(permittedRisk/distance,positionNotionalCap/entry,remainingPortfolioNotional/entry):NaN;
+    const usable=approved&&valid&&fresh&&paperStoreReady&&!paperOpening&&openLedger.length<PAPER_UI_MAX_OPEN_POSITIONS&&Number.isFinite(quantity)&&quantity>0&&quantity*distance<=permittedRisk+Math.max(1e-8,balance*1e-10);
     const put=(id,value)=>{const el=byId(id);if(el)el.textContent=value;};
     put("demoMarketSymbol",symbol+(interval!=="—"?" · "+interval:""));
     put("demoMarketVenue",marketVenue.toUpperCase()+" perpetual");
