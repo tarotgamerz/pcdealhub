@@ -1457,12 +1457,15 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const drift=Math.abs(entry-Number(d.entry))/Number(d.entry);
     if(!Number.isFinite(drift)||drift>0.01){paperStatus("Price moved more than 1% from the signal reference. Do not chase it; refresh analysis.",true);return;}
     const distance=Math.abs(entry-stop),riskBudget=balance*riskPct/100,notionalCap=balance*maxExposurePct/100;
-    const existingOpen=paperOpened(window.tarotaiPaperLedger),existingOpenNotional=existingOpen.reduce((sum,t)=>sum+Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice)*Number(t.quantity),0);
-    if(existingOpen.some(t=>t.symbol===d.symbol&&(t.venue||"binance")===marketVenue)){paperStatus("Paper entry blocked: a position for this symbol is already open.",true);return;}
-    if(!Number.isFinite(existingOpenNotional)||existingOpenNotional<0){paperStatus("Paper entry blocked: existing ledger exposure is malformed; review the ledger before opening another position.",true);return;}
-    const portfolioNotionalCap=balance*PAPER_UI_MAX_PORTFOLIO_EXPOSURE_PCT/100,remainingPortfolioNotional=Math.max(0,portfolioNotionalCap-existingOpenNotional);
-    const quantity=Math.min(riskBudget/distance,notionalCap/entry,remainingPortfolioNotional/entry);
-    if(!Number.isFinite(quantity)||quantity<=0||quantity*distance>riskBudget+Math.max(1e-8,balance*1e-10)||quantity*entry>notionalCap+Math.max(1e-8,balance*1e-10)||existingOpenNotional+quantity*entry>portfolioNotionalCap+Math.max(1e-8,balance*1e-10)){paperStatus("Position sizing failed the per-trade stop-risk, 25% position cap, 100% portfolio notional, or 3% combined open-risk limit.",true);return;}
+    const existingOpen=paperOpened(window.tarotaiPaperLedger),existingOpenNotional=existingOpen.reduce((sum,t)=>sum+Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice)*Number(t.quantity),0),existingOpenRisk=paperOpenRisk(existingOpen),requestedSide=long?"BUY":"SELL";
+    if(existingOpen.length>=PAPER_UI_MAX_OPEN_POSITIONS){paperStatus("Maximum of "+PAPER_UI_MAX_OPEN_POSITIONS+" simultaneous paper positions reached. Close a position before opening another.",true);return;}
+    const sameMarketOpen=existingOpen.filter(t=>t.symbol===d.symbol&&(t.venue||"binance")===marketVenue);
+    if(sameMarketOpen.some(t=>t.side!==requestedSide)){paperStatus("This market already has an opposite-direction paper position. Close it before reversing.",true);return;}
+    if(sameMarketOpen.length>=PAPER_UI_MAX_POSITIONS_PER_SYMBOL){paperStatus("Maximum of "+PAPER_UI_MAX_POSITIONS_PER_SYMBOL+" same-direction positions per market reached.",true);return;}
+    if(!Number.isFinite(existingOpenNotional)||existingOpenNotional<0||!Number.isFinite(existingOpenRisk)||existingOpenRisk<0){paperStatus("Paper entry blocked: existing ledger exposure or planned stop-risk is malformed; review the ledger.",true);return;}
+    const portfolioNotionalCap=balance*PAPER_UI_MAX_PORTFOLIO_EXPOSURE_PCT/100,remainingPortfolioNotional=Math.max(0,portfolioNotionalCap-existingOpenNotional),remainingPortfolioRisk=Math.max(0,balance*PAPER_UI_MAX_OPEN_RISK_PCT/100-existingOpenRisk),permittedRisk=Math.min(riskBudget,remainingPortfolioRisk);
+    const quantity=Math.min(permittedRisk/distance,notionalCap/entry,remainingPortfolioNotional/entry);
+    if(!Number.isFinite(quantity)||quantity<=0||quantity*distance>permittedRisk+Math.max(1e-8,balance*1e-10)||quantity*entry>notionalCap+Math.max(1e-8,balance*1e-10)||existingOpenNotional+quantity*entry>portfolioNotionalCap+Math.max(1e-8,balance*1e-10)){paperStatus("Position sizing failed the per-trade stop-risk, 25% position cap, 100% portfolio notional, or 3% combined open-risk limit.",true);return;}
     const target=long?entry+2*distance:entry-2*distance,side=long?"LONG":"SHORT";
     const age=Math.max(0,now-lastMarketUpdateAt);
     paperOpening=true;byId("livePaperOpen").disabled=true;byId("livePaperOpen").textContent="Reviewing risk…";
@@ -1491,8 +1494,11 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       if(!await ensurePrivateSession()){paperStatus("Observation test blocked: unlock your private TarotAI session first.",true);return;}
       await paperRefresh(false);
       if(!paperStoreReady)throw new Error("Private persistent paper ledger is unavailable");
-      const ledger=Array.isArray(window.tarotaiPaperLedger)?window.tarotaiPaperLedger:[];
-      if(paperOpened(ledger).some(t=>t.symbol===currentSymbol))throw new Error("A paper position for "+currentSymbol+" is already open; this test won't create a duplicate");
+      const ledger=Array.isArray(window.tarotaiPaperLedger)?window.tarotaiPaperLedger:[],activePositions=paperOpened(ledger),requestedSide=byId("observationDirection").value;
+      if(activePositions.length>=PAPER_UI_MAX_OPEN_POSITIONS)throw new Error("Maximum of "+PAPER_UI_MAX_OPEN_POSITIONS+" simultaneous paper positions reached");
+      const initialSameMarket=activePositions.filter(t=>t.symbol===currentSymbol&&(t.venue||"binance")===marketVenue);
+      if(initialSameMarket.some(t=>t.side!==requestedSide))throw new Error("This market already has an opposite-direction position. Close it before reversing.");
+      if(initialSameMarket.length>=PAPER_UI_MAX_POSITIONS_PER_SYMBOL)throw new Error("Maximum of "+PAPER_UI_MAX_POSITIONS_PER_SYMBOL+" same-direction positions per market reached");
       const closed=closedOnly(rows,currentInterval);
       if(closed.length<80)throw new Error("Need at least 80 verified closed candles for an ATR-based reference stop");
       const latest=closed[closed.length-1],closedAt=Number(latest.closeTime)||Number(latest.time)+msFor(currentInterval)-1;
@@ -1508,10 +1514,10 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const balance=Number(byId("livePaperBalance").value),riskPct=validatedRiskPct,maxExposurePct=PAPER_UI_MAX_POSITION_EXPOSURE_PCT,riskBudget=balance*riskPct/100,notionalCap=balance*maxExposurePct/100;
       if(!Number.isFinite(balance)||balance<100||balance>10000000||!Number.isFinite(riskPct)||riskPct<0.1||riskPct>1)throw new Error("Balance or risk settings are outside the allowed paper-only range");
       if(stopPrice<=0||targetPrice<=0)throw new Error("Calculated stop/target levels are invalid for this market");
-      const existingOpen=paperOpened(Array.isArray(window.tarotaiPaperLedger)?window.tarotaiPaperLedger:[]),existingOpenNotional=existingOpen.reduce((sum,t)=>sum+Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice)*Number(t.quantity),0),portfolioNotionalCap=balance*PAPER_UI_MAX_PORTFOLIO_EXPOSURE_PCT/100,remainingPortfolioNotional=Math.max(0,portfolioNotionalCap-existingOpenNotional);
-      if(!Number.isFinite(existingOpenNotional)||existingOpenNotional<0)throw new Error("Existing paper ledger exposure is malformed; inspect the ledger first");
-      const quantity=Math.min(riskBudget/distance,notionalCap/entryReference,remainingPortfolioNotional/entryReference)*0.995;
-      if(!Number.isFinite(quantity)||quantity<=0||quantity*entryReference>notionalCap+Math.max(1e-8,balance*1e-10)||quantity*distance>riskBudget+Math.max(1e-8,balance*1e-10)||existingOpenNotional+quantity*entryReference>portfolioNotionalCap+Math.max(1e-8,balance*1e-10))throw new Error("Observation position failed the stop-risk, 5% per-position, or 20% portfolio cap");
+      const existingOpen=paperOpened(Array.isArray(window.tarotaiPaperLedger)?window.tarotaiPaperLedger:[]),existingOpenNotional=existingOpen.reduce((sum,t)=>sum+Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice)*Number(t.quantity),0),existingOpenRisk=paperOpenRisk(existingOpen),portfolioNotionalCap=balance*PAPER_UI_MAX_PORTFOLIO_EXPOSURE_PCT/100,remainingPortfolioNotional=Math.max(0,portfolioNotionalCap-existingOpenNotional),remainingPortfolioRisk=Math.max(0,balance*PAPER_UI_MAX_OPEN_RISK_PCT/100-existingOpenRisk),permittedRisk=Math.min(riskBudget,remainingPortfolioRisk);
+      if(!Number.isFinite(existingOpenNotional)||existingOpenNotional<0||!Number.isFinite(existingOpenRisk)||existingOpenRisk<0)throw new Error("Existing paper ledger exposure or planned stop-risk is malformed; inspect the ledger first");
+      const quantity=Math.min(permittedRisk/distance,notionalCap/entryReference,remainingPortfolioNotional/entryReference)*0.995;
+      if(!Number.isFinite(quantity)||quantity<=0||quantity*entryReference>notionalCap+Math.max(1e-8,balance*1e-10)||quantity*distance>permittedRisk+Math.max(1e-8,balance*1e-10)||existingOpenNotional+quantity*entryReference>portfolioNotionalCap+Math.max(1e-8,balance*1e-10))throw new Error("Observation position failed the per-trade risk, 25% per-position, 100% portfolio, or 3% combined-risk limit");
       const observedDecision=window.tarotaiLiveDecision,agentAction=observedDecision&&observedDecision.symbol===symbol&&observedDecision.interval===currentInterval?observedDecision.action:"HOLD / WAIT";
       button.textContent="Saving paper test…";
       const result=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"same-origin",body:JSON.stringify({action:"OPEN",requestId:window.tarotaiPaperRequestIdFor("observation-open",[symbol,currentInterval,latest.time,direction].join("_")),symbol,venue,side:direction,quantity,price:entry,stopPrice,targetPrice,feeBps:Number(byId("feeBps")?.value??5),slippageBps:Number(byId("slippageBps")?.value??2),marketTime:timestamp,paperBalance:balance,riskPct,maxExposurePct,spreadBps,decisionSource:"target-only-observation",experimentMode:"target-only-observation",agentTeamModel:"target-only-observation-v1",agentVotes:Array.isArray(window.tarotaiContinuousAgentReports)?window.tarotaiContinuousAgentReports.slice(0,8).map(r=>({role:r.role,bias:r.bias,veto:r.veto,model:r.model,fallback:r.fallback})):[],observationAgentAction:agentAction,observationCandleTime:Number(latest.time),observationCycle:continuousCycle,orderFlow:window.tarotaiOrderFlowSummary&&window.tarotaiOrderFlowSummary.symbol===symbol&&window.tarotaiOrderFlowSummary.venue===venue?window.tarotaiOrderFlowSummary:null})});
