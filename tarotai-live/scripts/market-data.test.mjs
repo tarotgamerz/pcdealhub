@@ -1045,3 +1045,10 @@ test("trading agent discussion is owner-controlled, streamed safely and rendered
   assert.match(futuresDesk,/updateAgentRoomMonitor\(event\)/);
   assert.match(futuresDesk,/localStorage\.setItem\(AGENT_ROOM_STORAGE_KEY/);
 });
+
+test("agent-room requests reserve time for two rounds inside the serverless execution budget", () => {
+  assert.match(tradingAgentsRoomRoute, /export const maxDuration = 60/);
+  assert.match(tradingAgentsRoomRoute, /signal:AbortSignal\\.timeout\\(6000\\)/);
+  assert.doesNotMatch(tradingAgentsRoomRoute, /signal:AbortSignal\\.timeout\\(8500\\)/);
+  assert.match(futuresDesk, /signal:AbortSignal\\.timeout\\(58000\\)/);
+});
