@@ -556,11 +556,18 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   let mirrorChart=null,mirrorCandleSeries=null,mirrorEma9Series=null,mirrorEma21Series=null,mirrorEma50Series=null,mirrorSupportSeries=null,mirrorResistanceSeries=null,mirrorRisingTrendSeries=null,mirrorFallingTrendSeries=null,mirrorForecastPathSeries=null,mirrorForecastBullSeries=null,mirrorForecastBearSeries=null,mirrorResizeObserver=null,rangeSyncLock=false,mirrorPriceLines=[],mainLivePriceLine=null,mirrorLivePriceLine=null,lastLiveLineUpdateAt=0;
   let rows=[],marketVenue="binance",currentMarketReference=null,feedSocket=null,quoteSocket=null,quoteReconnectTimer=null,quoteSymbol="",lastTradePrice=NaN,lastTradeAt=0,lastQuoteSource="none",lastQuoteSourceTimestamp=0,lastWsTradeAt=0,lastQuoteFallbackErrorAt=0,quoteFallbackTimer=null,quoteFallbackBusy=false,lastQuoteRenderAt=0,pollTimer=null,resizeObserver=null,lastAnalyzedClosedCandleTime=0;window.tarotaiMarketVenue=marketVenue;
   let currentSymbol="",currentInterval="",higherCache=[],higherCacheKey="",higherCacheAt=0,priceLines=[],busy=false,firstRender=true,lastWsCandleTime=0,historyBusy=false,historyExhausted=false,historyPages=0,historyLoadAllowedAt=0;
-  let forecastEvaluationCacheKey="",forecastEvaluationCache=null;
+  let forecastEvaluationCacheKey="",forecastEvaluationCache=null,ema9Cache=[],ema21Cache=[],ema50Cache=[],lastChartUpdateErrorAt=0;
   const fmt=(n)=>Number.isFinite(n)?n.toLocaleString("en-US",{maximumFractionDigits:n>=1000?2:n>=1?4:7}):"—";
   const msFor=i=>intervalMs[i]||300000;
-  const toSec=t=>Math.floor(Number(t)/1000);
+  const toSec=t=>{const n=Number(t);return Math.floor(n>1e12?n/1000:n);};
   function status(text){byId("liveMarketStatus").textContent=text;}
+  function reportLiveChartError(error,source){
+    const now=Date.now();if(now-lastChartUpdateErrorAt<5000)return;lastChartUpdateErrorAt=now;
+    const message=String(error&&error.message?error.message:error||"unknown chart error").replace(/\\s+/g," ").slice(0,180);
+    try{setFeed("LIVE CHART UPDATE ERROR","bad");}catch(_){ }
+    status("Live chart update failed ("+source+"): "+message+". Forecast annotations may be stale; refresh to retry.");
+    const evidence=byId("liveForecastEvidence");if(evidence)evidence.textContent="Chart diagnostic · "+source+": "+message;
+  }
   function updateHistoryStatus(message){const el=byId("liveHistoryStatus"),button=byId("liveLoadOlder");if(el&&message)el.textContent=message;if(button)button.disabled=historyBusy||historyExhausted||rows.length>=4980;}
   function setFeed(label,mode){const e=byId("liveFeedPill");e.textContent=label;e.style.color=mode==="good"?"var(--green)":mode==="bad"?"var(--red)":"var(--amber)";e.style.borderColor=mode==="good"?"#2c5949":mode==="bad"?"#64323a":"#65512d";e.style.background=mode==="good"?"#0b211a":mode==="bad"?"#211014":"#211a0d";}
   function setChartAgentCounter(value,detail,mode="warn"){
@@ -721,6 +728,33 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   function analyzeNewClosedBar(){const latest=closedOnly(rows,currentInterval).slice(-1)[0];if(!latest||Number(latest.time)<=lastAnalyzedClosedCandleTime)return;lastAnalyzedClosedCandleTime=Number(latest.time);analyze();runContinuousAgentCycle();scheduleAutoAgentReview("new closed candle");}
   function plotCandle(c){return {time:toSec(c.time),open:c.open,high:c.high,low:c.low,close:c.close};}
   function lineData(values,ts){const out=[];for(let i=0;i<values.length;i++)if(Number.isFinite(values[i]))out.push({time:toSec(ts[i].time),value:values[i]});return out;}
+  function rebuildEmaSeriesFromRows(){
+    const closes=rows.map(c=>Number(c.close));
+    ema9Cache=ema(closes,9);ema21Cache=ema(closes,21);ema50Cache=ema(closes,50);
+    const e9Data=lineData(ema9Cache,rows),e21Data=lineData(ema21Cache,rows),e50Data=lineData(ema50Cache,rows);
+    if(ema9Series&&ema21Series&&ema50Series){ema9Series.setData(e9Data);ema21Series.setData(e21Data);ema50Series.setData(e50Data);}
+    if(mirrorEma9Series&&mirrorEma21Series&&mirrorEma50Series){mirrorEma9Series.setData(e9Data);mirrorEma21Series.setData(e21Data);mirrorEma50Series.setData(e50Data);}
+  }
+  function updateLatestEmaPoint(options={}){
+    if(!rows.length)return;
+    if(options.historical){rebuildEmaSeriesFromRows();return;}
+    if(options.trimmed){
+      if(ema9Cache.length===rows.length&&ema21Cache.length===rows.length&&ema50Cache.length===rows.length){ema9Cache.shift();ema21Cache.shift();ema50Cache.shift();}
+      else{rebuildEmaSeriesFromRows();return;}
+    }
+    const index=rows.length-1,close=Number(rows[index].close);
+    if(index<1||!Number.isFinite(close)){rebuildEmaSeriesFromRows();return;}
+    const append=ema9Cache.length===rows.length-1&&ema21Cache.length===rows.length-1&&ema50Cache.length===rows.length-1;
+    const replace=ema9Cache.length===rows.length&&ema21Cache.length===rows.length&&ema50Cache.length===rows.length;
+    if(!append&&!replace){rebuildEmaSeriesFromRows();return;}
+    const k9=2/10,k21=2/22,k50=2/51,prior9=ema9Cache[index-1],prior21=ema21Cache[index-1],prior50=ema50Cache[index-1];
+    if(!Number.isFinite(prior9)||!Number.isFinite(prior21)||!Number.isFinite(prior50)){rebuildEmaSeriesFromRows();return;}
+    const value9=close*k9+prior9*(1-k9),value21=close*k21+prior21*(1-k21),value50=close*k50+prior50*(1-k50);
+    if(append){ema9Cache.push(value9);ema21Cache.push(value21);ema50Cache.push(value50);}else{ema9Cache[index]=value9;ema21Cache[index]=value21;ema50Cache[index]=value50;}
+    const point={time:toSec(rows[index].time),value:value9},point21={time:point.time,value:value21},point50={time:point.time,value:value50};
+    if(ema9Series)ema9Series.update(point);if(ema21Series)ema21Series.update(point21);if(ema50Series)ema50Series.update(point50);
+    if(mirrorEma9Series)mirrorEma9Series.update(point);if(mirrorEma21Series)mirrorEma21Series.update(point21);if(mirrorEma50Series)mirrorEma50Series.update(point50);
+  }
   function clearPlanLines(){if(candleSeries)for(const l of priceLines){try{candleSeries.removePriceLine(l);}catch(e){}}if(mirrorCandleSeries)for(const l of mirrorPriceLines){try{mirrorCandleSeries.removePriceLine(l);}catch(e){}}priceLines=[];mirrorPriceLines=[];}
   function addPlanLine(title,price,color,style){if(!Number.isFinite(price))return;const opts={price,color,lineWidth:2,lineStyle:style||window.LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title};if(candleSeries)priceLines.push(candleSeries.createPriceLine(opts));if(mirrorCandleSeries)mirrorPriceLines.push(mirrorCandleSeries.createPriceLine(opts));}
   function setStructureData(main,mirror,data){if(main)main.setData(data);if(mirror)mirror.setData(data);}
@@ -847,6 +881,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     if(closed.length)lastAnalyzedClosedCandleTime=Number(closed[closed.length-1].time);
     if(lastLive)byId("livePrice").textContent=hasFreshLiveQuote()?fmt(lastTradePrice):"STALE";
     if(closed.length<80){
+      window.tarotaiMarketForecast=null;window.tarotaiForecastWalkForward=null;forecastEvaluationCache=null;forecastEvaluationCacheKey="";
       drawStructureAnnotations(closed,NaN);
       drawForecastOverlay({ready:false,reason:"Need at least 80 valid closed candles; waiting before projecting a scenario."});
       byId("liveHtf").textContent="UNAVAILABLE";
@@ -858,6 +893,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const vals=closed.map(c=>c.close),e9=ema(vals,9),e21=ema(vals,21),e50=ema(vals,50),rv=rsi(vals,14),av=atr(closed,14),i=closed.length-1,last=closed[i],prev=closed[i-1],prior=closed.slice(Math.max(0,i-20),i);
     const structure=drawStructureAnnotations(closed,av[i]);
     if(prior.length<20||!Number.isFinite(av[i])||!Number.isFinite(rv[i])){
+      window.tarotaiMarketForecast=null;window.tarotaiForecastWalkForward=null;
+      drawForecastOverlay({ready:false,reason:"Indicator history is incomplete; waiting for valid closed candles."});
       setDecision("HOLD / WAIT","HOLD / WAIT — indicator history is incomplete; wait for more valid closed candles.",NaN,NaN,NaN,NaN,null);return;
     }
     const priorHigh=Math.max.apply(null,prior.map(c=>c.high)),priorLow=Math.min.apply(null,prior.map(c=>c.low));
@@ -880,21 +917,33 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const htf=trendFor(higherCache,htfInterval);
     const flowCandidate=window.tarotaiOrderFlowSummary;
     const flowSummary=marketVenue==="binance"&&flowCandidate&&flowCandidate.symbol===currentSymbol&&flowCandidate.venue===marketVenue?flowCandidate:null;
-    const nextMoveForecast=typeof window.tarotaiBuildMarketForecast==="function"
-      ?window.tarotaiBuildMarketForecast(closed,{intervalMs:msFor(currentInterval),horizonBars:4,asOf:Date.now(),higherTrend:htf.direction,support:structure.support,resistance:structure.resistance,orderFlow:flowSummary,referenceOnly:marketVenue==="yahoo"})
-      :{ready:false,reason:"The market-forecast module did not load. Refresh the Trading Desk before using forecast annotations."};
+    let nextMoveForecast;
+    try{
+      nextMoveForecast=typeof window.tarotaiBuildMarketForecast==="function"
+        ?window.tarotaiBuildMarketForecast(closed,{intervalMs:msFor(currentInterval),horizonBars:4,asOf:Date.now(),higherTrend:htf.direction,support:structure.support,resistance:structure.resistance,orderFlow:flowSummary,referenceOnly:marketVenue==="yahoo"})
+        :{ready:false,reason:"The market-forecast module did not load. Refresh the Trading Desk before using forecast annotations."};
+    }catch(error){
+      const reason=String(error&&error.message?error.message:error||"unknown forecast error").replace(/\\s+/g," ").slice(0,180);
+      nextMoveForecast={ready:false,reason:"Forecast calculation failed: "+reason};
+      reportLiveChartError(error,"forecast calculation");
+    }
     const historicalHtf=closedOnly(higherCache,htfInterval).slice(-1)[0];
     const evaluationKey=[currentSymbol,marketVenue,currentInterval,closed.length,last.time,historicalHtf&&historicalHtf.time||0].join("|");
     if(evaluationKey!==forecastEvaluationCacheKey){
       forecastEvaluationCacheKey=evaluationKey;
-      forecastEvaluationCache=typeof window.tarotaiEvaluateForecastWalkForward==="function"
-        ?window.tarotaiEvaluateForecastWalkForward(closed,higherCache,{intervalMs:msFor(currentInterval),higherIntervalMs:msFor(htfInterval),horizonBars:4})
-        :null;
+      try{
+        forecastEvaluationCache=typeof window.tarotaiEvaluateForecastWalkForward==="function"
+          ?window.tarotaiEvaluateForecastWalkForward(closed,higherCache,{intervalMs:msFor(currentInterval),higherIntervalMs:msFor(htfInterval),horizonBars:4})
+          :null;
+      }catch(error){
+        forecastEvaluationCache={sampleSize:0,meetsMinimumSample:false,directionalHitRatePct:null,notice:"Walk-forward evaluation failed; no accuracy percentage is shown."};
+        reportLiveChartError(error,"forecast walk-forward evaluation");
+      }
     }
     nextMoveForecast.walkForward=forecastEvaluationCache;
     window.tarotaiMarketForecast=nextMoveForecast.ready?nextMoveForecast:null;
     window.tarotaiForecastWalkForward=forecastEvaluationCache;
-    drawForecastOverlay(nextMoveForecast);
+    try{drawForecastOverlay(nextMoveForecast);}catch(error){reportLiveChartError(error,"forecast chart rendering");}
     byId("liveHtf").textContent=htf.direction;
     byId("liveHtf").className=htf.up?"live-action-buy":htf.down?"live-action-sell":"live-action-hold";
     byId("liveOverlayMeta").textContent=currentSymbol+" · "+currentInterval+" · last CLOSED candle "+new Date(last.time).toLocaleTimeString();
@@ -1380,10 +1429,9 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   function renderRows(forceFit){
     if(!candleSeries||!rows.length)return;
     const rangeBefore=chart.timeScale().getVisibleLogicalRange(),stayAtRealtime=!rangeBefore||rangeBefore.to>=rows.length-8;
-    const candleData=rows.map(plotCandle),closes=rows.map(c=>c.close),ts=rows;
-    const e9Data=lineData(ema(closes,9),ts),e21Data=lineData(ema(closes,21),ts),e50Data=lineData(ema(closes,50),ts);
-    candleSeries.setData(candleData);ema9Series.setData(e9Data);ema21Series.setData(e21Data);ema50Series.setData(e50Data);
-    if(mirrorCandleSeries){mirrorCandleSeries.setData(candleData);mirrorEma9Series.setData(e9Data);mirrorEma21Series.setData(e21Data);mirrorEma50Series.setData(e50Data);}
+    const candleData=rows.map(plotCandle);
+    candleSeries.setData(candleData);if(mirrorCandleSeries)mirrorCandleSeries.setData(candleData);
+    rebuildEmaSeriesFromRows();
     if(firstRender||forceFit){historyLoadAllowedAt=Date.now()+1200;chart.timeScale().fitContent();if(mirrorChart)mirrorChart.timeScale().fitContent();firstRender=false;}else if(stayAtRealtime){chart.timeScale().scrollToRealTime();if(mirrorChart)mirrorChart.timeScale().scrollToRealTime();}
     renderSharedQuote(currentMarketPrice());analyze();
   }
@@ -1447,16 +1495,17 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
           const logicalRange=chart?.timeScale().getVisibleLogicalRange(),stickAtRealtime=!logicalRange||logicalRange.to>=rows.length-8;
           const index=rows.findIndex(c=>Number(c.time)===bar.time);
           if(index<0)rows.push(bar);else rows[index]={...rows[index],...bar};
-          if(rows.length>5000)rows=rows.slice(-5000);
+          let trimmed=false;if(rows.length>5000){rows=rows.slice(-5000);trimmed=true;}
           lastMarketUpdateAt=Date.now();
           try{
             const point=plotCandle(bar);
             if(candleSeries)candleSeries.update(point);
             if(mirrorCandleSeries)mirrorCandleSeries.update(point);
+            updateLatestEmaPoint({trimmed});
             renderSharedQuote(currentMarketPrice());
             if(stickAtRealtime){chart?.timeScale().scrollToRealTime();mirrorChart?.timeScale().scrollToRealTime();}
             analyzeNewClosedBar();
-          }catch(e){}
+          }catch(e){reportLiveChartError(e,"Binance live candle update");}
         };
         feedSocket.onerror=()=>setFeed("BINANCE KLINE STREAM RECONNECTING","bad");
         feedSocket.onclose=()=>{if(marketVenue==="binance"&&document.visibilityState==="visible"){if(socketReconnectTimer)clearTimeout(socketReconnectTimer);socketReconnectTimer=setTimeout(()=>connectSocket(),1500);}};
@@ -1477,10 +1526,11 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
         if(msg.arg?.channel!==candleChannel||msg.arg?.instId!==instId||!Array.isArray(msg.data)||!msg.data.length)return;
         const k=msg.data[msg.data.length-1],bar={time:Number(k[0]),open:Number(k[1]),high:Number(k[2]),low:Number(k[3]),close:Number(k[4]),volume:Number(k[5]),closeTime:Number(k[0])+msFor(currentInterval)-1};
         if(!validateCandle(bar))return;const visibleBefore=chart.timeScale().getVisibleLogicalRange(),stickAtRealtime=!visibleBefore||visibleBefore.to>=rows.length-8;lastMarketUpdateAt=Date.now();
-        if(!rows.length||bar.time>rows[rows.length-1].time)rows.push(bar);else{const idx=rows.findIndex(x=>x.time===bar.time);if(idx>=0)rows[idx]=bar;}
-        if(rows.length>5000)rows=rows.slice(-5000);
-        try{const point=plotCandle(bar);candleSeries.update(point);if(mirrorCandleSeries)mirrorCandleSeries.update(point);const cls=rows.map(c=>c.close),e9Data=lineData(ema(cls,9),rows),e21Data=lineData(ema(cls,21),rows),e50Data=lineData(ema(cls,50),rows);ema9Series.setData(e9Data);ema21Series.setData(e21Data);ema50Series.setData(e50Data);if(mirrorEma9Series){mirrorEma9Series.setData(e9Data);mirrorEma21Series.setData(e21Data);mirrorEma50Series.setData(e50Data);}renderSharedQuote(currentMarketPrice());if(stickAtRealtime){chart.timeScale().scrollToRealTime();if(mirrorChart)mirrorChart.timeScale().scrollToRealTime();}analyzeNewClosedBar();
-        }catch(e){}
+        let updatedHistorical=false;
+        if(!rows.length||bar.time>rows[rows.length-1].time)rows.push(bar);else{const idx=rows.findIndex(x=>x.time===bar.time);if(idx>=0){rows[idx]=bar;if(idx<rows.length-1)updatedHistorical=true;}}
+        let trimmed=false;if(rows.length>5000){rows=rows.slice(-5000);trimmed=true;}
+        try{const point=plotCandle(bar);candleSeries.update(point);if(mirrorCandleSeries)mirrorCandleSeries.update(point);updateLatestEmaPoint({trimmed,historical:updatedHistorical});renderSharedQuote(currentMarketPrice());if(stickAtRealtime){chart.timeScale().scrollToRealTime();if(mirrorChart)mirrorChart.timeScale().scrollToRealTime();}analyzeNewClosedBar();
+        }catch(e){reportLiveChartError(e,"OKX live candle update");}
       };
       feedSocket.onerror=()=>setFeed("OKX LIVE STREAM RECONNECTING","bad");
       feedSocket.onclose=()=>{if(marketVenue==="okx"&&document.visibilityState==="visible"){if(socketReconnectTimer)clearTimeout(socketReconnectTimer);socketReconnectTimer=setTimeout(()=>connectSocket(),1200);}};
