@@ -113,10 +113,12 @@ test("walk-forward forecast evaluation only counts past-origin forecasts with a 
 
 test("walk-forward scoring counts tiny directional noise as a miss, not an accuracy hit", () => {
   const intervalMs = 60_000, higherIntervalMs = 3_600_000, start = 1_750_000_000_000;
-  const main = makeCandles(1, 320, { intervalMs, start, base: 1000, step: 0.02 });
-  const higher = makeCandles(1, 260, {
-    intervalMs: higherIntervalMs, start: start - 220 * higherIntervalMs, base: 500, step: 0.02
+  const slowSeries = (count, duration, firstTime, base, step) => Array.from({length: count}, (_, i) => {
+    const close = base + i * step, open = base + Math.max(0, i - 1) * step;
+    return {time:firstTime + i * duration, open, high:Math.max(open, close) + 0.45, low:Math.min(open, close) - 0.45, close, volume:100 + i, closeTime:firstTime + i * duration + duration - 1};
   });
+  const main = slowSeries(320, intervalMs, start, 1000, 0.02);
+  const higher = slowSeries(260, higherIntervalMs, start - 220 * higherIntervalMs, 500, 0.02);
   const result = evaluateForecastWalkForward(main, higher, { intervalMs, higherIntervalMs, horizonBars: 4 });
   assert.ok(result.sampleSize >= 20, "the synthetic series should produce enough directional forecasts to test the score");
   assert.equal(result.minimumMoveAtr, 0.15);
