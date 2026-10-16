@@ -298,7 +298,7 @@ test("all private order, paper, backtest and signal endpoints fail closed", () =
 
 test("backend receives agent mode and enforces Research search and Work planning", () => {
   assert.match(consolePage, /mode:currentMode\|\|'chat'/);
-  assert.match(chatRoute, /const requestedMode = \["chat", "research", "code", "work", "trading"\]/);
+  assert.match(chatRoute, /const requestedMode = \["chat", "research", "code", "work", "trading", "trading-room"\]/);
   assert.match(chatRoute, /turn === 0 && \["research", "work"\]\.includes\(requestedMode\) && availableToolNames\.has\("set_plan"\)/);
   assert.match(chatRoute, /turn === 1 && requestedMode === "research" && availableToolNames\.has\("search_web"\)/);
   assert.match(chatRoute, /type: "function", function: \{ name: "search_web" \}/);
