@@ -83,6 +83,7 @@ test("Trading Strategy Room enforces trading-only scope and disables tools serve
   assert.ok(matcher, "server must declare the room topic matcher");
   const topicMatcher = new RegExp(matcher[1].slice(1, -2), "i");
   assert.match("Challenge the BTCUSDT 15m breakout strategy and stop loss", topicMatcher);
+  assert.match("Analyze BTCUSDT on the 15m timeframe", topicMatcher);
   assert.doesNotMatch("Help me write a poem about spring", topicMatcher);
   assert.match(chatRoute, /Trading Strategy Room mode: strictly discuss trading only/);
   assert.match(chatRoute, /const runtimeTools: any\[\] = requestedMode === "trading-room"\s*\? \[\]/);

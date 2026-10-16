@@ -1202,7 +1202,7 @@ export async function POST(request: Request) {
       ? String(body?.mode || "chat")
       : "chat";
     const tradingRoomTopic = typeof body?.tradingRoomTopic === "string" ? body.tradingRoomTopic.trim() : "";
-    const tradingRoomTopicPattern = /\b(trad(e|ing|er|ers)|stocks?|shares?|equity|crypto|bitcoin|btc|eth|bnb|sol|forex|futures|perpetuals?|options?|entry|exit|stop[- ]loss|take[- ]profit|risk management|portfolio|backtest|paper[- ]?trad(e|ing)|chart|technical analysis|price action|setup|buy|sell|long|short|liquidity|volatility|leverage|position sizing|signal|ticker|candlestick|nifty|sensex|banknifty|usdt|usdc|swing trad(e|ing)|scalp(ing)?|intraday)\b/i;
+    const tradingRoomTopicPattern = /\b([A-Z0-9]{3,18}(?:USDT|USDC|USD)|trad(e|ing|er|ers)|stocks?|shares?|equity|crypto|bitcoin|btc|eth|bnb|sol|forex|futures|perpetuals?|options?|entry|exit|stop[- ]loss|take[- ]profit|risk management|portfolio|backtest|paper[- ]?trad(e|ing)|chart|technical analysis|price action|setup|buy|sell|long|short|liquidity|volatility|leverage|position sizing|signal|ticker|candlestick|nifty|sensex|banknifty|usdt|usdc|swing trad(e|ing)|scalp(ing)?|intraday)\b/i;
     if (requestedMode === "trading-room" && (tradingRoomTopic.length < 12 || !tradingRoomTopicPattern.test(tradingRoomTopic))) {
       return Response.json(
         { error: "Trading Strategy Room accepts trading-related topics only." },
@@ -1218,15 +1218,19 @@ export async function POST(request: Request) {
 
     const model = process.env.OPENROUTER_MODEL || "openrouter/free";
     let durableMemory: Awaited<ReturnType<typeof loadDurableMemory>> = [];
-    try {
-      durableMemory = await withOperationTimeout(
-        loadDurableMemory(request),
-        Math.min(3_000, Math.max(1, requestDeadline - Date.now())),
-        "Durable memory"
-      );
-    } catch (error) {
-      console.error("Durable memory unavailable; continuing without saved memory:", error);
-      runtimeWarnings.push("Durable memory could not be loaded for this request; continuing without it.");
+    if (requestedMode !== "trading-room") {
+      let durableMemory: Awaited<ReturnType<typeof loadDurableMemory>> = [];
+      try {
+        durableMemory = await withOperationTimeout(
+          loadDurableMemory(request),
+          Math.min(3_000, Math.max(1, requestDeadline - Date.now())),
+          "Durable memory"
+        );
+      } catch (error) {
+        console.error("Durable memory unavailable; continuing without saved memory:", error);
+        runtimeWarnings.push("Durable memory could not be loaded for this request; continuing without it.");
+      }
+  
     }
     const lastUserMessage = [...initialMessages].reverse().find((message: any) => message.role === "user")?.content || "";
     const explicitMemoryRequest = /\b(remember|save this|store this|keep this in mind|don't forget|do not forget)\b/i.test(lastUserMessage);
