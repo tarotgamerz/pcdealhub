@@ -754,23 +754,28 @@ test("Binance chart has a native interval-specific kline stream and only re-anal
   assert.match(futuresDesk, /lastAnalyzedClosedCandleTime/);
 });
 
-test("paper UI measures current spread and passes server-enforced exposure inputs instead of pretending spread is zero", () => {
+test("paper UI measures current spread and passes the new server-enforced exposure and risk inputs", () => {
   assert.match(futuresDesk, /spreadBps=Number\(quoteData\.spreadBps\)/);
   assert.match(futuresDesk, /spreadBps\}\)/);
-  assert.match(futuresDesk, /maxExposurePct=5/);
+  assert.match(futuresDesk, /maxExposurePct=PAPER_UI_MAX_POSITION_EXPOSURE_PCT/);
   assert.match(futuresDesk, /paperBalance:balance,riskPct,maxExposurePct/);
   assert.doesNotMatch(futuresDesk, /spreadBps:0/);
-  assert.match(futuresDesk, /5% notional per position/);
+  assert.match(futuresDesk, /25% notional per position/);
+  assert.match(futuresDesk, /PAPER_UI_MAX_OPEN_RISK_PCT/);
 });
 
-test("agent and paper-order previews enforce 5% position and 20% portfolio exposure caps",()=>{
-  assert.match(futuresDesk, /positionNotionalCap=balance\*\.05,portfolioNotionalCap=balance\*\.20/);
+test("agent and paper-order previews enforce per-ticket, portfolio and aggregate-risk caps",()=>{
+  assert.match(futuresDesk, /positionNotionalCap=balance\*PAPER_UI_MAX_POSITION_EXPOSURE_PCT\/100,portfolioNotionalCap=balance\*PAPER_UI_MAX_PORTFOLIO_EXPOSURE_PCT\/100/);
   assert.match(futuresDesk, /existingOpenNotional\+qty\*entry<=portfolioNotionalCap/);
   assert.match(futuresDesk, /const now=Date\.now\(\),fresh=hasFreshLiveQuote\(now\)/);
-  assert.match(futuresDesk, /Math\.min\(riskBudget\/distance,notionalCap\/entry,remainingPortfolioNotional\/entry\)/);
+  assert.match(futuresDesk, /Math\.min\(permittedRisk\/dist,positionNotionalCap\/entry,remainingPortfolioNotional\/entry\)/);
+  assert.match(futuresDesk, /Math\.min\(permittedRisk\/distance,notionalCap\/entry,remainingPortfolioNotional\/entry\)/);
   assert.match(futuresDesk, /existingOpenNotional\+quantity\*entry>portfolioNotionalCap/);
   assert.match(futuresDesk, /existingOpenNotional\+quantity\*entryReference>portfolioNotionalCap/);
-  assert.match(futuresDesk, /persistent paper ledger must be loaded before sizing or opening a position/);
+  assert.match(futuresDesk, /existingOpenRisk\+qty\*dist<=balance\*PAPER_UI_MAX_OPEN_RISK_PCT\/100/);
+  assert.match(futuresDesk, /existingOpenRisk\+quantity\*distance>balance\*PAPER_UI_MAX_OPEN_RISK_PCT\/100/);
+  assert.match(futuresDesk, /same-direction scale-ins are supported up to/);
+  assert.match(futuresDesk, /PAPER_UI_MAX_OPEN_POSITIONS=10/);
 });
 
 test("active paper positions survive the bounded trade-history window",()=>{
