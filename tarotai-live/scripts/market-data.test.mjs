@@ -773,8 +773,9 @@ test("agent and paper-order previews enforce per-ticket, portfolio and aggregate
   assert.match(futuresDesk, /existingOpenNotional\+quantity\*entry>portfolioNotionalCap/);
   assert.match(futuresDesk, /existingOpenNotional\+quantity\*entryReference>portfolioNotionalCap/);
   assert.match(futuresDesk, /existingOpenRisk\+qty\*dist<=balance\*PAPER_UI_MAX_OPEN_RISK_PCT\/100/);
-  assert.match(futuresDesk, /existingOpenRisk\+quantity\*distance>balance\*PAPER_UI_MAX_OPEN_RISK_PCT\/100/);
-  assert.match(futuresDesk, /same-direction scale-ins are supported up to/);
+  assert.match(futuresDesk, /remainingPortfolioRisk=Math\.max\(0,balance\*PAPER_UI_MAX_OPEN_RISK_PCT\/100-existingOpenRisk\)/);
+  assert.match(futuresDesk, /quantity\*distance>permittedRisk/);
+  assert.match(futuresDesk, /Same-direction scale-ins are supported up to/);
   assert.match(futuresDesk, /PAPER_UI_MAX_OPEN_POSITIONS=10/);
 });
 
