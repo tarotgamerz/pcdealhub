@@ -1527,9 +1527,13 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
         const k=msg.data[msg.data.length-1],bar={time:Number(k[0]),open:Number(k[1]),high:Number(k[2]),low:Number(k[3]),close:Number(k[4]),volume:Number(k[5]),closeTime:Number(k[0])+msFor(currentInterval)-1};
         if(!validateCandle(bar))return;const visibleBefore=chart.timeScale().getVisibleLogicalRange(),stickAtRealtime=!visibleBefore||visibleBefore.to>=rows.length-8;lastMarketUpdateAt=Date.now();
         let updatedHistorical=false;
-        if(!rows.length||bar.time>rows[rows.length-1].time)rows.push(bar);else{const idx=rows.findIndex(x=>x.time===bar.time);if(idx>=0){rows[idx]=bar;if(idx<rows.length-1)updatedHistorical=true;}}
+        if(!rows.length||bar.time>rows[rows.length-1].time)rows.push(bar);
+        else{const idx=rows.findIndex(x=>x.time===bar.time);if(idx<0)return;rows[idx]=bar;if(idx<rows.length-1)updatedHistorical=true;}
         let trimmed=false;if(rows.length>5000){rows=rows.slice(-5000);trimmed=true;}
-        try{const point=plotCandle(bar);candleSeries.update(point);if(mirrorCandleSeries)mirrorCandleSeries.update(point);updateLatestEmaPoint({trimmed,historical:updatedHistorical});renderSharedQuote(currentMarketPrice());if(stickAtRealtime){chart.timeScale().scrollToRealTime();if(mirrorChart)mirrorChart.timeScale().scrollToRealTime();}analyzeNewClosedBar();
+        try{
+          if(updatedHistorical){renderRows(false);}
+          else{const point=plotCandle(bar);candleSeries.update(point);if(mirrorCandleSeries)mirrorCandleSeries.update(point);updateLatestEmaPoint({trimmed});renderSharedQuote(currentMarketPrice());if(stickAtRealtime){chart.timeScale().scrollToRealTime();if(mirrorChart)mirrorChart.timeScale().scrollToRealTime();}}
+          analyzeNewClosedBar();
         }catch(e){reportLiveChartError(e,"OKX live candle update");}
       };
       feedSocket.onerror=()=>setFeed("OKX LIVE STREAM RECONNECTING","bad");
