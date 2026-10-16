@@ -671,7 +671,7 @@ test("Binance live chart renders automatic support, resistance, trendlines and s
 
 test("live quote fallback supports Binance, Bybit and OKX while blocking stale prices", () => {
   assert.match(liveQuoteRoute, /api\/v5\/market\/ticker/);
-  assert.match(liveQuoteRoute, /api\/v5\/market\/tickers/);
+  assert.match(liveQuoteRoute, /bybit\.com\/v5\/market\/tickers/);
   assert.match(liveQuoteRoute, /venue === "bybit"/);
   assert.match(liveQuoteRoute, /new Set\(\["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT"\]\)/);
   assert.match(liveQuoteRoute, /ageMs <= 3500/);
