@@ -351,7 +351,7 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
    }
    try{
     const transcript=firstRoundCleared.map((m:any)=>({round:m.round,role:m.name,to:m.target,text:m.text}));
-    const text=await requestAgentRoomReply({role,round:2,target,topic:symbol+" "+interval+" trading setup review",directive:discussionDirective,marketContext:{venue:market.venue,symbol,interval,lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),higherTimeframeTrend:higherTrend.direction,lastClosedCandle:userContext.lastClosedCandle,last24ClosedCandles:userContext.last24ClosedCandles,technicalScorecard,historicalAnalogueStudy:userContext.historicalAnalogueStudy,availableFeeds:userContext.availableFeeds},preliminaryReports,transcript,modelCandidates});
+    const text=await requestAgentRoomReply({role,round:2,target,topic:automaticDiscussionFocus.topic,directive:automaticDiscussionFocus.directive,marketContext:{venue:market.venue,symbol,interval,lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),higherTimeframeTrend:higherTrend.direction,lastClosedCandle:userContext.lastClosedCandle,last24ClosedCandles:userContext.last24ClosedCandles,technicalScorecard,historicalAnalogueStudy:userContext.historicalAnalogueStudy,availableFeeds:userContext.availableFeeds},preliminaryReports,transcript,modelCandidates});
     return moderateAndPublish(role,2,target,text);
    }catch(error){
     send({type:"room-agent",round:2,role,status:"failed",name:SPECIALISTS[role].name,target:SPECIALISTS[target].name});
