@@ -837,7 +837,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     els.liveForecastAccuracy.textContent=wf&&wf.meetsMinimumSample&&Number.isFinite(wf.directionalHitRatePct)
       ?wf.directionalHitRatePct.toFixed(1)+"% ("+wf.correct+"/"+wf.sampleSize+") · endpoint error "+(Number.isFinite(wf.meanAbsoluteEndpointErrorPct)?wf.meanAbsoluteEndpointErrorPct.toFixed(2)+"%":"—")
       :(wf?(wf.sampleSize||0)+"/20 directional calls · rate withheld":"historical score unavailable");
-    els.liveForecastEvidence.textContent=forecast.strengthLabel+" · "+forecast.technicalScore+"/"+forecast.maxTechnicalScore+" technical checks agree. "+forecast.evidence.join("; ")+". Score is rule confluence, not a probability; the walk-forward metric is historical, past-only, and not net of trading costs.";
+    els.liveForecastEvidence.textContent=forecast.strengthLabel+" · "+forecast.technicalScore+"/"+forecast.maxTechnicalScore+" technical checks agree. "+forecast.evidence.join("; ")+". The rule score is not a calibrated probability. The walk-forward metric is historical, past-only, and not net of trading costs.";
   }
 
   function trendFor(input,interval){const c=closedOnly(input,interval);if(c.length<55)return {ready:false,direction:"UNAVAILABLE",detail:"Not enough closed higher-timeframe candles to confirm trend."};const cls=c.map(x=>x.close),e20=ema(cls,20),e50=ema(cls,50),i=c.length-1;const up=cls[i]>e50[i]&&e20[i]>e50[i],down=cls[i]<e50[i]&&e20[i]<e50[i];return {ready:true,direction:up?"BULLISH":down?"BEARISH":"MIXED / NEUTRAL",up,down,close:cls[i],ema20:e20[i],ema50:e50[i],time:c[i].time};}
