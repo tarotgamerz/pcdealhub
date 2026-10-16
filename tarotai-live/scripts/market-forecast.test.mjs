@@ -65,6 +65,7 @@ test("insufficient and delayed reference-only data fail closed", () => {
 
 test("Trading Desk adds chart series, live order-flow context and transparent scenario measurements", () => {
   assert.match(desk, /<script src="\/market-forecast\.js"><\/script>/); assert.match(desk, /forecastPathSeries=chart\.addLineSeries/);
+  assert.match(desk, /const higherMap=\{"1m":"15m","3m":"15m","5m":"1h","15m":"4h","30m":"4h","1h":"1d","2h":"1d","4h":"1d","1d":"1d"\}/);
   assert.match(desk, /forecastUpperSeries=chart\.addLineSeries/); assert.match(desk, /drawForecastOverlay\(nextMoveForecast\)/);
   assert.match(desk, /window\.tarotaiOrderFlowSummary/); assert.match(desk, /liveForecastInvalidation/); assert.match(desk, /not a calibrated probability/i);
 });
