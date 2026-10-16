@@ -231,7 +231,7 @@ export async function POST(req:Request){
   const rawOrderFlow=b.orderFlow&&typeof b.orderFlow==="object"&&!Array.isArray(b.orderFlow)?b.orderFlow:null;
   const flowCapturedAt=rawOrderFlow?Date.parse(String(rawOrderFlow.updatedAt||"")):Number.NaN;
   const flowMatches=!!rawOrderFlow&&String(rawOrderFlow.symbol||"").toUpperCase()===symbol&&String(rawOrderFlow.venue||"").toLowerCase()===venue;
-  const flowMetric=(value,min,max)=>value!==null&&value!==undefined&&value!==""&&Number.isFinite(Number(value))&&Number(value)>=min&&Number(value)<=max?Number(value):null;
+  const flowMetric=(value:any,min:number,max:number)=>value!==null&&value!==undefined&&value!==""&&Number.isFinite(Number(value))&&Number(value)>=min&&Number(value)<=max?Number(value):null;
   const flowAgeOk=Number.isFinite(flowCapturedAt)&&Date.now()-flowCapturedAt>=-1500&&Date.now()-flowCapturedAt<=5000;
   const orderFlowAtEntry=action==="OPEN"&&flowMatches?{
    symbol,venue,shadowOnly:true,capturedAt:Number.isFinite(flowCapturedAt)?new Date(flowCapturedAt).toISOString():null,serverObservedAt:new Date().toISOString(),
