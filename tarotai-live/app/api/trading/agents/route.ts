@@ -141,6 +141,28 @@ function trendSummary(candles:Candle[]) {
  return {direction:closes[i]>e50[i]&&e20[i]>e50[i]?"BULLISH":closes[i]<e50[i]&&e20[i]<e50[i]?"BEARISH":"MIXED / NEUTRAL",lastClose:closes[i],ema20:e20[i],ema50:e50[i],lastClosedAt:new Date(candles[i].time).toISOString()};
 }
 
+
+function deriveAutomaticDiscussionAgenda(market:any,higherTrend:any,scorecard:any,history:any) {
+ const candles=Array.isArray(market?.candles)?market.candles:[],last=candles[candles.length-1];
+ if(!last)return {topic:String(market?.symbol||"crypto")+" trading market evidence review",focus:"verify valid closed-candle data and withhold conclusions until data is available",directive:"Automatically generated agenda: verify the closed candle, market trend, support/resistance, momentum, volatility and invalidation before discussing any setup."};
+ const prior=candles.slice(Math.max(0,candles.length-21),candles.length-1),priorHigh=prior.length?Math.max(...prior.map((c:any)=>Number(c.high))):NaN,priorLow=prior.length?Math.min(...prior.map((c:any)=>Number(c.low))):NaN;
+ const diagnostics=scorecard?.diagnostics||{},atrValue=Number(diagnostics.atr14),close=Number(last.close),highDistance=Number.isFinite(atrValue)&&atrValue>0?(priorHigh-close)/atrValue:Infinity,lowDistance=Number.isFinite(atrValue)&&atrValue>0?(close-priorLow)/atrValue:Infinity;
+ const longScore=Number(scorecard?.long?.score)||0,shortScore=Number(scorecard?.short?.score)||0,regime=String(diagnostics.marketRegime||"UNKNOWN"),htf=String(higherTrend?.direction||"UNAVAILABLE"),leader=String(scorecard?.evidenceLeader||"MIXED"),sample=Number(history?.sampleCount)||0,histBias=String(history?.sideBias||"NEUTRAL");
+ let focus;
+ if(close>priorHigh)focus="challenge whether the just-closed candle confirms an upside 20-candle breakout or a failed breakout/retest";
+ else if(close<priorLow)focus="challenge whether the just-closed candle confirms a downside 20-candle breakdown or a failed breakdown/reclaim";
+ else if(highDistance>=0&&highDistance<=0.4)focus="test the nearby resistance/liquidity-sweep risk and the exact close needed to confirm or reject an upside breakout";
+ else if(lowDistance>=0&&lowDistance<=0.4)focus="test the nearby support/liquidity-sweep risk and the exact close needed to confirm or reject a downside breakdown";
+ else if(htf==="MIXED / NEUTRAL"||regime==="RANGE_OR_TRANSITION")focus="determine whether the market is range-bound or transitioning, and identify the no-trade zone versus valid breakout triggers";
+ else if(htf==="BULLISH")focus="challenge bullish continuation versus bearish reversal, especially the nearest resistance, pullback depth and invalidation";
+ else if(htf==="BEARISH")focus="challenge bearish continuation versus bullish reversal, especially the nearest support, reclaim trigger and invalidation";
+ else focus="resolve timeframe alignment and compare the strongest long, short and WAIT cases before proposing any directional view";
+ const historical=sample>=5?"historical analogues: "+sample+" matches with observed bias "+histBias:"historical analogue sample is weak ("+sample+" matches)";
+ const topic="AUTO MARKET AGENDA · "+market.symbol+" "+market.interval+": "+focus+".";
+ const directive="Automatically inferred from the verified latest closed OHLCV snapshot, "+market.symbol+" "+market.interval+", higher-timeframe trend "+htf+", market regime "+regime+", rule evidence LONG "+longScore+"/100 versus SHORT "+shortScore+"/100, and "+historical+". Agents must independently test the current support/resistance, trend, momentum, volatility and six-candle conditional scenarios; ask peers to challenge triggers and invalidation; compare the bullish case, bearish case and WAIT case; cite only supplied closed-candle evidence; identify what would change the view. Do not provide an uncalibrated win probability, invent order-book liquidity, or force a trade.";
+ return {topic,focus,source:"server-generated from fresh closed candles, higher-timeframe trend, technical scorecard and historical analogues",longEvidenceScore:longScore,shortEvidenceScore:shortScore,higherTimeframeTrend:htf,marketRegime:regime,historicalSampleCount:sample,historicalBias:histBias,directive};
+}
+
 function seriesRsi(values:number[],period=14):number[] {
  const out=Array(values.length).fill(NaN);if(values.length<=period)return out;
  let gain=0,loss=0;for(let i=1;i<=period;i++){const d=values[i]-values[i-1];gain+=Math.max(d,0);loss+=Math.max(-d,0);}
@@ -282,6 +304,7 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
   },
   last24ClosedCandles:compactCandles(market.candles,24),last12HigherTimeframeCandles:compactCandles(market.higherCandles,12)
  };
+ const automaticDiscussionAgenda=deriveAutomaticDiscussionAgenda(market,higherTrend,technicalScorecard,userContext.historicalAnalogueStudy);
  const serialized=JSON.stringify(userContext);
  const results=await Promise.all(roles.filter((role:string)=>role!=="supervisor").map(async (role: string)=>{
   const agentStarted=Date.now();
@@ -326,13 +349,13 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
   return message;
  };
  if(discussionEnabled){
-  send({type:"phase",phase:"agent-room",message:"Opening two moderated peer-discussion rounds. Every post is checked by the Agent Operations Supervisor before it can be used in a later round."});
+  send({type:"phase",phase:"agent-room",message:"Auto-generated discussion focus: "+automaticDiscussionAgenda.focus+". Opening two supervisor-moderated rounds with no manual topic required."});
   const preliminaryReports=results.filter((r:any)=>r.role!=="supervisor").map((r:any)=>({role:r.role,name:r.name,bias:r.bias,veto:r.veto,fallback:Boolean(r.fallback),text:String(r.text||"").slice(0,1600)}));
   const firstRound=await Promise.all(ROOM_DIALOGUE_ROLES.map(async (role:string)=>{
    const target=ROOM_QUESTION_TARGET[role];
    send({type:"room-agent",round:1,role,status:"speaking",name:SPECIALISTS[role].name,target:SPECIALISTS[target].name});
    try{
-    const text=await requestAgentRoomReply({role,round:1,target,topic:symbol+" "+interval+" trading setup review",directive:discussionDirective,marketContext:{venue:market.venue,symbol,interval,lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),higherTimeframeTrend:higherTrend.direction,lastClosedCandle:userContext.lastClosedCandle,last24ClosedCandles:userContext.last24ClosedCandles,technicalScorecard,historicalAnalogueStudy:userContext.historicalAnalogueStudy,availableFeeds:userContext.availableFeeds},preliminaryReports,transcript:[],modelCandidates});
+    const text=await requestAgentRoomReply({role,round:1,target,topic:automaticDiscussionAgenda.topic,directive:discussionDirective||automaticDiscussionAgenda.directive,marketContext:{venue:market.venue,symbol,interval,lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),higherTimeframeTrend:higherTrend.direction,lastClosedCandle:userContext.lastClosedCandle,last24ClosedCandles:userContext.last24ClosedCandles,technicalScorecard,historicalAnalogueStudy:userContext.historicalAnalogueStudy,availableFeeds:userContext.availableFeeds},preliminaryReports,transcript:[],modelCandidates});
     return moderateAndPublish(role,1,target,text);
    }catch(error){
     const failure=error instanceof Error?error.message:"peer reply failed";
@@ -350,7 +373,7 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
    }
    try{
     const transcript=firstRoundCleared.map((m:any)=>({round:m.round,role:m.name,to:m.target,text:m.text}));
-    const text=await requestAgentRoomReply({role,round:2,target,topic:symbol+" "+interval+" trading setup review",directive:discussionDirective,marketContext:{venue:market.venue,symbol,interval,lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),higherTimeframeTrend:higherTrend.direction,lastClosedCandle:userContext.lastClosedCandle,last24ClosedCandles:userContext.last24ClosedCandles,technicalScorecard,historicalAnalogueStudy:userContext.historicalAnalogueStudy,availableFeeds:userContext.availableFeeds},preliminaryReports,transcript,modelCandidates});
+    const text=await requestAgentRoomReply({role,round:2,target,topic:automaticDiscussionAgenda.topic,directive:discussionDirective||automaticDiscussionAgenda.directive,marketContext:{venue:market.venue,symbol,interval,lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),higherTimeframeTrend:higherTrend.direction,lastClosedCandle:userContext.lastClosedCandle,last24ClosedCandles:userContext.last24ClosedCandles,technicalScorecard,historicalAnalogueStudy:userContext.historicalAnalogueStudy,availableFeeds:userContext.availableFeeds},preliminaryReports,transcript,modelCandidates});
     return moderateAndPublish(role,2,target,text);
    }catch(error){
     send({type:"room-agent",round:2,role,status:"failed",name:SPECIALISTS[role].name,target:SPECIALISTS[target].name});
@@ -373,7 +396,7 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
   market:{venue:market.venue,host:market.host,symbol,interval,higherInterval:market.higherInterval,fetchedAt:market.fetchedAt,
    lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),lastClosedCandleAgeSeconds:Math.max(0,Math.round(market.lastClosedCandleAgeMs/1000)),higherTimeframeTrend:higherTrend.direction},
   historicalAnalogueStudy:userContext.historicalAnalogueStudy,technicalScorecard,results,completedAgents:ok,requestedAgents:8,fallbackAgents:fallbackCount,aiProviderStatus:fallbackCount?"degraded":"ok",supervisorMode:"deterministic-rule-audit-plus-per-message-trading-room-monitor",
-  discussionEnabled,discussion:roomMessages,discussionModeration:{mode:"supervisor-checks-every-post-before-passing it to the next round",reviewed:roomModeration.reviewed,clear:roomModeration.clear,flagged:roomModeration.flagged,blocked:roomModeration.blocked,eligibleForTradeApproval:false},
+  discussionEnabled,discussion:roomMessages,discussionAgenda:{topic:automaticDiscussionAgenda.topic,focus:automaticDiscussionAgenda.focus,source:automaticDiscussionAgenda.source,userOverrideUsed:Boolean(discussionDirective),longEvidenceScore:automaticDiscussionAgenda.longEvidenceScore,shortEvidenceScore:automaticDiscussionAgenda.shortEvidenceScore,higherTimeframeTrend:automaticDiscussionAgenda.higherTimeframeTrend,marketRegime:automaticDiscussionAgenda.marketRegime,historicalSampleCount:automaticDiscussionAgenda.historicalSampleCount,historicalBias:automaticDiscussionAgenda.historicalBias},discussionModeration:{mode:"supervisor-checks-every-post-before-passing it to the next round",reviewed:roomModeration.reviewed,clear:roomModeration.clear,flagged:roomModeration.flagged,blocked:roomModeration.blocked,eligibleForTradeApproval:false},
   safety:{readOnly:true,orderPlacement:false,paperTradingOnly:true,agentDiscussionTools:false,roomMessagesCanApproveTrades:false}
  },{headers:{"Cache-Control":"no-store"}});
 }
