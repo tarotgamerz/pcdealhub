@@ -655,7 +655,7 @@ test("continuous local agents veto missing or stale last-trade ticks", () => {
 
 test("Binance Futures is the canonical live chart source selected by the user", () => {
   assert.match(futuresDesk, /marketVenue="binance"/);
-  assert.match(futuresDesk, /wss:\/\/fstream\.binance\.com\/ws\//);
+  assert.match(futuresDesk, /wss:\/\/fstream\.binance\.com\/(?:public|market)\/ws\//);
   assert.match(source, /https:\/\/fapi\.binance\.com\/fapi\/v1\/klines/);
   assert.match(parallelAgentsRoute, /fapi\/v1\/klines/);
   assert.match(paperRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/bookTicker/);
@@ -816,7 +816,7 @@ test("target-only observation trades ignore stop-only touches and stay outside s
 });
 test("Binance live chart renders automatic support, resistance, trendlines and shared live ticks", () => {
   assert.match(futuresDesk, /marketVenue="binance"/);
-  assert.match(futuresDesk, /wss:\/\/fstream\.binance\.com\/ws\//);
+  assert.match(futuresDesk, /wss:\/\/fstream\.binance\.com\/(?:public|market)\/ws\//);
   assert.match(futuresDesk, /function drawStructureAnnotations\(candles,currentAtr\)/);
   assert.match(futuresDesk, /Auto support/);
   assert.match(futuresDesk, /Auto resistance/);
