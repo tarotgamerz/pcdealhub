@@ -1032,7 +1032,9 @@ test("live eight-agent review streams two peer discussion rounds through the alw
   assert.match(tradingAgentsRoomRoute,/type:"room-message"/);
   assert.match(tradingAgentsRoomRoute,/type:"room-supervisor"/);
   assert.match(tradingAgentsRoomRoute,/roomVeto=roomModeration\.blocked>0/);
-  assert.match(tradingAgentsRoomRoute,/discussionDirective&&!ROOM_TRADING_TOPIC_PATTERN\.test/);
+  assert.match(tradingAgentsRoomRoute,/const discussionEnabled=true/);
+  assert.match(tradingAgentsRoomRoute,/buildAutomaticMarketDiscussionFocus/);
+  assert.match(tradingAgentsRoomRoute,/automaticDiscussionFocus\.topic/);
   assert.match(tradingAgentsRoomRoute,/roomMessagesCanApproveTrades:false/);
 });
 
@@ -1075,7 +1077,7 @@ test("automatic discussion focus extracts breakout, momentum, ATR and timeframe 
   });
   assert.match(focus.topic, /BTCUSDT 5m/);
   assert.match(focus.topic, /breakout confirmation versus failed breakout/);
-  assert.match(focus.directive, /prior-20 high\/low/);
+  assert.match(focus.directive, /prior-20 H\/L/);
   assert.match(focus.directive, /ATR14/);
   assert.match(focus.directive, /timeframe|HTF/i);
   assert.ok(focus.directive.length <= 500);
