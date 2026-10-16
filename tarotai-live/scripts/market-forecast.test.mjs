@@ -109,6 +109,23 @@ test("walk-forward forecast evaluation only counts past-origin forecasts with a 
   assert.match(result.notice,/excludes fees, spread, slippage/i);
 });
 
+
+
+test("walk-forward scoring counts tiny directional noise as a miss, not an accuracy hit", () => {
+  const intervalMs = 60_000, higherIntervalMs = 3_600_000, start = 1_750_000_000_000;
+  const main = makeCandles(1, 320, { intervalMs, start, base: 1000, step: 0.02 });
+  const higher = makeCandles(1, 260, {
+    intervalMs: higherIntervalMs, start: start - 220 * higherIntervalMs, base: 500, step: 0.02
+  });
+  const result = evaluateForecastWalkForward(main, higher, { intervalMs, higherIntervalMs, horizonBars: 4 });
+  assert.ok(result.sampleSize >= 20, "the synthetic series should produce enough directional forecasts to test the score");
+  assert.equal(result.minimumMoveAtr, 0.15);
+  assert.equal(result.minimumMoveFloorPct, 0.02);
+  assert.equal(result.correct, 0, "moves below the minimum materiality hurdle must not count as useful direction hits");
+  assert.equal(result.directionalHitRatePct, 0);
+  assert.match(result.hitDefinition, /0\.15 ATR/i);
+});
+
 test("walk-forward scoring refuses to invent an accuracy percentage when history is too short", () => {
   const short = makeCandles(1, 90);
   const result = evaluateForecastWalkForward(short,[],{intervalMs:60_000,horizonBars:4});
@@ -124,6 +141,8 @@ test("Trading Desk visibly draws both conditional forecast paths and reports wal
   assert.match(desk,/mirrorForecastBearSeries=mirrorChart\.addLineSeries/);
   assert.match(desk,/window\.tarotaiEvaluateForecastWalkForward/);
   assert.match(desk,/id="liveForecastAccuracy"/);
+  assert.match(desk,/ATR-adjusted walk-forward hit rate/);
+  assert.match(desk,/0\.15 ATR/);
   assert.match(desk,/rate withheld/);
   assert.match(desk,/forecast\.scenarios\|\|\{\}/);
 });
