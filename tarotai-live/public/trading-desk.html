@@ -607,7 +607,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const instId=currentSymbol.endsWith("USDT")?currentSymbol.slice(0,-4)+"-USDT-SWAP":currentSymbol;
     try{
       if(marketVenue==="binance"){
-        quoteSocket=new WebSocket("wss://fstream.binance.com/ws/"+currentSymbol.toLowerCase()+"@bookTicker");
+        quoteSocket=new WebSocket("wss://fstream.binance.com/public/ws/"+currentSymbol.toLowerCase()+"@bookTicker");
         quoteSocket.onopen=()=>{if(quoteSocket&&quoteSymbol===currentSymbol)renderSharedQuote(NaN);};
         quoteSocket.onmessage=event=>{if(quoteSymbol!==currentSymbol)return;let tick;try{tick=JSON.parse(event.data);}catch(e){return;}if(tick.s!==currentSymbol)return;const bid=Number(tick.b),ask=Number(tick.a),price=(bid+ask)/2,ts=Number(tick.E||tick.T),receivedAt=Date.now(),exchangeAge=receivedAt-ts;if(!Number.isFinite(bid)||!Number.isFinite(ask)||bid<=0||ask<bid||!Number.isFinite(price)||price<=0||!Number.isFinite(ts)||ts<=0||exchangeAge < -1500||exchangeAge>3000)return;lastTradePrice=price;lastTradeAt=receivedAt;lastWsTradeAt=lastTradeAt;lastQuoteSource="binance-websocket";lastQuoteSourceTimestamp=ts;renderSharedQuote(price);};
         quoteSocket.onerror=()=>{const meta=byId("tvSyncedMeta");if(meta)meta.textContent="Binance book-ticker WebSocket reconnecting; verified midpoint REST fallback is available while ticks are stale."};

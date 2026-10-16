@@ -973,6 +973,7 @@ test("order-flow observer never publishes unsupported venue snapshots and pauses
 test("Binance Futures websocket categories route klines and aggregate trades to market and depth to public",()=>{
  assert.match(futuresDesk,/const streamUrl="wss:\/\/fstream\.binance\.com\/market\/ws\/"\+currentSymbol\.toLowerCase\(\)\+"@kline_"\+currentInterval;/);
  assert.match(futuresDesk,/new WebSocket\("wss:\/\/fstream\.binance\.com\/public\/ws\/"\+currentSymbol\.toLowerCase\(\)\+"@depth20@100ms"\)/);
+ assert.match(futuresDesk,/new WebSocket\("wss:\/\/fstream\.binance\.com\/public\/ws\/"\+currentSymbol\.toLowerCase\(\)\+"@bookTicker"\)/);
  assert.match(futuresDesk,/new WebSocket\("wss:\/\/fstream\.binance\.com\/market\/ws\/"\+currentSymbol\.toLowerCase\(\)\+"@aggTrade"\)/);
  assert.match(futuresDesk,/m\?\.m===true\?"SELL":"BUY"/);
 });
