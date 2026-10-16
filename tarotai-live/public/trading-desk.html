@@ -1525,10 +1525,10 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   function scheduleOrderFlowReconnect(){if(orderFlowReconnectTimer||document.visibilityState!=="visible"||marketVenue!=="binance"||!currentSymbol)return;orderFlowReconnectTimer=setTimeout(()=>{orderFlowReconnectTimer=null;connectOrderFlow();},1500);}
   function connectOrderFlow(){
     if(!byId("orderflowCanvas"))return;
-    if(document.visibilityState!=="visible"){stopOrderFlowSockets(false);ofStatus("PAUSED · TAB HIDDEN");return;}
+    if(document.visibilityState!=="visible"){stopOrderFlowSockets(true);if(orderFlowDrawTimer){clearInterval(orderFlowDrawTimer);orderFlowDrawTimer=null;}ofStatus("PAUSED · TAB HIDDEN");return;}
     if(!currentSymbol){ofStatus("WAITING FOR MARKET");return;}
     if(marketVenue!=="binance"){
-      stopOrderFlowSockets(true);orderFlowSymbol="";ofStatus("BINANCE FUTURES ONLY","bad");
+      stopOrderFlowSockets(true);orderFlowSymbol="";if(orderFlowDrawTimer){clearInterval(orderFlowDrawTimer);orderFlowDrawTimer=null;}ofStatus("BINANCE FUTURES ONLY","bad");
       const note=byId("ofNote");if(note)note.textContent="Order-flow feed is supported for Binance USDⓈ-M Futures only. No other exchange is substituted. Select Binance to view depth and trade bubbles; this layer does not control trading decisions.";
       renderOrderFlow();return;
     }
@@ -1592,7 +1592,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       else if((deltaRatio>=0.15&&imbalance<=-0.05)||(deltaRatio<=-0.15&&imbalance>=0.05)){bias="FLOW / BOOK CONFLICT";biasColor="#ffbf69";}
       else{bias="MIXED / NO EDGE";biasColor="#f2c46f";}
     }else if(depthFresh&&tradeFresh){bias="LOW ACTIVITY";biasColor="#f2c46f";}
-    window.tarotaiOrderFlowSummary={symbol:currentSymbol,venue:marketVenue,windowMs:OF_WINDOW_MS,buyNotional:buy,sellNotional:sell,deltaNotional:delta,deltaRatio,bookBidNotional:bidDepth,bookAskNotional:askDepth,bookImbalance:imbalance,bias,depthFresh,tradeFresh,depthAgeMs:orderFlowLastDepthAt?now-orderFlowLastDepthAt:null,tradeAgeMs:orderFlowLastTradeAt?now-orderFlowLastTradeAt:null,tradeCount:trades.length,snapshotCount:snapshots.length,updatedAt:new Date(now).toISOString(),shadowOnly:true};
+    window.tarotaiOrderFlowSummary=marketVenue==="binance"?{symbol:currentSymbol,venue:marketVenue,windowMs:OF_WINDOW_MS,buyNotional:buy,sellNotional:sell,deltaNotional:delta,deltaRatio,bookBidNotional:bidDepth,bookAskNotional:askDepth,bookImbalance:imbalance,bias,depthFresh,tradeFresh,depthAgeMs:orderFlowLastDepthAt?now-orderFlowLastDepthAt:null,tradeAgeMs:orderFlowLastTradeAt?now-orderFlowLastTradeAt:null,tradeCount:trades.length,snapshotCount:snapshots.length,updatedAt:new Date(now).toISOString(),shadowOnly:true}:null;
     const set=(id,value,color)=>{const el=byId(id);if(el){el.textContent=value;if(color)el.style.color=color;}};
     set("ofBuyNotional",ofMoney(buy),buy>=sell?"#65e6ad":null);set("ofSellNotional",ofMoney(sell),sell>=buy?"#ff7b83":null);
     set("ofDelta",(delta>=0?"+":"−")+ofMoney(Math.abs(delta)),delta>=0?"#65e6ad":"#ff7b83");
@@ -1629,7 +1629,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   if(quoteFallbackTimer)clearInterval(quoteFallbackTimer);quoteFallbackTimer=setInterval(()=>{if(document.visibilityState==="visible"&&(marketVenue==="yahoo"?(Date.now()-lastTradeAt>15000&&Date.now()-lastQuoteFallbackErrorAt>15000):(!hasFreshLiveQuote()||lastQuoteSource!==marketVenue+"-websocket")))void refreshQuoteFallback();},2000);
   refresh(true).then(()=>{if(marketVenue!=="yahoo")connectSocket();runContinuousAgentCycle();void refreshQuoteFallback();});
   pollTimer=setInterval(()=>{if(document.visibilityState==="visible"&&Date.now()-lastMarketUpdateAt>(marketVenue==="yahoo"?15000:5000))void refresh(true);},5000);
-  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){void refresh(true).then(()=>runContinuousAgentCycle());void refreshQuoteFallback();}});
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){void refresh(true).then(()=>{connectOrderFlow();runContinuousAgentCycle();});void refreshQuoteFallback();}else{stopOrderFlowSockets(true);if(orderFlowDrawTimer){clearInterval(orderFlowDrawTimer);orderFlowDrawTimer=null;}ofStatus("PAUSED · TAB HIDDEN");}});
   window.addEventListener("beforeunload",()=>{if(pollTimer)clearInterval(pollTimer);if(quoteFallbackTimer)clearInterval(quoteFallbackTimer);if(feedSocket)feedSocket.close();if(quoteSocket)quoteSocket.close();stopOrderFlowSockets(false);if(orderFlowDrawTimer)clearInterval(orderFlowDrawTimer);if(resizeObserver)resizeObserver.disconnect();});
 })();
 
