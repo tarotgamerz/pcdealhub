@@ -1048,7 +1048,7 @@ test("trading agent discussion is owner-controlled, streamed safely and rendered
 
 test("agent-room requests reserve time for two rounds inside the serverless execution budget", () => {
   assert.match(tradingAgentsRoomRoute, /export const maxDuration = 60/);
-  assert.match(tradingAgentsRoomRoute, /signal:AbortSignal\\.timeout\\(6000\\)/);
-  assert.doesNotMatch(tradingAgentsRoomRoute, /signal:AbortSignal\\.timeout\\(8500\\)/);
-  assert.match(futuresDesk, /signal:AbortSignal\\.timeout\\(58000\\)/);
+  assert.ok(tradingAgentsRoomRoute.includes("signal:AbortSignal.timeout(6000)"));
+  assert.ok(!tradingAgentsRoomRoute.includes("signal:AbortSignal.timeout(8500)"));
+  assert.ok(futuresDesk.includes("signal:AbortSignal.timeout(58000)"));
 });
