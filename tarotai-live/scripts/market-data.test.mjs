@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { createRequire } from "node:module";
+const require = createRequire(import.meta.url);
+const scenarioEngine = require("../public/trading-scenarios.js");
 import { findSimilarCases } from "../lib/market-patterns.mjs";
 import { reviewAgentRoomMessage } from "../lib/trading-agent-room.mjs";
 
@@ -1044,4 +1047,93 @@ test("trading agent discussion is owner-controlled, streamed safely and rendered
   assert.match(futuresDesk,/body\.textContent=m\.text/);
   assert.match(futuresDesk,/updateAgentRoomMonitor\(event\)/);
   assert.match(futuresDesk,/localStorage\.setItem\(AGENT_ROOM_STORAGE_KEY/);
+});
+
+
+test("market scenario forecast withholds direction when closed-candle history is insufficient or malformed", () => {
+  const short = scenarioEngine.buildForecast([], [], { intervalMs: 300000, marketFresh: true });
+  assert.equal(short.status, "WAIT");
+  assert.match(short.reason, /80 valid closed candles/i);
+  const invalidCandles = Array.from({length: 90}, (_, i) => ({
+    time: 1700000000000 + i * 300000, open: 100, high: 101, low: 99, close: 100, volume: 1
+  }));
+  invalidCandles[40].low = 102;
+  const malformed = scenarioEngine.buildForecast(invalidCandles, [], { intervalMs: 300000, marketFresh: true });
+  assert.equal(malformed.status, "WAIT");
+  assert.match(malformed.reason, /invalid or not strictly chronological/i);
+});
+
+test("scenario forecast emits forward base and conditional paths on future chart timestamps", () => {
+  const mainInterval = 300000, higherInterval = 3600000;
+  const mainStart = Date.UTC(2025, 0, 10);
+  const main = Array.from({length: 260}, (_, i) => {
+    const close = 100 + i * 0.18 + Math.sin(i * 0.8) * 0.7;
+    const open = close - (i % 2 ? 0.15 : -0.12);
+    return {time:mainStart+i*mainInterval,open,high:Math.max(open,close)+0.25,low:Math.min(open,close)-0.25,close,volume:100+(i%7)*12,closeTime:mainStart+i*mainInterval+mainInterval-1};
+  });
+  const higherStart = mainStart - 200 * higherInterval;
+  const higher = Array.from({length:220}, (_, i) => {
+    const close = 180 + i * 0.7 + Math.sin(i * 0.35) * 0.8;
+    const open = close - 0.2;
+    return {time:higherStart+i*higherInterval,open,high:Math.max(open,close)+0.3,low:Math.min(open,close)-0.3,close,volume:500,closeTime:higherStart+i*higherInterval+higherInterval-1};
+  });
+  const forecast = scenarioEngine.buildForecast(main, higher, {intervalMs:mainInterval,horizonBars:6,marketFresh:true});
+  assert.equal(forecast.status, "READY");
+  assert.equal(forecast.scenarios.length, 3);
+  assert.equal(forecast.scoreMax, 6);
+  assert.equal(forecast.horizonBars, 6);
+  assert.equal(Object.hasOwn(forecast, "winProbability"), false);
+  for (const key of ["base","bullish","bearish"]) {
+    const scenario = forecast.scenarios.find(x=>x.key===key);
+    assert.ok(scenario, "missing scenario "+key);
+    assert.ok(Number.isFinite(scenario.target), "scenario target must be a finite measurement");
+    if (key === "base" && scenario.side === "WAIT") {
+      assert.equal(scenario.path.length, 0, "do not draw a pretend directional base case");
+    } else {
+      assert.equal(scenario.path.length, 7, "start point plus six forecast steps");
+      assert.equal(scenario.path[0].time, Math.floor(main.at(-1).time/1000));
+      assert.equal(scenario.path.at(-1).time, Math.floor(main.at(-1).time/1000) + 6 * (mainInterval/1000));
+      assert.ok(scenario.path.at(-1).time > Math.floor(main.at(-1).time/1000), "projection must lie in future chart time");
+      assert.ok(scenario.path.every(p=>Number.isFinite(p.value)), "all forecast points must have valid prices");
+    }
+  }
+});
+
+test("scenario walk-forward evaluator is time-ordered and never presents a percentage below zero or above 100", () => {
+  const mainInterval = 300000, higherInterval = 3600000, start = Date.UTC(2025, 0, 10);
+  const main = Array.from({length:360}, (_, i) => {
+    const close = 100 + i * 0.2 + Math.sin(i * 0.7) * 0.6;
+    const open = close - 0.1;
+    return {time:start+i*mainInterval,open,high:Math.max(open,close)+0.2,low:Math.min(open,close)-0.2,close,volume:100+(i%5)*10,closeTime:start+i*mainInterval+mainInterval-1};
+  });
+  const higherStart = start-200*higherInterval;
+  const higher = Array.from({length:240}, (_, i) => {
+    const close = 200 + i * 0.8 + Math.sin(i * 0.4);
+    const open = close - 0.15;
+    return {time:higherStart+i*higherInterval,open,high:Math.max(open,close)+0.25,low:Math.min(open,close)-0.25,close,volume:500,closeTime:higherStart+i*higherInterval+higherInterval-1};
+  });
+  const result = scenarioEngine.evaluateWalkForward(main,higher,mainInterval,6);
+  assert.equal(result.method, "rolling walk-forward; closed candles only");
+  assert.ok(result.sampleSize >= 0);
+  assert.ok(result.correct >= 0 && result.correct <= result.sampleSize);
+  if (result.sampleSize > 0) assert.ok(result.directionalHitRatePct >= 0 && result.directionalHitRatePct <= 100);
+  assert.equal(result.meetsMinimumSample, result.sampleSize >= 20);
+  assert.match(result.notice, /fees\/slippage/i);
+});
+
+test("scenario forecast chart integration and automatic discussion are wired to market evidence", () => {
+  assert.match(futuresDesk, /src="\/trading-scenarios\.js"/);
+  assert.match(futuresDesk, /function renderScenarioForecast\(/);
+  assert.match(futuresDesk, /baseForecastSeries\.setData/);
+  assert.match(futuresDesk, /bullForecastSeries\.setData/);
+  assert.match(futuresDesk, /bearForecastSeries\.setData/);
+  assert.match(futuresDesk, /evaluateWalkForward\(main,htfClosed,msFor\(interval\),6\)/);
+  assert.match(futuresDesk, /id="forecastAccuracy"/);
+  assert.match(futuresDesk, /Scores are evidence points, not win probabilities/);
+  assert.match(futuresDesk, /maybeAutoRunAiTradingTeam\(Number\(last\.time\)\)/);
+  assert.match(futuresDesk, /autoDiscussionRunKey===key/);
+  assert.match(tradingAgentsRoomRoute, /function deriveAutomaticDiscussionAgenda\(/);
+  assert.match(tradingAgentsRoomRoute, /topic:automaticDiscussionAgenda\.topic/);
+  assert.match(tradingAgentsRoomRoute, /directive:discussionDirective\|\|automaticDiscussionAgenda\.directive/);
+  assert.match(tradingAgentsRoomRoute, /discussionAgenda:\{/);
 });
