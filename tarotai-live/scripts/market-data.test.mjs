@@ -975,3 +975,14 @@ test("aggregate-trade websocket uses the verified Binance market path while dept
  assert.match(futuresDesk,/new WebSocket\("wss:\/\/fstream\.binance\.com\/ws\/"\+currentSymbol\.toLowerCase\(\)\+"@depth20@100ms"\)/);
  assert.match(futuresDesk,/m\?\.m===true\?"SELL":"BUY"/);
 });
+
+test("continuous agent cycle initializes higher-timeframe state before the shadow ensemble reads it",()=>{
+ const start=futuresDesk.indexOf("function runContinuousAgentCycle()");
+ const end=futuresDesk.indexOf("\n  function ",start+30);
+ assert.ok(start>=0&&end>start,"continuous agent cycle exists");
+ const cycle=futuresDesk.slice(start,end);
+ const htfDeclaration=cycle.indexOf('const htf=trendFor(higherCache,higherMap[currentInterval]||"1d");');
+ const htfRead=cycle.indexOf("higherTrend:htf.direction");
+ assert.ok(htfDeclaration>=0&&htfRead>=0&&htfDeclaration<htfRead,"higher timeframe must be initialized before ensemble evaluation");
+ assert.equal((cycle.match(/const htf=trendFor\\(/g)||[]).length,1,"cycle has one higher-timeframe binding");
+});
