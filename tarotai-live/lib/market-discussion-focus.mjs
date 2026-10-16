@@ -131,12 +131,12 @@ export function buildAutomaticMarketDiscussionFocus(input = {}) {
 
   const topic = symbol + " " + interval + ": " + structure + "; next-move scenario and invalidation";
   const directive = (
-    "Auto-derived from verified closed OHLCV: " + structure + ". Close " + price(last.close) +
-    "; prior-20 high/low " + price(priorHigh) + "/" + price(priorLow) +
+    "Auto-focus: " + structure + ". Close " + price(last.close) +
+    "; prior-20 H/L " + price(priorHigh) + "/" + price(priorLow) +
     "; EMA20/50 " + price(ema20) + "/" + price(ema50) +
     "; " + momentum + "; ATR14 " + price(atr14) + " (" + (Number.isFinite(atrPct) ? atrPct.toFixed(3) : "n/a") +
-    "% of close). Trend " + trend + "; HTF " + higherTrend + "; history " + historical +
-    ". Debate continuation vs rejection/range reversion over 3–6 bars; cite evidence, trigger, invalidation and the strongest counterargument. Choose LONG/SHORT/WAIT. No unprovided order-book, liquidity, funding or news claims."
+    "%); trend " + trend + "; HTF " + higherTrend + "; analogues " + historical +
+    ". Discuss next 3–6 bars: continuation vs rejection/range reversion. Cite evidence, trigger, invalidation and counterargument; choose LONG/SHORT/WAIT. No unsupported order-book/funding/news claims."
   ).slice(0, 500);
 
   return {
