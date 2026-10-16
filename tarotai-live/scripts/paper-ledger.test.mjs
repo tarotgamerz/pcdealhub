@@ -82,3 +82,23 @@ test("paper risk controls reject out-of-range values and explain percent units",
   assert.match(page, /validatePaperRiskInput\(\{repair:true\}\)/);
   assert.match(route, /Risk per trade must be between 0\.1% and 1\.0% of simulated balance/);
 });
+
+ 
+test("paper desk preserves a 100,000 USDT capital setting and shows account-level balances",()=> {
+  assert.match(page, /id="livePaperBalance" type="number" min="100" max="10000000" step="100" value="100000" aria-describedby="livePaperBalanceHelp"/);
+  assert.match(page, /tarotaiPaperBalance/);
+  assert.match(page, /id="livePaperAccountNotional"/);
+  assert.match(page, /id="livePaperAccountAvailable"/);
+  assert.match(page, /PAPER_UI_MAX_POSITION_EXPOSURE_PCT=25,PAPER_UI_MAX_PORTFOLIO_EXPOSURE_PCT=100,PAPER_UI_MAX_OPEN_RISK_PCT=3,PAPER_UI_MAX_OPEN_POSITIONS=10,PAPER_UI_MAX_POSITIONS_PER_SYMBOL=5/);
+});
+
+test("paper desk and server allow bounded same-direction scale-in tickets",()=> {
+  assert.match(page, /same-direction scale-ins are supported up to/);
+  assert.match(page, /same-direction positions per market reached/);
+  assert.match(page, /PAPER_UI_MAX_OPEN_POSITIONS=10/);
+  assert.match(route, /same-direction scale-in positions are supported/);
+  assert.match(route, /PAPER_MAX_OPEN_POSITIONS/);
+  assert.match(route, /PAPER_MAX_POSITIONS_PER_SYMBOL/);
+  assert.match(route, /existingOpenRisk/);
+  assert.doesNotMatch(route, /if\(openRows\.some\(\(x:any\)=>x\.symbol===symbol\)\)/);
+});
