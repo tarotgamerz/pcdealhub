@@ -2,11 +2,18 @@ import { NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
 import { isAuthorized } from "../../../../lib/auth";
 import { applySlippage, calculateFee, isStale, validateStops, resolveStopTarget, resolveTargetOnlyObservation, validatePaperExposure, validatePaperDailyRisk, PAPER_MAX_POSITION_EXPOSURE_PCT, PAPER_MAX_PORTFOLIO_EXPOSURE_PCT, PAPER_MAX_DAILY_LOSS_PCT, PAPER_MAX_ENTRIES_PER_UTC_DAY } from "../../../../lib/trading-rules.mjs";
+import { persistPaperTrade, readPaperRequestRecord } from "../../../../lib/paper-ledger.mjs";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 const OPEN_POSITIONS_KEY="tarotai:paper:open_positions";
 const STOP_CURSORS_KEY="tarotai:paper:stop_cursors";
 function parseLedgerValue(x:any){return typeof x==="string"?JSON.parse(x):x;}
+function replayPaperRequest(raw:any,action:string){
+ if(raw===null||raw===undefined)return null;
+ let record:any;try{record=readPaperRequestRecord(raw)}catch{return NextResponse.json({error:"Stored paper request record is malformed; no new trade was created."},{status:503})}
+ if(record.action!==action)return NextResponse.json({error:"This request ID has already been used for a different paper action. Refresh the ledger and retry with a new request ID."},{status:409});
+ return NextResponse.json({accepted:true,trade:record.trade,liveTradingEnabled:false,idempotentReplay:true,openPositionIndexUpdated:true,note:"Previously committed paper-ledger action returned safely; no exchange order was sent."},{status:200});
+}
 async function readPaperLedger(d:Redis){
  const [stored,indexed]=await Promise.all([
   d.lrange("tarotai:paper:ledger",0,999),
@@ -32,8 +39,11 @@ export async function POST(req:Request){
  if(!isAuthorized(req))return NextResponse.json({error:"Authentication required"},{status:401});
  let b:any;try{b=await req.json()}catch{return NextResponse.json({error:"Expected JSON"},{status:400});}
  const action=String(b.action||"").toUpperCase();
+ const requestId=String(b.requestId||"").trim();
+ if(["OPEN","CLOSE"].includes(action)&&!/^[A-Za-z0-9._:-]{16,100}$/.test(requestId))return NextResponse.json({error:"A stable requestId is required for paper OPEN/CLOSE so retries cannot create duplicate trades."},{status:400});
  try{
   const d=store();
+  if(requestId&&["OPEN","CLOSE"].includes(action)){const replay=replayPaperRequest(await d.get("tarotai:paper:request:"+requestId),action);if(replay)return replay;}
   const needsLedgerLock=["OPEN","CLOSE","STOP_CHECK","REPLAY"].includes(action);
   const lockKey="tarotai:paper:ledger:lock";
   const lockToken=crypto.randomUUID();
@@ -119,7 +129,9 @@ export async function POST(req:Request){
      const closeSide=trade.side==="BUY"?"SELL":"BUY",fill=applySlippage(closeSide,Number(result.price),Number(trade.slippageBps)),fee=calculateFee(fill,Number(trade.quantity),Number(trade.feeBps));
      const gross=trade.side==="BUY"?(fill-Number(trade.fillPrice))*Number(trade.quantity):(Number(trade.fillPrice)-fill)*Number(trade.quantity);
      const closedTrade={id:crypto.randomUUID(),parentTradeId:trade.id,createdAt:new Date().toISOString(),symbol,side:closeSide,quantity:trade.quantity,requestedPrice:result.price,fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),pnlGross:Number(gross.toFixed(8)),pnlNet:Number((gross-fee-Number(trade.fee||0)).toFixed(8)),feeBps:trade.feeBps,slippageBps:trade.slippageBps,status:result.exit==="STOP"?"PAPER_STOP":"PAPER_TARGET",ambiguousCandle:result.ambiguous,sourceCandleTime:bar.time,sourceCandleCloseTime:bar.closeTime,mode:"PAPER_ONLY",experimentMode:trade.experimentMode||null,sourceVenue:venue};
-     await d.lpush("tarotai:paper:ledger",JSON.stringify(closedTrade));await d.hdel(OPEN_POSITIONS_KEY,trade.id);await d.hdel(STOP_CURSORS_KEY,trade.id);triggered.push(closedTrade);closed.add(trade.id);break;
+     const persisted=await persistPaperTrade(d,{requestId:`stop_${trade.id}_${bar.time}`,action:"CLOSE",trade:closedTrade,parentTradeId:trade.id});
+     if(!persisted.ok){historyGaps.push({tradeId:trade.id,reason:"Paper exit was not committed because the open-position index did not match. Position remains open and no partial close was written."});break;}
+     triggered.push(persisted.trade);closed.add(trade.id);break;
     }
     if(!closed.has(trade.id)&&processedThrough>(hasCursor?lastProcessedTime:0))await d.hset(STOP_CURSORS_KEY,{[trade.id]:processedThrough});
    }
@@ -248,11 +260,13 @@ export async function POST(req:Request){
   const trade={id:crypto.randomUUID(),parentTradeId:parentTrade?.id||null,createdAt:new Date().toISOString(),symbol,side,quantity:qty,requestedPrice:price,verifiedMarketPrice,marketDataCheckedAt:new Date().toISOString(),venue,marketSource,fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),pnlGross:grossPnl===null?null:Number(grossPnl.toFixed(8)),pnlNet:grossPnl===null?null:Number((grossPnl-fee-Number(parentTrade.fee||0)).toFixed(8)),feeBps,slippageBps:slipBps,spreadBps:Number.isFinite(verifiedSpreadBps)?Number(verifiedSpreadBps.toFixed(4)):null,fillNotional:Number((qty*fill).toFixed(8)),paperBalance:action==="OPEN"?paperBalance:(parentTrade?.paperBalance??null),riskPct:action==="OPEN"?riskPct:(parentTrade?.riskPct??null),maxExposurePct:action==="OPEN"?maxExposurePct:(parentTrade?.maxExposurePct??null),plannedRisk:action==="OPEN"?Number((qty*Math.abs(executionReferencePrice-Number(stopPrice))).toFixed(8)):(parentTrade?.plannedRisk??null),stopPrice,targetPrice,status:"PAPER_"+action,mode:"PAPER_ONLY",experimentMode:experimentMode||null,experimentObservation,orderFlowAtEntry:parentTrade?.orderFlowAtEntry||orderFlowAtEntry,
     decisionSource:parentTrade?.decisionSource||decisionSource,signalCandleTime:parentTrade?.signalCandleTime??signalCandleTime,decisionAction:parentTrade?.decisionAction||decisionAction,agentTeamModel:parentTrade?.agentTeamModel||agentTeamModel,agentVotes:parentTrade?.agentVotes||agentVotes};
   if([trade.stopPrice,trade.targetPrice].some((x:any)=>x!==null&&(!Number.isFinite(x)||x<=0)))return NextResponse.json({error:"Stop/target must be positive numbers"},{status:400});
-  await d.lpush("tarotai:paper:ledger",JSON.stringify(trade));
-  if(action==="OPEN")await d.hset(OPEN_POSITIONS_KEY,{[trade.id]:JSON.stringify(trade)});
-  if(action==="CLOSE"&&parentTrade){await d.hdel(OPEN_POSITIONS_KEY,parentTrade.id);await d.hdel(STOP_CURSORS_KEY,parentTrade.id);}
-  await d.ltrim("tarotai:paper:ledger",0,999);
-  return NextResponse.json({accepted:true,trade,liveTradingEnabled:false,note:"Ledger-only simulation; no exchange order sent",openPositionIndexUpdated:true},{status:201});
+  const persisted=await persistPaperTrade(d,{requestId,action,trade,parentTradeId:parentTrade?.id||""});
+  if(!persisted.ok){
+   if(persisted.reason==="idempotency-conflict")return NextResponse.json({error:"This request ID was already committed for the opposite paper action; no new trade was written."},{status:409});
+   if(String(persisted.reason).startsWith("OPEN_POSITION_INDEX"))return NextResponse.json({error:"Paper close was not written because the persistent open-position index could not confirm the parent. Refresh the ledger before retrying.",noMutation:true},{status:409});
+   throw new Error("Paper persistence precondition failed: "+persisted.reason);
+  }
+  return NextResponse.json({accepted:true,trade:persisted.trade,liveTradingEnabled:false,note:persisted.duplicate?"Previously committed ledger-only simulation returned; no exchange order sent":"Ledger-only simulation committed atomically; no exchange order sent",openPositionIndexUpdated:true,idempotentReplay:persisted.duplicate},{status:persisted.duplicate?200:201});
   }finally{
    if(needsLedgerLock){
     try{await d.eval("if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",[lockKey],[lockToken]);}catch{}

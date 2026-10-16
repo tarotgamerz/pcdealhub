@@ -28,6 +28,7 @@ const okxOrderRoute = readFileSync(new URL("../app/api/trading/okx-demo-order/ro
 const okxOrderStatusRoute = readFileSync(new URL("../app/api/trading/okx-demo-order-status/route.ts", import.meta.url), "utf8");
 const backtestRoute = readFileSync(new URL("../app/api/trading/backtest/route.ts", import.meta.url), "utf8");
 const paperRoute = readFileSync(new URL("../app/api/trading/paper/route.ts", import.meta.url), "utf8");
+const paperLedgerHelper = readFileSync(new URL("../lib/paper-ledger.mjs", import.meta.url), "utf8");
 const reviewRoute = readFileSync(new URL("../app/api/trading/review/route.ts", import.meta.url), "utf8");
 const tradingViewSignalsRoute = readFileSync(new URL("../app/api/tradingview/signals/route.ts", import.meta.url), "utf8");
 
@@ -724,7 +725,7 @@ test("demo order ticket uses live agent decision and persistent paper execution,
   assert.match(futuresDesk, /byId\("demoAgentOpen"\)\.addEventListener\("click",paperOpenSignal\)/);
   assert.match(futuresDesk, /const stop=Number\(d\.stop\),long=d\.action==="BUY \/ LONG"/);
   assert.match(futuresDesk, /const distance=Math\.abs\(entry-stop\),riskBudget=balance\*riskPct\/100,notionalCap=balance\*maxExposurePct\/100/);
-  assert.match(futuresDesk, /action:"OPEN",symbol:d\.symbol,venue:marketVenue/);
+  assert.match(futuresDesk, /action:"OPEN",requestId:requestId,symbol:d\.symbol,venue:marketVenue/);
   assert.match(futuresDesk, /function updateDemoAgentTicket\(\)/);
   assert.match(futuresDesk, /if\(checks\.length\)\{d=await paperRequest/);
 });
@@ -777,9 +778,12 @@ test("active paper positions survive the bounded trade-history window",()=>{
   assert.match(paperRoute, /d\.hgetall<Record<string,string>>\(OPEN_POSITIONS_KEY\)/);
   assert.match(paperRoute, /if\(!seen\.has\(trade\.id\)\)\{rows\.push\(trade\);seen\.add\(trade\.id\);\}/);
   assert.match(paperRoute, /async function readPaperLedger\(d:Redis\)/);
-  assert.match(paperRoute, /if\(action==="OPEN"\)await d\.hset\(OPEN_POSITIONS_KEY/);
-  assert.match(paperRoute, /if\(action==="CLOSE"&&parentTrade\)\{await d\.hdel\(OPEN_POSITIONS_KEY,parentTrade\.id\);await d\.hdel\(STOP_CURSORS_KEY,parentTrade\.id\);\}/);
-  assert.match(paperRoute, /await d\.hdel\(OPEN_POSITIONS_KEY,trade\.id\)/);
+  assert.ok(paperRoute.includes('persistPaperTrade(d,{requestId,action,trade,parentTradeId:parentTrade?.id||""})'));
+  assert.ok(paperLedgerHelper.includes("redis.call('HSET', openKey, tradeId, tradeJson)"));
+  assert.ok(paperLedgerHelper.includes("redis.call('HDEL', openKey, parentId)"));
+  assert.ok(paperLedgerHelper.includes("redis.call('HDEL', cursorKey, parentId)"));
+  assert.ok(paperRoute.includes('persistPaperTrade(d,{requestId:'));
+  assert.ok(paperRoute.includes('action:"CLOSE",trade:closedTrade,parentTradeId:trade.id})'));
   assert.match(paperRoute, /for\(const openTrade of openRows\)await d\.hset\(OPEN_POSITIONS_KEY/);
   assert.match(paperRoute, /historyRetentionLimit:1000/);
 });
@@ -925,7 +929,7 @@ test("paper route enforces daily entry/loss brakes and persists long-session sto
   assert.match(paperRoute, /STOP_CURSORS_KEY/);
   assert.match(paperRoute, /lastProcessedCandleTime:lastProcessedTime/);
   assert.match(paperRoute, /await d\.hset\(STOP_CURSORS_KEY/);
-  assert.match(paperRoute, /await d\.hdel\(STOP_CURSORS_KEY,trade\.id\)/);
+  assert.ok(paperLedgerHelper.includes("redis.call('HDEL', cursorKey, parentId)"));
 });
 
 test("trading chart displays persistent paper position size and estimates mark P&L", () => {

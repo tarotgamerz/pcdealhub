@@ -4,7 +4,7 @@
   "version": "2.5.0",
   "scripts": {
     "dev": "next dev",
-    "build": "node --test scripts/trading-rules.test.mjs scripts/market-data.test.mjs scripts/documents.test.mjs && node scripts/check-dashboard.mjs && node scripts/check_tools.mjs && node scripts/audit-dependencies.mjs && next build",
+    "build": "node --test scripts/trading-rules.test.mjs scripts/market-data.test.mjs scripts/documents.test.mjs scripts/paper-ledger.test.mjs && node scripts/check-dashboard.mjs && node scripts/check_tools.mjs && node scripts/audit-dependencies.mjs && next build",
     "start": "next start",
     "test:trading": "node --test scripts/trading-rules.test.mjs"
   },
