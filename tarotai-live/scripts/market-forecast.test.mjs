@@ -156,7 +156,7 @@ test("live EMA overlays update incrementally on each WebSocket candle instead of
   assert.match(desk, /function updateLatestEmaPoint\(options=\{\}\)/);
   assert.match(desk, /ema9Cache\.shift\(\);ema21Cache\.shift\(\);ema50Cache\.shift\(\)/);
   assert.match(desk, /updateLatestEmaPoint\(\{trimmed\}\)/);
-  assert.match(desk, /updateLatestEmaPoint\(\{trimmed,historical:updatedHistorical\}\)/);
+  assert.match(desk, /if\(updatedHistorical\)\{renderRows\(false\);\}/);
   assert.doesNotMatch(desk, /const cls=rows\.map\(c=>c\.close\),e9Data=lineData\(ema\(cls,9\),rows\)/);
   assert.match(desk, /catch\(e\)\{reportLiveChartError\(e,"Binance live candle update"\);\}/);
   assert.match(desk, /catch\(e\)\{reportLiveChartError\(e,"OKX live candle update"\);\}/);
