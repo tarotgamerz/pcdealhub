@@ -1219,7 +1219,6 @@ export async function POST(request: Request) {
     const model = process.env.OPENROUTER_MODEL || "openrouter/free";
     let durableMemory: Awaited<ReturnType<typeof loadDurableMemory>> = [];
     if (requestedMode !== "trading-room") {
-      let durableMemory: Awaited<ReturnType<typeof loadDurableMemory>> = [];
       try {
         durableMemory = await withOperationTimeout(
           loadDurableMemory(request),
