@@ -984,5 +984,5 @@ test("continuous agent cycle initializes higher-timeframe state before the shado
  const htfDeclaration=cycle.indexOf('const htf=trendFor(higherCache,higherMap[currentInterval]||"1d");');
  const htfRead=cycle.indexOf("higherTrend:htf.direction");
  assert.ok(htfDeclaration>=0&&htfRead>=0&&htfDeclaration<htfRead,"higher timeframe must be initialized before ensemble evaluation");
- assert.equal((cycle.match(/const htf=trendFor\\(/g)||[]).length,1,"cycle has one higher-timeframe binding");
+ assert.equal(cycle.split("const htf=trendFor(").length-1,1,"cycle has one higher-timeframe binding");
 });
