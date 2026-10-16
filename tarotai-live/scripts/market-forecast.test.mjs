@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 
 const require = createRequire(import.meta.url);
-const { buildMarketForecast } = require("../public/market-forecast.js");
+const { buildMarketForecast, evaluateForecastWalkForward } = require("../public/market-forecast.js");
 const desk = readFileSync(new URL("../public/trading-desk.html", import.meta.url), "utf8");
 
 function makeCandles(direction = 1, count = 120, options = {}) {
@@ -67,4 +67,63 @@ test("Trading Desk adds chart series, live order-flow context and transparent sc
   assert.match(desk, /<script src="\/market-forecast\.js"><\/script>/); assert.match(desk, /forecastPathSeries=chart\.addLineSeries/);
   assert.match(desk, /forecastUpperSeries=chart\.addLineSeries/); assert.match(desk, /drawForecastOverlay\(nextMoveForecast\)/);
   assert.match(desk, /window\.tarotaiOrderFlowSummary/); assert.match(desk, /liveForecastInvalidation/); assert.match(desk, /not a calibrated probability/i);
+});
+
+test("forecast exposes explicit base, conditional upside and conditional downside paths with measured triggers and invalidations", () => {
+  const candles = makeCandles(1), asOf = candles.at(-1).closeTime + 500;
+  const f = buildMarketForecast(candles, { intervalMs:60_000, horizonBars:4, asOf, higherTrend:"BULLISH" });
+  assert.equal(f.ready, true);
+  assert.ok(f.scenarios);
+  assert.deepEqual(Object.keys(f.scenarios), ["base","bullish","bearish"]);
+  assert.equal(f.scenarios.base.points.length, 4);
+  assert.equal(f.scenarios.bullish.points.length, 4);
+  assert.equal(f.scenarios.bearish.points.length, 4);
+  assert.ok(f.scenarios.bullish.targetPrice > f.referencePrice);
+  assert.ok(f.scenarios.bearish.targetPrice < f.referencePrice);
+  assert.ok(f.scenarios.bullish.triggerPrice > f.referencePrice);
+  assert.ok(f.scenarios.bearish.triggerPrice < f.referencePrice);
+  for (const scenario of Object.values(f.scenarios)) {
+    assert.ok(Number.isFinite(scenario.targetPrice));
+    assert.ok(Number.isFinite(scenario.triggerPrice));
+    assert.ok(Number.isFinite(scenario.invalidationPrice));
+    assert.ok(scenario.points.every((p,i)=>Number.isFinite(p.price) && p.time > f.lastTime && (!i || p.time > scenario.points[i-1].time)));
+  }
+  assert.equal(f.calibratedProbability, null);
+  assert.equal(f.tradeEligible, false);
+});
+
+test("walk-forward forecast evaluation only counts past-origin forecasts with a minimum sample gate", () => {
+  const intervalMs = 60_000, higherIntervalMs = 3_600_000;
+  const main = makeCandles(1, 320, {intervalMs, start:1_750_000_000_000, base:1000, step:1.5});
+  const higher = makeCandles(1, 260, {intervalMs:higherIntervalMs, start:main[0].time-220*higherIntervalMs, base:500, step:0.8});
+  const result = evaluateForecastWalkForward(main,higher,{intervalMs,higherIntervalMs,horizonBars:4});
+  assert.match(result.method,/past-only rolling walk-forward/i);
+  assert.ok(result.forecastOrigins > 0);
+  assert.ok(result.sampleSize >= 20, "strong synthetic trend should produce enough qualified historical calls");
+  assert.equal(result.directionalCalls,result.sampleSize);
+  assert.equal(result.meetsMinimumSample,true);
+  assert.equal(result.status,"HISTORICAL SAMPLE READY");
+  assert.ok(result.directionalHitRatePct >= 0 && result.directionalHitRatePct <= 100);
+  assert.ok(Number.isFinite(result.averageSignedReturnPct));
+  assert.ok(Number.isFinite(result.meanAbsoluteEndpointErrorPct));
+  assert.match(result.notice,/excludes fees, spread, slippage/i);
+});
+
+test("walk-forward scoring refuses to invent an accuracy percentage when history is too short", () => {
+  const short = makeCandles(1, 90);
+  const result = evaluateForecastWalkForward(short,[],{intervalMs:60_000,horizonBars:4});
+  assert.equal(result.meetsMinimumSample,false);
+  assert.equal(result.directionalHitRatePct,null);
+  assert.match(result.notice,/at least 100 valid/i);
+});
+
+test("Trading Desk visibly draws both conditional forecast paths and reports walk-forward sample status", () => {
+  assert.match(desk,/forecastBullSeries=chart\.addLineSeries/);
+  assert.match(desk,/forecastBearSeries=chart\.addLineSeries/);
+  assert.match(desk,/mirrorForecastBullSeries=mirrorChart\.addLineSeries/);
+  assert.match(desk,/mirrorForecastBearSeries=mirrorChart\.addLineSeries/);
+  assert.match(desk,/window\.tarotaiEvaluateForecastWalkForward/);
+  assert.match(desk,/id="liveForecastAccuracy"/);
+  assert.match(desk,/rate withheld/);
+  assert.match(desk,/forecast\.scenarios\|\|\{\}/);
 });

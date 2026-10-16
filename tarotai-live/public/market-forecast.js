@@ -1,7 +1,7 @@
 (function(root, factory) {
   const api = factory();
   if (typeof module === "object" && module.exports) module.exports = api;
-  if (root) root.tarotaiBuildMarketForecast = api.buildMarketForecast;
+  if (root) { root.tarotaiBuildMarketForecast = api.buildMarketForecast; root.tarotaiEvaluateForecastWalkForward = api.evaluateForecastWalkForward; }
 })(typeof window !== "undefined" ? window : (typeof globalThis !== "undefined" ? globalThis : null), function() {
   "use strict";
   const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
@@ -111,7 +111,7 @@
     else if (technicalDirection === "BEARISH" && !flowConflict) drift = Math.min(drift, -atrNow * 0.06);
     else if (flowConflict) drift = clamp(slope * 0.16, -atrNow * 0.12, atrNow * 0.12);
     else drift = clamp(drift, -atrNow * 0.12, atrNow * 0.12);
-    const horizonBars = 4, timeStep = intervalMs / last.unitMs;
+    const horizonBars = clamp(Math.floor(Number(options.horizonBars) || 4), 2, 12), timeStep = intervalMs / last.unitMs;
     const points = [];
     for (let step = 1; step <= horizonBars; step++) {
       const price = close + drift * step;
@@ -142,6 +142,26 @@
     else if (close < priorLow) evidence.push("closed below the prior 20-bar low");
     const moveReference = directional ? targetPrice : endpoint;
     const move = moveReference - close;
+    const highs3 = Math.max(...recentThree.map(c => c.high)), lows3 = Math.min(...recentThree.map(c => c.low));
+    const bullishTrigger = Math.max(highs3, close) + atrNow * 0.05;
+    const bearishTrigger = Math.min(lows3, close) - atrNow * 0.05;
+    const bullishInvalidation = structureSupport !== null ? structureSupport : recentLow;
+    const bearishInvalidation = structureResistance !== null ? structureResistance : recentHigh;
+    const bullishTarget = Math.max(priorHigh + atrNow * 0.75, close + atrNow * 1.25, bullishTrigger + atrNow * 0.5);
+    const bearishTarget = Math.min(priorLow - atrNow * 0.75, close - atrNow * 1.25, bearishTrigger - atrNow * 0.5);
+    const makeConditionalPath = endPrice => Array.from({ length: horizonBars }, (_, index) => {
+      const step = index + 1, price = close + (endPrice - close) * step / horizonBars;
+      const width = atrNow * (0.62 + 0.16 * Math.sqrt(step));
+      return { step, time: last.time + timeStep * step, price, upper: price + width, lower: price - width };
+    });
+    const scenarioPaths = {
+      base: { key: "base", title: directional ? direction + " BASE SCENARIO" : "MIXED / RANGE · WAIT", side: directional ? direction : "WAIT",
+        triggerPrice, targetPrice: directional ? targetPrice : null, invalidationPrice: directional ? invalidationPrice : null, points },
+      bullish: { key: "bullish", title: "CONDITIONAL BULLISH BREAKOUT", side: "LONG", triggerPrice: bullishTrigger, targetPrice: bullishTarget,
+        invalidationPrice: bullishInvalidation, activation: "Only after a completed candle confirms acceptance above the breakout trigger.", points: makeConditionalPath(bullishTarget) },
+      bearish: { key: "bearish", title: "CONDITIONAL BEARISH BREAKDOWN", side: "SHORT", triggerPrice: bearishTrigger, targetPrice: bearishTarget,
+        invalidationPrice: bearishInvalidation, activation: "Only after a completed candle confirms acceptance below the breakdown trigger.", points: makeConditionalPath(bearishTarget) }
+    };
     return {
       ready: true, status: "TECHNICAL SCENARIO · SHADOW ONLY", direction, technicalDirection,
       flowConflict, flowFresh, flowBias, flowStatus: flowFresh ? flowBias + (flowAligned ? " · ALIGNED" : flowConflict ? " · CONFLICT" : " · NO CONFIRMED ALIGNMENT") : "NOT USED · DEPTH/TRADE FEED STALE OR UNAVAILABLE",
@@ -152,9 +172,75 @@
       targetPrice: directional ? targetPrice : null, triggerPrice, invalidationPrice,
       projectedEndpoint: endpoint, projectedMove: move, projectedMovePct: Math.abs(move / close) * 100,
       projectedMoveAtr: Math.abs(move) / atrNow, rangeLow: points[points.length - 1].lower,
-      rangeHigh: points[points.length - 1].upper, points, evidence,
+      rangeHigh: points[points.length - 1].upper, points, scenarios: scenarioPaths, evidence,
       calibratedProbability: null, paperOnly: true, tradeEligible: false
     };
   }
-  return { buildMarketForecast };
+
+  function normalizeBars(input, intervalMs) {
+    if (!Array.isArray(input)) return [];
+    const seen = new Set(), bars = [];
+    for (const raw of input) {
+      if (!raw || !["time", "open", "high", "low", "close"].every(k => finite(raw[k]))) continue;
+      const time = asMilliseconds(raw.time), open = Number(raw.open), high = Number(raw.high), low = Number(raw.low), close = Number(raw.close);
+      const closeTime = finite(raw.closeTime) ? asMilliseconds(raw.closeTime) : time + intervalMs - 1;
+      const volume = finite(raw.volume) ? Number(raw.volume) : 0;
+      if (!(time > 0 && closeTime >= time && open > 0 && close > 0 && low > 0 && volume >= 0 &&
+          high >= Math.max(open, close, low) && low <= Math.min(open, close, high)) || seen.has(time)) continue;
+      seen.add(time); bars.push({ ...raw, time, open, high, low, close, volume, closeTime });
+    }
+    return bars.sort((a, b) => a.time - b.time);
+  }
+
+  function inferHistoricalHigherTrend(input) {
+    if (input.length < 55) return "UNAVAILABLE";
+    const closes = input.map(c => c.close), e20 = ema(closes, 20), e50 = ema(closes, 50), i = closes.length - 1;
+    return closes[i] > e50[i] && e20[i] > e50[i] ? "BULLISH"
+      : closes[i] < e50[i] && e20[i] < e50[i] ? "BEARISH" : "MIXED / NEUTRAL";
+  }
+
+  function evaluateForecastWalkForward(input, higherInput, options = {}) {
+    const intervalMs = finite(options.intervalMs) && Number(options.intervalMs) > 0 ? Number(options.intervalMs) : 300000;
+    const higherIntervalMs = finite(options.higherIntervalMs) && Number(options.higherIntervalMs) > 0 ? Number(options.higherIntervalMs) : null;
+    const horizonBars = clamp(Math.floor(Number(options.horizonBars) || 4), 2, 12);
+    const bars = normalizeBars(input, intervalMs).slice(-1000);
+    const higherBars = normalizeBars(higherInput, higherIntervalMs || intervalMs).slice(-2000);
+    const result = {
+      method: "past-only rolling walk-forward; higher-timeframe bars time-filtered at every origin",
+      horizonBars, forecastOrigins: 0, directionalCalls: 0, sampleSize: 0, correct: 0,
+      directionalHitRatePct: null, averageSignedReturnPct: null, meanAbsoluteEndpointErrorPct: null,
+      meetsMinimumSample: false, status: "BUILDING SAMPLE",
+      notice: "Historical directional hit rate is not calibrated probability or net profit; this test excludes fees, spread, slippage and live order-flow snapshots."
+    };
+    if (bars.length < 100) { result.notice = "Need at least 100 valid chronological main-timeframe candles; no historical performance claim is made."; return result; }
+    const resolved = [];
+    for (let i = 80; i + horizonBars < bars.length; i += horizonBars) {
+      const origin = bars[i], originEnd = origin.closeTime, prefix = bars.slice(0, i + 1);
+      const knownHigher = higherBars.filter(c => c.closeTime <= originEnd);
+      const higherTrend = inferHistoricalHigherTrend(knownHigher);
+      result.forecastOrigins++;
+      const forecast = buildMarketForecast(prefix, {
+        intervalMs, horizonBars, asOf: originEnd + 500, higherTrend, marketFresh: true
+      });
+      if (!forecast.ready || !["BULLISH", "BEARISH"].includes(forecast.direction)) continue;
+      const future = bars[i + horizonBars];
+      const actualReturnPct = (future.close / origin.close - 1) * 100;
+      const signedReturnPct = forecast.direction === "BULLISH" ? actualReturnPct : -actualReturnPct;
+      if (!Number.isFinite(signedReturnPct)) continue;
+      const predictedEnd = Number(forecast.projectedEndpoint), endpointErrorPct = Number.isFinite(predictedEnd)
+        ? Math.abs(future.close - predictedEnd) / origin.close * 100 : null;
+      resolved.push({ correct: signedReturnPct > 0, signedReturnPct, endpointErrorPct });
+    }
+    result.directionalCalls = resolved.length; result.sampleSize = resolved.length;
+    result.correct = resolved.filter(x => x.correct).length;
+    result.directionalHitRatePct = resolved.length ? result.correct / resolved.length * 100 : null;
+    result.averageSignedReturnPct = resolved.length ? resolved.reduce((sum, x) => sum + x.signedReturnPct, 0) / resolved.length : null;
+    const endpointErrors = resolved.map(x => x.endpointErrorPct).filter(Number.isFinite);
+    result.meanAbsoluteEndpointErrorPct = endpointErrors.length ? endpointErrors.reduce((sum, x) => sum + x, 0) / endpointErrors.length : null;
+    result.meetsMinimumSample = resolved.length >= 20;
+    result.status = result.meetsMinimumSample ? "HISTORICAL SAMPLE READY" : "BUILDING SAMPLE";
+    return result;
+  }
+
+  return { buildMarketForecast, evaluateForecastWalkForward };
 });

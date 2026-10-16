@@ -270,10 +270,13 @@
       <div class="live-forecast-metric"><label>Support reference</label><strong id="liveForecastSupport">—</strong></div>
       <div class="live-forecast-metric"><label>Resistance reference</label><strong id="liveForecastResistance">—</strong></div>
       <div class="live-forecast-metric"><label>Live order-flow agreement</label><strong id="liveForecastFlow">Waiting for depth + trade feed</strong></div>
+      <div class="live-forecast-metric"><label>Conditional upside path</label><strong id="liveForecastBull">Waiting for forecast</strong></div>
+      <div class="live-forecast-metric"><label>Conditional downside path</label><strong id="liveForecastBear">Waiting for forecast</strong></div>
+      <div class="live-forecast-metric"><label>Walk-forward directional hit rate</label><strong id="liveForecastAccuracy">Building historical sample</strong></div>
     </div>
     <p class="live-forecast-footnote">The dotted path is a rules-based scenario, not a promise or calibrated probability. The outer dotted lines are an ATR-based range, not guaranteed highs/lows. Fresh Binance order-book depth and executed-trade pressure are used only when both feeds are live; a conflict downgrades the directional scenario. No line sends an order.</p>
   </section>
-    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:9px;font-size:11px;color:var(--muted)"><span><i class="swatch" style="background:#65e6ad"></i> Bull candle</span><span><i class="swatch" style="background:#ff7b83"></i> Bear candle</span><span><i class="swatch" style="background:#7eafff"></i> EMA 9</span><span><i class="swatch" style="background:#f2c46f"></i> EMA 21</span><span><i class="swatch" style="background:#b48cff"></i> EMA 50</span><span><i class="swatch" style="background:#48c8a6"></i> Auto support</span><span><i class="swatch" style="background:#f1a968"></i> Auto resistance</span><span><i class="swatch" style="background:#54c8ff"></i> Rising trendline</span><span><i class="swatch" style="background:#cf8bff"></i> Falling trendline</span><span><i class="swatch" style="background:#ff7b83"></i> Stop</span><span><i class="swatch" style="background:#65e6ad"></i> Target (2R)</span><span><i class="swatch" style="background:#f2c46f"></i> Next-move scenario</span><span><i class="swatch" style="background:#4d92cf"></i> Scenario ATR envelope</span></div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:9px;font-size:11px;color:var(--muted)"><span><i class="swatch" style="background:#65e6ad"></i> Bull candle</span><span><i class="swatch" style="background:#ff7b83"></i> Bear candle</span><span><i class="swatch" style="background:#7eafff"></i> EMA 9</span><span><i class="swatch" style="background:#f2c46f"></i> EMA 21</span><span><i class="swatch" style="background:#b48cff"></i> EMA 50</span><span><i class="swatch" style="background:#48c8a6"></i> Auto support</span><span><i class="swatch" style="background:#f1a968"></i> Auto resistance</span><span><i class="swatch" style="background:#54c8ff"></i> Rising trendline</span><span><i class="swatch" style="background:#cf8bff"></i> Falling trendline</span><span><i class="swatch" style="background:#ff7b83"></i> Stop</span><span><i class="swatch" style="background:#65e6ad"></i> Target (2R)</span><span><i class="swatch" style="background:#f2c46f"></i> Base scenario</span><span><i class="swatch" style="background:#54c8ff"></i> Conditional upside (triggered)</span><span><i class="swatch" style="background:#cf8bff"></i> Conditional downside (triggered)</span><span><i class="swatch" style="background:#4d92cf"></i> Base ATR envelope</span></div>
 
   <section class="orderflow-panel" id="orderflowPanel" aria-label="Live order-flow heatmap">
     <div class="orderflow-head"><div><div class="orderflow-title">Live Order Flow · Liquidity Heatmap & Trade Bubbles</div>
@@ -545,14 +548,15 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
 /* Live chart + explainable signal engine. Read-only market data; no order execution. */
 (function initLiveAgentChart(){
   const byId=id=>document.getElementById(id);
-  const required=["liveMarketChart","liveSymbol","liveInterval","liveRefresh","liveDecision","livePrice","liveEntry","liveHtf","liveStop","liveTarget","liveRR","liveInstruction","liveCheckList","liveMarketStatus","liveFeedPill","liveOverlayDecision","liveOverlayMeta","liveForecastTitle","liveForecastStatus","liveForecastBias","liveForecastMove","liveForecastRange","liveForecastTrigger","liveForecastInvalidation","liveForecastSupport","liveForecastResistance","liveForecastFlow","liveForecastEvidence"];
+  const required=["liveMarketChart","liveSymbol","liveInterval","liveRefresh","liveDecision","livePrice","liveEntry","liveHtf","liveStop","liveTarget","liveRR","liveInstruction","liveCheckList","liveMarketStatus","liveFeedPill","liveOverlayDecision","liveOverlayMeta","liveForecastTitle","liveForecastStatus","liveForecastBias","liveForecastMove","liveForecastRange","liveForecastTrigger","liveForecastInvalidation","liveForecastSupport","liveForecastResistance","liveForecastFlow","liveForecastEvidence","liveForecastBull","liveForecastBear","liveForecastAccuracy"];
   if(required.some(id=>!byId(id)))return;
   const intervalMs={"1m":60000,"3m":180000,"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"2h":7200000,"4h":14400000,"1d":86400000};
   const higherMap={"1m":"15m","5m":"1h","15m":"4h","1h":"1d","4h":"1d"};
-  let chart=null,candleSeries=null,ema9Series=null,ema21Series=null,ema50Series=null,supportSeries=null,resistanceSeries=null,risingTrendSeries=null,fallingTrendSeries=null,forecastPathSeries=null,forecastUpperSeries=null,forecastLowerSeries=null,forecastTargetSeries=null,forecastInvalidationSeries=null,socketReconnectTimer=null;let lastMarketUpdateAt=0;
-  let mirrorChart=null,mirrorCandleSeries=null,mirrorEma9Series=null,mirrorEma21Series=null,mirrorEma50Series=null,mirrorSupportSeries=null,mirrorResistanceSeries=null,mirrorRisingTrendSeries=null,mirrorFallingTrendSeries=null,mirrorResizeObserver=null,rangeSyncLock=false,mirrorPriceLines=[],mainLivePriceLine=null,mirrorLivePriceLine=null,lastLiveLineUpdateAt=0;
+  let chart=null,candleSeries=null,ema9Series=null,ema21Series=null,ema50Series=null,supportSeries=null,resistanceSeries=null,risingTrendSeries=null,fallingTrendSeries=null,forecastPathSeries=null,forecastUpperSeries=null,forecastLowerSeries=null,forecastTargetSeries=null,forecastInvalidationSeries=null,forecastBullSeries=null,forecastBearSeries=null,socketReconnectTimer=null;let lastMarketUpdateAt=0;
+  let mirrorChart=null,mirrorCandleSeries=null,mirrorEma9Series=null,mirrorEma21Series=null,mirrorEma50Series=null,mirrorSupportSeries=null,mirrorResistanceSeries=null,mirrorRisingTrendSeries=null,mirrorFallingTrendSeries=null,mirrorForecastPathSeries=null,mirrorForecastBullSeries=null,mirrorForecastBearSeries=null,mirrorResizeObserver=null,rangeSyncLock=false,mirrorPriceLines=[],mainLivePriceLine=null,mirrorLivePriceLine=null,lastLiveLineUpdateAt=0;
   let rows=[],marketVenue="binance",currentMarketReference=null,feedSocket=null,quoteSocket=null,quoteReconnectTimer=null,quoteSymbol="",lastTradePrice=NaN,lastTradeAt=0,lastQuoteSource="none",lastQuoteSourceTimestamp=0,lastWsTradeAt=0,lastQuoteFallbackErrorAt=0,quoteFallbackTimer=null,quoteFallbackBusy=false,lastQuoteRenderAt=0,pollTimer=null,resizeObserver=null,lastAnalyzedClosedCandleTime=0;window.tarotaiMarketVenue=marketVenue;
   let currentSymbol="",currentInterval="",higherCache=[],higherCacheKey="",higherCacheAt=0,priceLines=[],busy=false,firstRender=true,lastWsCandleTime=0,historyBusy=false,historyExhausted=false,historyPages=0,historyLoadAllowedAt=0;
+  let forecastEvaluationCacheKey="",forecastEvaluationCache=null;
   const fmt=(n)=>Number.isFinite(n)?n.toLocaleString("en-US",{maximumFractionDigits:n>=1000?2:n>=1?4:7}):"—";
   const msFor=i=>intervalMs[i]||300000;
   const toSec=t=>Math.floor(Number(t)/1000);
@@ -577,6 +581,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     resistanceSeries=chart.addLineSeries({color:"#f1a968",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"Auto resistance"});
     risingTrendSeries=chart.addLineSeries({color:"#54c8ff",lineWidth:2,lineStyle:window.LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"Rising swing-low trendline"});
     fallingTrendSeries=chart.addLineSeries({color:"#cf8bff",lineWidth:2,lineStyle:window.LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"Falling swing-high trendline"});
+    forecastBullSeries=chart.addLineSeries({color:"#54c8ff",lineWidth:2,lineStyle:window.LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:"Conditional upside scenario · only after trigger"});
+    forecastBearSeries=chart.addLineSeries({color:"#cf8bff",lineWidth:2,lineStyle:window.LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:"Conditional downside scenario · only after trigger"});
     forecastUpperSeries=chart.addLineSeries({color:"#4d92cf",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dotted,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"Scenario upper ATR envelope"});
     forecastLowerSeries=chart.addLineSeries({color:"#4d92cf",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dotted,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"Scenario lower ATR envelope"});
     forecastPathSeries=chart.addLineSeries({color:"#f2c46f",lineWidth:3,lineStyle:window.LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:"Next-move scenario · not a probability"});
@@ -596,6 +602,9 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     mirrorResistanceSeries=mirrorChart.addLineSeries({color:"#f1a968",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"Auto resistance"});
     mirrorRisingTrendSeries=mirrorChart.addLineSeries({color:"#54c8ff",lineWidth:2,lineStyle:window.LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"Rising swing-low trendline"});
     mirrorFallingTrendSeries=mirrorChart.addLineSeries({color:"#cf8bff",lineWidth:2,lineStyle:window.LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"Falling swing-high trendline"});
+    mirrorForecastPathSeries=mirrorChart.addLineSeries({color:"#f2c46f",lineWidth:3,lineStyle:window.LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:"Next-move base scenario"});
+    mirrorForecastBullSeries=mirrorChart.addLineSeries({color:"#54c8ff",lineWidth:2,lineStyle:window.LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:"Conditional upside scenario"});
+    mirrorForecastBearSeries=mirrorChart.addLineSeries({color:"#cf8bff",lineWidth:2,lineStyle:window.LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:"Conditional downside scenario"});
     if(window.ResizeObserver){mirrorResizeObserver=new ResizeObserver(entries=>{const box=entries[0]&&entries[0].contentRect;if(box&&mirrorChart)mirrorChart.applyOptions({width:Math.max(320,Math.floor(box.width)),height:Math.max(300,Math.floor(box.height))});});mirrorResizeObserver.observe(host);}
     mirrorChart.timeScale().subscribeVisibleLogicalRangeChange(range=>{if(!range||!chart||rangeSyncLock)return;rangeSyncLock=true;try{chart.timeScale().setVisibleLogicalRange(range);}catch(e){}finally{rangeSyncLock=false;}});
   }
@@ -774,9 +783,9 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   }
   function drawForecastOverlay(forecast){
     const els={};
-    ["liveForecastTitle","liveForecastStatus","liveForecastBias","liveForecastMove","liveForecastRange","liveForecastTrigger","liveForecastInvalidation","liveForecastSupport","liveForecastResistance","liveForecastFlow","liveForecastEvidence"].forEach(id=>els[id]=byId(id));
-    const clear=()=>[forecastPathSeries,forecastUpperSeries,forecastLowerSeries,forecastTargetSeries,forecastInvalidationSeries].forEach(s=>{try{if(s)s.setData([]);}catch(e){}});
-    if(!forecast||!forecast.ready||!forecastPathSeries||!forecastUpperSeries||!forecastLowerSeries||!forecastTargetSeries||!forecastInvalidationSeries){
+    ["liveForecastTitle","liveForecastStatus","liveForecastBias","liveForecastMove","liveForecastRange","liveForecastTrigger","liveForecastInvalidation","liveForecastSupport","liveForecastResistance","liveForecastFlow","liveForecastEvidence","liveForecastBull","liveForecastBear","liveForecastAccuracy"].forEach(id=>els[id]=byId(id));
+    const clear=()=>[forecastPathSeries,forecastBullSeries,forecastBearSeries,forecastUpperSeries,forecastLowerSeries,forecastTargetSeries,forecastInvalidationSeries,mirrorForecastPathSeries,mirrorForecastBullSeries,mirrorForecastBearSeries].forEach(s=>{try{if(s)s.setData([]);}catch(e){}});
+    if(!forecast||!forecast.ready||!forecastPathSeries||!forecastBullSeries||!forecastBearSeries||!forecastUpperSeries||!forecastLowerSeries||!forecastTargetSeries||!forecastInvalidationSeries){
       clear();
       const reason=forecast&&forecast.reason?forecast.reason:"Forecast is waiting for valid market data.";
       els.liveForecastTitle.textContent=forecast&&forecast.status==="REFERENCE ONLY"?"Reference market · no actionable scenario":"Next-move scenario · waiting for verified data";
@@ -785,15 +794,25 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       els.liveForecastMove.textContent="—";els.liveForecastRange.textContent="—";els.liveForecastTrigger.textContent="—";
       els.liveForecastInvalidation.textContent="—";els.liveForecastSupport.textContent="—";els.liveForecastResistance.textContent="—";
       els.liveForecastFlow.textContent="Not used";els.liveForecastEvidence.textContent=reason;
+      els.liveForecastBull.textContent="Waiting for fresh data";els.liveForecastBear.textContent="Waiting for fresh data";els.liveForecastAccuracy.textContent="No walk-forward score";
       els.liveForecastBias.className="live-forecast-mixed";return;
     }
     const start=toSec(forecast.lastTime),end=toSec(forecast.points[forecast.points.length-1].time);
     const direction=forecast.direction||"MIXED / RANGE",isBull=direction==="BULLISH",isBear=direction==="BEARISH",conflict=direction.indexOf("FLOW CONFLICT")>=0;
     const bandColor=conflict?"#b48cff":"#4d92cf";
-    forecastPathSeries.applyOptions({color:isBull?"#65e6ad":isBear?"#ff7b83":"#f2c46f",title:"Next "+forecast.horizonBars+" bars scenario · not a probability"});
+    const scenarioData=forecast.scenarios||{},upScenario=scenarioData.bullish,downScenario=scenarioData.bearish;
+    forecastPathSeries.applyOptions({color:isBull?"#65e6ad":isBear?"#ff7b83":"#f2c46f",title:"Next "+forecast.horizonBars+" bars base scenario · not a probability"});
+    forecastBullSeries.applyOptions({color:"#54c8ff",title:"Conditional upside · confirm above "+fmt(upScenario&&upScenario.triggerPrice)});
+    forecastBearSeries.applyOptions({color:"#cf8bff",title:"Conditional downside · confirm below "+fmt(downScenario&&downScenario.triggerPrice)});
     forecastUpperSeries.applyOptions({color:bandColor});forecastLowerSeries.applyOptions({color:bandColor});
     forecastTargetSeries.applyOptions({color:"#65e6ad"});forecastInvalidationSeries.applyOptions({color:"#ff7b83"});
-    forecastPathSeries.setData([{time:start,value:forecast.referencePrice},...forecast.points.map(p=>({time:toSec(p.time),value:p.price}))]);
+    const basePath=[{time:start,value:forecast.referencePrice},...forecast.points.map(p=>({time:toSec(p.time),value:p.price}))];
+    const toPath=scenario=>[{time:start,value:forecast.referencePrice},...((scenario&&Array.isArray(scenario.points))?scenario.points:[]).map(p=>({time:toSec(p.time),value:p.price}))];
+    const upPath=toPath(upScenario),downPath=toPath(downScenario);
+    forecastPathSeries.setData(basePath);forecastBullSeries.setData(upPath);forecastBearSeries.setData(downPath);
+    if(mirrorForecastPathSeries)mirrorForecastPathSeries.setData(basePath);
+    if(mirrorForecastBullSeries)mirrorForecastBullSeries.setData(upPath);
+    if(mirrorForecastBearSeries)mirrorForecastBearSeries.setData(downPath);
     forecastUpperSeries.setData([{time:start,value:forecast.referencePrice+forecast.atr*0.62},...forecast.points.map(p=>({time:toSec(p.time),value:p.upper}))]);
     forecastLowerSeries.setData([{time:start,value:forecast.referencePrice-forecast.atr*0.62},...forecast.points.map(p=>({time:toSec(p.time),value:p.lower}))]);
     const directional=isBull||isBear;
@@ -812,7 +831,13 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     els.liveForecastSupport.textContent=Number.isFinite(forecast.support)?fmt(forecast.support):"Not confirmed";
     els.liveForecastResistance.textContent=Number.isFinite(forecast.resistance)?fmt(forecast.resistance):"Not confirmed";
     els.liveForecastFlow.textContent=forecast.flowStatus||"Not used · order flow unavailable";
-    els.liveForecastEvidence.textContent=forecast.strengthLabel+" · "+forecast.technicalScore+"/"+forecast.maxTechnicalScore+" technical checks agree. "+forecast.evidence.join("; ")+". The rule score is not a calibrated probability.";
+    els.liveForecastBull.textContent=upScenario?("Target "+fmt(upScenario.targetPrice)+" · confirm above "+fmt(upScenario.triggerPrice)+" · invalid below "+fmt(upScenario.invalidationPrice)):"Unavailable";
+    els.liveForecastBear.textContent=downScenario?("Target "+fmt(downScenario.targetPrice)+" · confirm below "+fmt(downScenario.triggerPrice)+" · invalid above "+fmt(downScenario.invalidationPrice)):"Unavailable";
+    const wf=forecast.walkForward;
+    els.liveForecastAccuracy.textContent=wf&&wf.meetsMinimumSample&&Number.isFinite(wf.directionalHitRatePct)
+      ?wf.directionalHitRatePct.toFixed(1)+"% ("+wf.correct+"/"+wf.sampleSize+") · endpoint error "+(Number.isFinite(wf.meanAbsoluteEndpointErrorPct)?wf.meanAbsoluteEndpointErrorPct.toFixed(2)+"%":"—")
+      :(wf?(wf.sampleSize||0)+"/20 directional calls · rate withheld":"historical score unavailable");
+    els.liveForecastEvidence.textContent=forecast.strengthLabel+" · "+forecast.technicalScore+"/"+forecast.maxTechnicalScore+" technical checks agree. "+forecast.evidence.join("; ")+". The rule score is not a calibrated probability. The walk-forward metric is historical, past-only, and not net of trading costs.";
   }
 
   function trendFor(input,interval){const c=closedOnly(input,interval);if(c.length<55)return {ready:false,direction:"UNAVAILABLE",detail:"Not enough closed higher-timeframe candles to confirm trend."};const cls=c.map(x=>x.close),e20=ema(cls,20),e50=ema(cls,50),i=c.length-1;const up=cls[i]>e50[i]&&e20[i]>e50[i],down=cls[i]<e50[i]&&e20[i]<e50[i];return {ready:true,direction:up?"BULLISH":down?"BEARISH":"MIXED / NEUTRAL",up,down,close:cls[i],ema20:e20[i],ema50:e50[i],time:c[i].time};}
@@ -856,8 +881,19 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const flowCandidate=window.tarotaiOrderFlowSummary;
     const flowSummary=marketVenue==="binance"&&flowCandidate&&flowCandidate.symbol===currentSymbol&&flowCandidate.venue===marketVenue?flowCandidate:null;
     const nextMoveForecast=typeof window.tarotaiBuildMarketForecast==="function"
-      ?window.tarotaiBuildMarketForecast(closed,{intervalMs:msFor(currentInterval),asOf:Date.now(),higherTrend:htf.direction,support:structure.support,resistance:structure.resistance,orderFlow:flowSummary,referenceOnly:marketVenue==="yahoo"})
+      ?window.tarotaiBuildMarketForecast(closed,{intervalMs:msFor(currentInterval),horizonBars:4,asOf:Date.now(),higherTrend:htf.direction,support:structure.support,resistance:structure.resistance,orderFlow:flowSummary,referenceOnly:marketVenue==="yahoo"})
       :{ready:false,reason:"The market-forecast module did not load. Refresh the Trading Desk before using forecast annotations."};
+    const historicalHtf=closedOnly(higherCache,htfInterval).slice(-1)[0];
+    const evaluationKey=[currentSymbol,currentInterval,closed.length,last.time,historicalHtf&&historicalHtf.time||0].join("|");
+    if(evaluationKey!==forecastEvaluationCacheKey){
+      forecastEvaluationCacheKey=evaluationKey;
+      forecastEvaluationCache=typeof window.tarotaiEvaluateForecastWalkForward==="function"
+        ?window.tarotaiEvaluateForecastWalkForward(closed,higherCache,{intervalMs:msFor(currentInterval),higherIntervalMs:msFor(htfInterval),horizonBars:4})
+        :null;
+    }
+    nextMoveForecast.walkForward=forecastEvaluationCache;
+    window.tarotaiMarketForecast=nextMoveForecast.ready?nextMoveForecast:null;
+    window.tarotaiForecastWalkForward=forecastEvaluationCache;
     drawForecastOverlay(nextMoveForecast);
     byId("liveHtf").textContent=htf.direction;
     byId("liveHtf").className=htf.up?"live-action-buy":htf.down?"live-action-sell":"live-action-hold";
