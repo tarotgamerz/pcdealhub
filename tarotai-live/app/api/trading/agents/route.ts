@@ -94,8 +94,8 @@ function validateCandles(raw:any,interval:Interval,venue:Venue):Candle[] {
   seen.add(c.time);return true;
  }).sort((a,b)=>a.time-b.time);
 }
-async function requestJson(url:URL) {
- const response=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(4500),headers:{"User-Agent":"TarotAI-Public-Market-Research"}});
+async function requestJson(url:URL,signal:AbortSignal=AbortSignal.timeout(4500)) {
+ const response=await fetch(url,{cache:"no-store",signal,headers:{"User-Agent":"TarotAI-Public-Market-Research"}});
  const raw=await response.text();let data:any;
  try{data=JSON.parse(raw);}catch{throw new Error("Exchange returned non-JSON data (HTTP "+response.status+").");}
  if(!response.ok)throw new Error(String(data?.msg||data?.retMsg||data?.message||"HTTP "+response.status));
@@ -104,14 +104,23 @@ async function requestJson(url:URL) {
 async function fetchVenue(venue:Venue,symbol:string,interval:Interval,limit:number):Promise<{candles:Candle[];host:string}> {
  if(venue==="binance") {
   const hosts=["fapi.binance.com","fapi1.binance.com","fapi2.binance.com","fapi3.binance.com"];
-  const attempts=await Promise.allSettled(hosts.map(async host=>{
-   const url=new URL("https://"+host+"/fapi/v1/klines");url.searchParams.set("symbol",symbol);url.searchParams.set("interval",interval);url.searchParams.set("limit",String(limit));
-   const raw=await requestJson(url),candles=validateCandles(raw,interval,venue);if(candles.length<60)throw new Error("Only "+candles.length+" closed candles.");
-   return {candles,host};
-  }));
-  const good=attempts.find((x:any)=>x.status==="fulfilled") as PromiseFulfilledResult<{candles:Candle[];host:string}>|undefined;
-  if(good)return good.value;
-  throw new Error(attempts.map((x:any)=>x.status==="rejected"?String(x.reason?.message||x.reason):"").filter(Boolean).join("; ").slice(0,500)||"Binance hosts unavailable.");
+  const controller=new AbortController();
+  const timeout=setTimeout(()=>controller.abort(),4500);
+  const attempts=hosts.map(async host=>{
+   try{
+    const url=new URL("https://"+host+"/fapi/v1/klines");url.searchParams.set("symbol",symbol);url.searchParams.set("interval",interval);url.searchParams.set("limit",String(limit));
+    const raw=await requestJson(url,controller.signal),candles=validateCandles(raw,interval,venue);
+    if(candles.length<60)throw new Error("Only "+candles.length+" closed candles.");
+    return {candles,host};
+   }catch(error){throw new Error(host+": "+(error instanceof Error?error.message:String(error)));}
+  });
+  try{
+   // Return as soon as a host provides valid closed candles. Abort slower siblings.
+   return await Promise.any(attempts);
+  }catch(error){
+   const failures:unknown[]=error instanceof AggregateError?error.errors:[error];
+   throw new Error(failures.map((reason:any)=>String(reason?.message||reason)).filter(Boolean).join("; ").slice(0,500)||"Binance hosts unavailable.");
+  }finally{clearTimeout(timeout);controller.abort();}
  }
  if(venue==="bybit") {
   const url=new URL("https://api.bybit.com/v5/market/kline");url.searchParams.set("category","linear");url.searchParams.set("symbol",symbol);url.searchParams.set("interval",BYBIT_INTERVAL[interval]);url.searchParams.set("limit",String(Math.min(limit,1000)));
