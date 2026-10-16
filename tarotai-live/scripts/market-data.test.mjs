@@ -7,6 +7,7 @@ const source = readFileSync(new URL("../app/api/exchanges/market/route.ts", impo
 const consolePage = readFileSync(new URL("../public/console.html", import.meta.url), "utf8");
 const agentPage = readFileSync(new URL("../public/agents.html", import.meta.url), "utf8");
 const chatRoute = readFileSync(new URL("../app/api/chat/route.ts", import.meta.url), "utf8");
+const tradingRoomPage = readFileSync(new URL("../public/trading-strategy-room.html", import.meta.url), "utf8");
 const auditScript = readFileSync(new URL("./audit-dependencies.mjs", import.meta.url), "utf8");
 const visionRoute = readFileSync(new URL("../app/api/vision/route.ts", import.meta.url), "utf8");
 const documentsRoute = readFileSync(new URL("../app/api/documents/route.ts", import.meta.url), "utf8");
@@ -71,6 +72,18 @@ test("all named single-agent modes have explicit behavior", () => {
   }
   assert.match(consolePage, /async function send\(\)/);
   assert.match(consolePage, /await fetch\('\/api\/chat'/);
+});
+
+
+test("Trading Strategy Room enforces trading-only scope and disables tools server-side", () => {
+  assert.match(tradingRoomPage, /mode:"trading-room",tradingRoomTopic:topic/);
+  assert.match(chatRoute, /"trading-room"\]/);
+  assert.match(chatRoute, /tradingRoomTopicPattern\.test\(tradingRoomTopic\)/);
+  assert.match(chatRoute, /Trading Strategy Room mode: strictly discuss trading only/);
+  assert.match(chatRoute, /const runtimeTools: any\[\] = requestedMode === "trading-room"\s*\? \[\]/);
+  assert.match(chatRoute, /process\.env\.COMPOSIO_API_KEY && requestedMode !== "trading-room"/);
+  assert.match(chatRoute, /requestedMode !== "trading-room" && durableMemory\.length/);
+  assert.match(chatRoute, /requestedMode !== "trading-room" && documents\.length/);
 });
 
 test("chat endpoint fails closed without private access configuration", () => {
