@@ -224,7 +224,9 @@ export async function POST(req:Request){
   if(action==="OPEN"&&(stopPrice===null||targetPrice===null||!Number.isFinite(stopPrice)||!Number.isFinite(targetPrice)||!validateStops(side==="BUY"?"LONG":"SHORT",executionReferencePrice,stopPrice,targetPrice)))return NextResponse.json({error:"Opening paper trade requires valid stop and target geometry"},{status:400});
   const paperBalance=Number(b.paperBalance),riskPct=Number(b.riskPct),maxExposurePct=Number(b.maxExposurePct);
   if(action==="OPEN"){
-   if(![paperBalance,riskPct,maxExposurePct].every(Number.isFinite)||paperBalance<100||paperBalance>10000000||riskPct<0.1||riskPct>1||maxExposurePct<=0||maxExposurePct>PAPER_MAX_POSITION_EXPOSURE_PCT)return NextResponse.json({error:"Paper entry blocked: balance, risk, or exposure settings are outside the server-enforced limits."},{status:400});
+   if(!Number.isFinite(paperBalance)||paperBalance<100||paperBalance>10000000)return NextResponse.json({error:"Simulated balance must be between 100 and 10,000,000 USDT; no paper trade was created."},{status:400});
+   if(!Number.isFinite(riskPct)||riskPct<0.1||riskPct>1)return NextResponse.json({error:"Risk per trade must be between 0.1% and 1.0% of simulated balance; no paper trade was created.",limits:{minRiskPct:0.1,maxRiskPct:1}},{status:400});
+   if(!Number.isFinite(maxExposurePct)||maxExposurePct<=0||maxExposurePct>PAPER_MAX_POSITION_EXPOSURE_PCT)return NextResponse.json({error:"Maximum position exposure must be greater than 0% and no more than 5%; no paper trade was created."},{status:400});
    const riskError=validatePaperExposure({balance:paperBalance,riskPct,entry:executionReferencePrice,stop:Number(stopPrice),quantity:qty,existingExposure:existingOpenExposure,maxExposurePct,maxTotalExposurePct:PAPER_MAX_PORTFOLIO_EXPOSURE_PCT});
    if(riskError)return NextResponse.json({error:riskError,limits:{maxPositionExposurePct:PAPER_MAX_POSITION_EXPOSURE_PCT,maxPortfolioExposurePct:PAPER_MAX_PORTFOLIO_EXPOSURE_PCT,maxRiskPct:1}},{status:409});
   }
