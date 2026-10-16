@@ -272,7 +272,7 @@
       <div class="live-forecast-metric"><label>Live order-flow agreement</label><strong id="liveForecastFlow">Waiting for depth + trade feed</strong></div>
       <div class="live-forecast-metric"><label>Conditional upside path</label><strong id="liveForecastBull">Waiting for forecast</strong></div>
       <div class="live-forecast-metric"><label>Conditional downside path</label><strong id="liveForecastBear">Waiting for forecast</strong></div>
-      <div class="live-forecast-metric"><label>Walk-forward directional hit rate</label><strong id="liveForecastAccuracy">Building historical sample</strong></div>
+      <div class="live-forecast-metric"><label>ATR-adjusted walk-forward hit rate</label><strong id="liveForecastAccuracy">Building historical sample</strong></div>
     </div>
     <p class="live-forecast-footnote">The dotted path is a rules-based scenario, not a promise or calibrated probability. The outer dotted lines are an ATR-based range, not guaranteed highs/lows. Fresh Binance order-book depth and executed-trade pressure are used only when both feeds are live; a conflict downgrades the directional scenario. No line sends an order.</p>
   </section>
@@ -837,7 +837,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     els.liveForecastAccuracy.textContent=wf&&wf.meetsMinimumSample&&Number.isFinite(wf.directionalHitRatePct)
       ?wf.directionalHitRatePct.toFixed(1)+"% ("+wf.correct+"/"+wf.sampleSize+") · endpoint error "+(Number.isFinite(wf.meanAbsoluteEndpointErrorPct)?wf.meanAbsoluteEndpointErrorPct.toFixed(2)+"%":"—")
       :(wf?(wf.sampleSize||0)+"/20 directional calls · rate withheld":"historical score unavailable");
-    els.liveForecastEvidence.textContent=forecast.strengthLabel+" · "+forecast.technicalScore+"/"+forecast.maxTechnicalScore+" technical checks agree. "+forecast.evidence.join("; ")+". The rule score is not a calibrated probability. The walk-forward metric is historical, past-only, and not net of trading costs.";
+    els.liveForecastEvidence.textContent=forecast.strengthLabel+" · "+forecast.technicalScore+"/"+forecast.maxTechnicalScore+" technical checks agree. "+forecast.evidence.join("; ")+". The rule score is not a calibrated probability. A walk-forward hit requires a close-to-close move in the forecast direction of at least max(0.02%, 0.15 ATR at the forecast origin); smaller moves count as misses. The metric is historical, past-only, and excludes trading costs.";
   }
 
   function trendFor(input,interval){const c=closedOnly(input,interval);if(c.length<55)return {ready:false,direction:"UNAVAILABLE",detail:"Not enough closed higher-timeframe candles to confirm trend."};const cls=c.map(x=>x.close),e20=ema(cls,20),e50=ema(cls,50),i=c.length-1;const up=cls[i]>e50[i]&&e20[i]>e50[i],down=cls[i]<e50[i]&&e20[i]<e50[i];return {ready:true,direction:up?"BULLISH":down?"BEARISH":"MIXED / NEUTRAL",up,down,close:cls[i],ema20:e20[i],ema50:e50[i],time:c[i].time};}
@@ -884,7 +884,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       ?window.tarotaiBuildMarketForecast(closed,{intervalMs:msFor(currentInterval),horizonBars:4,asOf:Date.now(),higherTrend:htf.direction,support:structure.support,resistance:structure.resistance,orderFlow:flowSummary,referenceOnly:marketVenue==="yahoo"})
       :{ready:false,reason:"The market-forecast module did not load. Refresh the Trading Desk before using forecast annotations."};
     const historicalHtf=closedOnly(higherCache,htfInterval).slice(-1)[0];
-    const evaluationKey=[currentSymbol,currentInterval,closed.length,last.time,historicalHtf&&historicalHtf.time||0].join("|");
+    const evaluationKey=[currentSymbol,marketVenue,currentInterval,closed.length,last.time,historicalHtf&&historicalHtf.time||0].join("|");
     if(evaluationKey!==forecastEvaluationCacheKey){
       forecastEvaluationCacheKey=evaluationKey;
       forecastEvaluationCache=typeof window.tarotaiEvaluateForecastWalkForward==="function"
