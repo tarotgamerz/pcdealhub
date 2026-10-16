@@ -160,6 +160,8 @@ test("live EMA overlays update incrementally on each WebSocket candle instead of
   assert.doesNotMatch(desk, /const cls=rows\.map\(c=>c\.close\),e9Data=lineData\(ema\(cls,9\),rows\)/);
   assert.match(desk, /catch\(e\)\{reportLiveChartError\(e,"Binance live candle update"\);\}/);
   assert.match(desk, /catch\(e\)\{reportLiveChartError\(e,"OKX live candle update"\);\}/);
+  assert.match(desk, /if\(idx<0\)return;rows\[idx\]=bar;if\(idx<rows\.length-1\)updatedHistorical=true/);
+  assert.match(desk, /if\(updatedHistorical\)\{renderRows\(false\);\}/);
 });
 
 test("chart timestamps normalize millisecond and second epoch inputs", () => {
