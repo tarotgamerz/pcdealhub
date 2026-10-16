@@ -257,7 +257,7 @@
     <div class="live-checks"><h3>Why the agent decided this</h3><div id="liveCheckList" class="live-check-list"><div class="live-check neutral"><em>•</em><span>Waiting for closed candles and higher-timeframe data.</span></div></div></div>
   </div>
   <div id="liveMarketStatus" class="live-market-status">Market data has not been checked yet. No orders are sent from this panel.</div>
-<div class="live-instructions" style="margin-top:12px"><h3>Paper trade controls</h3><div class="sub">Only fresh confirmed BUY / LONG or SELL / SHORT setups qualify. Risk is capped at 0.1–1% of balance by stop distance, 5% notional per position and 20% total open notional. A verified exchange quote and bid-ask spread ≤20 bps are mandatory. Paper only. No real exchange orders are sent.</div><div class="live-paper-controls"><div class="field"><label for="livePaperBalance">Simulated balance (USDT)</label><input id="livePaperBalance" type="number" min="100" max="10000000" step="100" value="10000"></div><div class="field"><label for="livePaperRisk">Risk per trade (%)</label><input id="livePaperRisk" type="number" min="0.1" max="1" step="0.1" inputmode="decimal" value="0.5" aria-describedby="livePaperRiskHelp"><small id="livePaperRiskHelp" class="muted">Allowed range: 0.1–1.0% of balance. Example: 0.5 means half a percent, not 50%.</small></div><button class="btn primary" id="livePaperOpen" type="button" disabled>Open paper trade from signal</button><button class="btn" id="livePaperReload" type="button">Refresh ledger / check stops</button><button class="btn" id="livePaperAutoToggle" type="button" aria-pressed="false">Enable auto paper trading</button><div class="field"><label for="observationDirection">Observation test direction</label><select id="observationDirection"><option value="BUY" selected>LONG · paper only</option><option value="SELL">SHORT · paper only</option></select></div><button class="btn" id="livePaperObservationOpen" type="button">Start target-only paper test</button></div><div class="live-paper-experiment-note">Target-only observation test: the paper position stays open after a stop touch and auto-closes only when its profit target is confirmed. If the same closed candle touches both stop and target, it stays open because the order of touch is unknown. The reference stop is used for sizing, not as an auto-exit; simulated drawdown can exceed the planned stop-risk. 5% position and 20% portfolio notional caps still apply. Observation trials are excluded from strategy win-rate stats; manual close remains available.</div><div id="livePaperAutoStatus" class="live-market-status">AUTO PAPER: STARTING. After your private session and persistent ledger are ready, the 8-role team can open and manage approved crypto-perpetual paper positions automatically. Pause any time. No real orders are sent.</div><div class="live-paper-summary"><div class="live-level"><label>Open positions</label><strong id="livePaperOpenCount">—</strong></div><div class="live-level"><label>Closed paper trades</label><strong id="livePaperClosedCount">—</strong></div><div class="live-level"><label>Realized net P&amp;L (USDT)</label><strong id="livePaperNetPnl">—</strong></div><div class="live-level"><label>Signal win rate · tests excluded</label><strong id="livePaperWinRate">—</strong></div><div class="live-level"><label>AI-review win rate</label><strong id="livePaperAiWinRate">—</strong><small id="livePaperAiSamples">0 closed trades</small></div><div class="live-level"><label>Continuous-rule win rate</label><strong id="livePaperLocalWinRate">—</strong><small id="livePaperLocalSamples">0 closed trades</small></div></div><div id="livePaperPositions" class="live-paper-positions"><div class="muted">Loading persistent paper ledger…</div></div><div id="livePaperStatus" class="live-market-status">Paper trading is disabled until a valid signal and persistent private ledger are available.</div></div>
+<div class="live-instructions" style="margin-top:12px"><h3>Paper trade controls</h3><div class="sub">Only fresh confirmed BUY / LONG or SELL / SHORT setups qualify. Risk is capped at 0.1–1% of balance by stop distance, 25% notional per position and 100% combined open notional at 1×; aggregate planned stop-risk is capped at 3% of starting capital. A verified exchange quote and bid-ask spread ≤20 bps are mandatory. Paper only. No real exchange orders are sent.</div><div class="live-paper-controls"><div class="field"><label for="livePaperBalance">Starting capital (USDT)</label><input id="livePaperBalance" type="number" min="100" max="10000000" step="100" value="100000" aria-describedby="livePaperBalanceHelp"><small id="livePaperBalanceHelp" class="muted">Saved in this browser. Capital is not the notional value of one position. Starting capital stays fixed while a position is open and during the daily risk window.</small></div><div class="field"><label for="livePaperRisk">Risk per trade (%)</label><input id="livePaperRisk" type="number" min="0.1" max="1" step="0.1" inputmode="decimal" value="0.5" aria-describedby="livePaperRiskHelp"><small id="livePaperRiskHelp" class="muted">Allowed range: 0.1–1.0% of balance. Example: 0.5 means half a percent, not 50%.</small></div><button class="btn primary" id="livePaperOpen" type="button" disabled>Open paper trade from signal</button><button class="btn" id="livePaperReload" type="button">Refresh ledger / check stops</button><button class="btn" id="livePaperAutoToggle" type="button" aria-pressed="false">Enable auto paper trading</button><div class="field"><label for="observationDirection">Observation test direction</label><select id="observationDirection"><option value="BUY" selected>LONG · paper only</option><option value="SELL">SHORT · paper only</option></select></div><button class="btn" id="livePaperObservationOpen" type="button">Start target-only paper test</button></div><div class="live-paper-experiment-note">Target-only observation test: the paper position stays open after a stop touch and auto-closes only when its profit target is confirmed. If the same closed candle touches both stop and target, it stays open because the order of touch is unknown. The reference stop is used for sizing, not as an auto-exit; simulated drawdown can exceed the planned stop-risk. 25% per-position and 100% combined-notional caps apply at 1×; aggregate planned stop-risk is capped at 3% of starting capital. Observation trials are excluded from strategy win-rate stats; manual close remains available.</div><div class="live-paper-account-title">Paper account overview <small class="muted">Position notional is different from account capital. Cash-style 1× paper margin; no exchange orders.</small></div><div class="live-paper-summary live-paper-account-summary"><div class="live-level"><label>Starting capital</label><strong id="livePaperAccountStart">—</strong></div><div class="live-level"><label>Paper equity (realized P&amp;L less open fees)</label><strong id="livePaperAccountEquity">—</strong></div><div class="live-level"><label>Open position notional</label><strong id="livePaperAccountNotional">—</strong></div><div class="live-level"><label>Available at 1×</label><strong id="livePaperAccountAvailable">—</strong></div><div class="live-level"><label>Planned open stop-risk</label><strong id="livePaperAccountRisk">—</strong></div></div><div id="livePaperAutoStatus class="live-market-status">AUTO PAPER: STARTING. After your private session and persistent ledger are ready, the 8-role team can open and manage approved crypto-perpetual paper positions automatically. Pause any time. No real orders are sent.</div><div class="live-paper-summary"><div class="live-level"><label>Open positions</label><strong id="livePaperOpenCount">—</strong></div><div class="live-level"><label>Closed paper trades</label><strong id="livePaperClosedCount">—</strong></div><div class="live-level"><label>Realized net P&amp;L (USDT)</label><strong id="livePaperNetPnl">—</strong></div><div class="live-level"><label>Signal win rate · tests excluded</label><strong id="livePaperWinRate">—</strong></div><div class="live-level"><label>AI-review win rate</label><strong id="livePaperAiWinRate">—</strong><small id="livePaperAiSamples">0 closed trades</small></div><div class="live-level"><label>Continuous-rule win rate</label><strong id="livePaperLocalWinRate">—</strong><small id="livePaperLocalSamples">0 closed trades</small></div></div><div id="livePaperPositions" class="live-paper-positions"><div class="muted">Loading persistent paper ledger…</div></div><div id="livePaperStatus" class="live-market-status">Paper trading is disabled until a valid signal and persistent private ledger are available.</div></div>
   <div class="live-safety-note"><strong>Execution safety:</strong> BUY means a potential long setup; SELL means a potential short setup; HOLD / WAIT means do not enter. Levels are analytical references calculated from closed candles, not guaranteed fills. The chart is read-only and never submits orders.</div>
 </section>
 
@@ -388,7 +388,7 @@ function renderBacktestSummary(report,httpStatus){
  const heading=document.createElement('div');heading.className='backtest-report-block';const title=document.createElement('div');title.className='backtest-report-title';const requested=String(report.requestedVenue||report.venue||'unknown venue').toUpperCase(),actual=String(report.venue||'unknown venue').toUpperCase();title.textContent='Research-only report · '+String(report.symbol||$('marketSymbol').value)+' · '+String(report.interval||$('marketInterval').value)+' · '+(requested===actual?actual:'Requested '+requested+' → data source '+actual);const note=document.createElement('div');note.className='backtest-report-note';note.textContent='HTTP '+httpStatus+' · '+Number(report.candles||0)+' closed candles · '+String(report.source||'source not reported')+(report.sourceHost?' ('+report.sourceHost+')':'')+' · no live or testnet orders were submitted.';heading.append(title,note);root.append(heading);
  const rule=report.liveAgentStrategy;
  if(rule){
-  const overview=document.createElement('div');overview.className='backtest-report-block';const label=document.createElement('div');label.className='backtest-report-title';label.textContent='Live-agent rules · '+String(rule.model||'rule model');const meta=document.createElement('div');meta.className='backtest-report-note';meta.textContent=(rule.available===false?('UNAVAILABLE · '+String(rule.reason||'Higher-timeframe history unavailable')+'. '):'')+'Risk '+Number(rule.riskPctPerTrade??$('livePaperRisk').value)+'% per trade · position cap '+Number(rule.perPositionNotionalCapPct??5)+'% · total notional cap '+Number(rule.portfolioNotionalCapPct??20)+'% · higher timeframe '+String(rule.higherTimeframe||report.higherTimeframeContext?.interval||'unavailable')+'. These settings are simulations, not a claim of profitable edge.';overview.append(label,meta);root.append(overview);
+  const overview=document.createElement('div');overview.className='backtest-report-block';const label=document.createElement('div');label.className='backtest-report-title';label.textContent='Live-agent rules · '+String(rule.model||'rule model');const meta=document.createElement('div');meta.className='backtest-report-note';meta.textContent=(rule.available===false?('UNAVAILABLE · '+String(rule.reason||'Higher-timeframe history unavailable')+'. '):'')+'Risk '+Number(rule.riskPctPerTrade??$('livePaperRisk').value)+'% per trade · position cap '+Number(rule.perPositionNotionalCapPct??25)+'% · total notional cap '+Number(rule.portfolioNotionalCapPct??100)+'% · higher timeframe '+String(rule.higherTimeframe||report.higherTimeframeContext?.interval||'unavailable')+'. These settings are simulations, not a claim of profitable edge.';overview.append(label,meta);root.append(overview);
   root.append(block('Live-agent rules · training segment','In-sample only; not evidence of future performance.',rule.train));
   root.append(block('Live-agent rules · chronological holdout','Untouched later segment. Read results as inconclusive when trade count is small.',rule.holdout));
   root.append(block('Live-agent rules · full sample','Descriptive only; overlaps training and holdout, so do not use this as final validation.',rule.fullSample));
@@ -848,12 +848,12 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const ledger=Array.isArray(window.tarotaiPaperLedger)?window.tarotaiPaperLedger:[];
     const terminal=new Set(["PAPER_CLOSE","PAPER_STOP","PAPER_TARGET"]),closedIds=new Set(ledger.filter(t=>t.parentTradeId&&terminal.has(t.status)).map(t=>t.parentTradeId));
     const open=ledger.filter(t=>t.status==="PAPER_OPEN"&&!closedIds.has(t.id)),onSymbol=open.filter(t=>t.symbol===currentSymbol);
-    const existingOpenNotional=open.reduce((sum,t)=>sum+Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice)*Number(t.quantity),0);
-    const sizingInputsReady=bias!=="WAIT"&&Number.isFinite(balance)&&balance>=100&&balance<=10000000&&Number.isFinite(riskPct)&&riskPct>=.1&&riskPct<=1&&Number.isFinite(entry)&&entry>0&&Number.isFinite(dist)&&dist>0&&Number.isFinite(existingOpenNotional)&&existingOpenNotional>=0;
-    const positionNotionalCap=balance*.05,portfolioNotionalCap=balance*.20,remainingPortfolioNotional=Math.max(0,portfolioNotionalCap-existingOpenNotional);
-    const qty=sizingInputsReady?Math.min((balance*riskPct/100)/dist,positionNotionalCap/entry,remainingPortfolioNotional/entry):NaN;
+    const existingOpenNotional=open.reduce((sum,t)=>sum+Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice)*Number(t.quantity),0),existingOpenRisk=paperOpenRisk(open);
+    const sizingInputsReady=bias!=="WAIT"&&Number.isFinite(balance)&&balance>=100&&balance<=10000000&&Number.isFinite(riskPct)&&riskPct>=.1&&riskPct<=1&&Number.isFinite(entry)&&entry>0&&Number.isFinite(dist)&&dist>0&&Number.isFinite(existingOpenNotional)&&existingOpenNotional>=0&&Number.isFinite(existingOpenRisk)&&existingOpenRisk>=0;
+    const positionNotionalCap=balance*PAPER_UI_MAX_POSITION_EXPOSURE_PCT/100,portfolioNotionalCap=balance*PAPER_UI_MAX_PORTFOLIO_EXPOSURE_PCT/100,remainingPortfolioNotional=Math.max(0,portfolioNotionalCap-existingOpenNotional),remainingPortfolioRisk=Math.max(0,balance*PAPER_UI_MAX_OPEN_RISK_PCT/100-existingOpenRisk),permittedRisk=Math.min(balance*riskPct/100,remainingPortfolioRisk);
+    const qty=sizingInputsReady&&permittedRisk>0?Math.min(permittedRisk/dist,positionNotionalCap/entry,remainingPortfolioNotional/entry):NaN;
     const sizingTolerance=Number.isFinite(balance)?Math.max(1e-8,balance*1e-10):0;
-    const sizeReady=sizingInputsReady&&Number.isFinite(qty)&&qty>0&&qty*dist<=balance*riskPct/100+sizingTolerance&&qty*entry<=positionNotionalCap+sizingTolerance&&existingOpenNotional+qty*entry<=portfolioNotionalCap+sizingTolerance;
+    const sizeReady=sizingInputsReady&&Number.isFinite(qty)&&qty>0&&qty*dist<=permittedRisk+sizingTolerance&&qty*entry<=positionNotionalCap+sizingTolerance&&existingOpenNotional+qty*entry<=portfolioNotionalCap+sizingTolerance&&existingOpenRisk+qty*dist<=balance*PAPER_UI_MAX_OPEN_RISK_PCT/100+sizingTolerance;
     const alerts=onSymbol.filter(t=>Number.isFinite(Number(t.stopPrice))&&Number.isFinite(Number(t.targetPrice))&&(t.experimentMode==="target-only-observation"?(t.side==="BUY"?livePrice>=Number(t.targetPrice):livePrice<=Number(t.targetPrice)):(t.side==="BUY"?livePrice<=Number(t.stopPrice)||livePrice>=Number(t.targetPrice):livePrice>=Number(t.stopPrice)||livePrice<=Number(t.targetPrice))));
     const observationStopTouches=onSymbol.filter(t=>t.experimentMode==="target-only-observation"&&Number.isFinite(Number(t.stopPrice))&&(t.side==="BUY"?livePrice<=Number(t.stopPrice):livePrice>=Number(t.stopPrice)));
     const finished=ledger.filter(t=>t.parentTradeId&&terminal.has(t.status)),pnl=finished.map(t=>Number(t.pnlNet)).filter(Number.isFinite),net=pnl.reduce((a,b)=>a+b,0),wins=pnl.filter(v=>v>0).length;
@@ -886,7 +886,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     ]));
     reports.push(localReport("sizing",sizeReady?bias:"WAIT",bias!=="WAIT"&&!sizeReady,[
       "BIAS: "+(sizeReady?bias:"WAIT"),"VETO: "+(bias!=="WAIT"&&!sizeReady?"YES":"NO"),
-      "EVIDENCE: "+(sizeReady?"paper equity "+fmt(balance)+" USDT · risk "+riskPct+"% · cash-risk cap "+fmt(balance*riskPct/100)+" · quantity "+qty.toPrecision(7)+" · per-position notional cap "+fmt(positionNotionalCap)+" USDT (5%) · total open notional "+fmt(existingOpenNotional)+" / "+fmt(portfolioNotionalCap)+" USDT (20%).":"Sizing withheld: no valid signal, balance/stop distance, or remaining exposure capacity under the 5% position and 20% portfolio caps."),
+      "EVIDENCE: "+(sizeReady?"paper starting capital "+fmt(balance)+" USDT · risk "+riskPct+"% · additional stop-risk budget "+fmt(permittedRisk)+" USDT · quantity "+qty.toPrecision(7)+" · per-position notional cap "+fmt(positionNotionalCap)+" USDT (25%) · total open notional "+fmt(existingOpenNotional)+" / "+fmt(portfolioNotionalCap)+" USDT (100%) · combined planned stop-risk "+fmt(existingOpenRisk)+" / "+fmt(balance*PAPER_UI_MAX_OPEN_RISK_PCT/100)+" USDT (3%).":"Sizing withheld: no valid signal, balance/stop distance, or remaining position/notional/open-risk capacity."),
       "HISTORICAL: sizing arithmetic does not imply a profitable strategy.",
       "TRIGGER: "+(sizeReady?"use this quantity only for a manually confirmed paper trade":"WAIT; no quantity approved."),
       "INVALIDATION: recompute if entry, stop, equity or risk percentage changes.",
@@ -1252,6 +1252,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   const paperFmt=v=>Number.isFinite(v)?v.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}):"—";
   function paperStatus(msg,bad=false){byId("livePaperStatus").textContent=msg;byId("livePaperStatus").style.color=bad?"var(--red)":"var(--muted)";}
   function paperOpened(ledger){const closed=new Set(ledger.filter(t=>t.parentTradeId&&paperClosedStatuses.has(t.status)).map(t=>t.parentTradeId));return ledger.filter(t=>t.status==="PAPER_OPEN"&&!closed.has(t.id));}
+  const PAPER_UI_MAX_POSITION_EXPOSURE_PCT=25,PAPER_UI_MAX_PORTFOLIO_EXPOSURE_PCT=100,PAPER_UI_MAX_OPEN_RISK_PCT=3,PAPER_UI_MAX_OPEN_POSITIONS=10,PAPER_UI_MAX_POSITIONS_PER_SYMBOL=5;
+  function paperOpenRisk(open){return open.reduce((sum,t)=>{const stored=t.plannedRisk===null||t.plannedRisk===undefined?NaN:Number(t.plannedRisk);if(Number.isFinite(stored)&&stored>=0)return sum+stored;const mark=Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice),stop=Number(t.stopPrice),qty=Number(t.quantity);return Number.isFinite(mark)&&mark>0&&Number.isFinite(stop)&&stop>0&&Number.isFinite(qty)&&qty>0?sum+Math.abs(mark-stop)*qty:NaN;},0);}
   function updateAgentOrderBar(){
     const root=byId("agentOrderBar");if(!root)return;
     const put=(id,value)=>{const e=byId(id);if(e)e.textContent=value;};
@@ -1311,9 +1313,13 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const d=window.tarotaiLiveDecision,qualifies=d&&["BUY / LONG","SELL / SHORT"].includes(d.action)&&d.symbol===byId("liveSymbol").value&&d.interval===byId("liveInterval").value;
     const closedNow=closedOnly(rows,currentInterval).slice(-1)[0],approvals=[window.tarotaiContinuousTeamApproval,window.tarotaiAgentCommitteeApproval].filter(Boolean);
     const teamApproved=!!closedNow&&approvals.some(a=>a.symbol===d?.symbol&&a.interval===d?.interval&&Number(a.candleTime)===Number(closedNow.time)&&a.action===d?.action&&["continuous-local-team","ai-eight-agent-review"].includes(a.source));
-    byId("livePaperOpen").disabled=marketVenue==="yahoo"||isReferenceMarket(byId("liveSymbol").value)||paperOpening||!qualifies||!teamApproved||opened.some(t=>t.symbol===byId("liveSymbol").value);
+    const selectedSymbol=byId("liveSymbol").value,requestedSide=qualifies&&d.action==="BUY / LONG"?"BUY":"SELL",sameMarket=opened.filter(t=>t.symbol===selectedSymbol&&(t.venue||"binance")===marketVenue),oppositeOpen=sameMarket.some(t=>t.side!==requestedSide),atMarketLimit=sameMarket.length>=PAPER_UI_MAX_POSITIONS_PER_SYMBOL,atAccountLimit=opened.length>=PAPER_UI_MAX_OPEN_POSITIONS;
+    byId("livePaperOpen").disabled=marketVenue==="yahoo"||isReferenceMarket(selectedSymbol)||paperOpening||!qualifies||!teamApproved||oppositeOpen||atMarketLimit||atAccountLimit;
     updateDemoAgentTicket();
-    if(opened.some(t=>t.symbol===byId("liveSymbol").value))paperStatus("A paper position for this market is already open. Close it before opening another.");
+    if(oppositeOpen)paperStatus("This market has an open paper position in the opposite direction. Close it before reversing.",true);
+    else if(atMarketLimit)paperStatus("This market has reached "+PAPER_UI_MAX_POSITIONS_PER_SYMBOL+" same-direction paper tickets. Close one before adding more.",true);
+    else if(atAccountLimit)paperStatus("The account has reached "+PAPER_UI_MAX_OPEN_POSITIONS+" simultaneous paper positions. Close one before opening another.",true);
+    else if(sameMarket.length)paperStatus("This market already has a paper position. Same-direction scale-ins are supported up to "+PAPER_UI_MAX_POSITIONS_PER_SYMBOL+" tickets, subject to remaining portfolio risk.");
   }
   function paperTradeVenue(t){
     const v=String(t?.venue||"").toLowerCase();if(["binance","bybit","okx"].includes(v))return v;
@@ -1322,6 +1328,27 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     if(source.includes("bybit"))return "bybit";
     if(source.includes("okx"))return "okx";
     return "okx";
+  }
+  function renderPaperAccount(ledger){
+    const input=byId("livePaperBalance"),opened=paperOpened(Array.isArray(ledger)?ledger:[]);
+    if(opened.length&&input){
+      const recorded=opened.map(t=>Number(t.paperBalance));
+      if(recorded.every(n=>Number.isFinite(n)&&n>=100&&n<=10000000)&&recorded.every(n=>Math.abs(n-recorded[0])<=Math.max(.01,recorded[0]*1e-9))){
+        input.value=String(recorded[0]);
+        try{localStorage.setItem("tarotaiPaperBalance",String(recorded[0]));}catch(_){}
+      }
+    }
+    if(input)input.disabled=opened.length>0;
+    const balance=Number(input?.value),closeRows=(Array.isArray(ledger)?ledger:[]).filter(t=>t.parentTradeId&&paperClosedStatuses.has(t.status));
+    const realized=closeRows.reduce((sum,t)=>{const pnl=Number(t.pnlNet);return sum+(Number.isFinite(pnl)?pnl:0);},0);
+    const notional=opened.reduce((sum,t)=>sum+Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice)*Number(t.quantity),0);
+    const openRisk=paperOpenRisk(opened),openFees=opened.reduce((sum,t)=>sum+Math.max(0,Number(t.fee)||0),0),capitalPlusRealized=balance+realized-openFees,available=Math.max(0,capitalPlusRealized-notional);
+    const put=(id,value)=>{const el=byId(id);if(el)el.textContent=value;};
+    put("livePaperAccountStart",Number.isFinite(balance)?paperFmt(balance)+" USDT":"—");
+    put("livePaperAccountEquity",Number.isFinite(capitalPlusRealized)?paperFmt(capitalPlusRealized)+" USDT":"—");
+    put("livePaperAccountNotional",Number.isFinite(notional)?paperFmt(notional)+" USDT":"—");
+    put("livePaperAccountAvailable",Number.isFinite(available)?paperFmt(available)+" USDT":"—");
+    put("livePaperAccountRisk",Number.isFinite(openRisk)?paperFmt(openRisk)+" / "+paperFmt(balance*PAPER_UI_MAX_OPEN_RISK_PCT/100)+" USDT":"—");
   }
   async function paperRefresh(checkStops=true){
     if(paperBusy)return;paperBusy=true;
@@ -1333,14 +1360,14 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
         if(checks.length){d=await paperRequest("/api/trading/paper");ledger=Array.isArray(d.ledger)?d.ledger:[];}
         window.tarotaiPaperWarnings=warnings;
       }
-      paperRender(ledger);
+      paperRender(ledger);renderPaperAccount(ledger);
       if(window.tarotaiPaperWarnings?.length)paperStatus("WARNING: "+window.tarotaiPaperWarnings.join("; ")+". Verify or manually close these positions; old stops cannot be reconstructed from the available candle window.",true);
       else if(paperOpened(ledger).some(t=>t.experimentMode==="target-only-observation"))paperStatus("Target-only observation is open. Stop touches will not auto-close this paper test; it waits for an unambiguous profit-target touch on a closed 1-minute candle. Manual close remains available. Observation trials are excluded from signal win-rate statistics.");
       else if(!paperOpened(ledger).length)paperStatus("Paper ledger connected · persistent storage · no real orders. "+ledger.length+" records loaded.");
       else paperStatus("Paper ledger connected. Strategy positions are checked against historical closed 1-minute candles; normal strategy trades use stop-first handling if stop and target touch in one candle.");
     }catch(e){
       paperStoreReady=false;
-      ["livePaperOpenCount","livePaperClosedCount","livePaperNetPnl","livePaperWinRate","livePaperAiWinRate","livePaperLocalWinRate"].forEach(id=>byId(id).textContent="—");
+      ["livePaperOpenCount","livePaperClosedCount","livePaperNetPnl","livePaperWinRate","livePaperAiWinRate","livePaperLocalWinRate","livePaperAccountStart","livePaperAccountEquity","livePaperAccountNotional","livePaperAccountAvailable","livePaperAccountRisk"].forEach(id=>byId(id).textContent="—");
       byId("livePaperPositions").textContent="Ledger unavailable. Unlock private APIs and configure Upstash Redis. No paper trade was created.";
       byId("livePaperOpen").disabled=true;paperStatus("Paper ledger unavailable: "+e.message+". Authentication and persistent storage must work before entry.",true);
     }finally{paperBusy=false;}
@@ -1358,11 +1385,11 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const valid=Number.isFinite(entry)&&entry>0&&Number.isFinite(stop)&&stop>0&&(long?stop<entry:stop>entry);
     const distance=valid?Math.abs(entry-stop):NaN,target=valid?(long?entry+2*distance:entry-2*distance):NaN;
     const balance=Number(byId("livePaperBalance")?.value),riskPct=Number(byId("livePaperRisk")?.value),riskBudget=balance*riskPct/100;
-    const openLedger=Array.isArray(window.tarotaiPaperLedger)?paperOpened(window.tarotaiPaperLedger):[],existingOpenNotional=openLedger.reduce((sum,t)=>sum+Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice)*Number(t.quantity),0);
-    const sizingReady=valid&&paperStoreReady&&Number.isFinite(balance)&&balance>=100&&Number.isFinite(riskPct)&&riskPct>=.1&&riskPct<=1&&Number.isFinite(existingOpenNotional)&&existingOpenNotional>=0;
-    const remainingPortfolioNotional=Math.max(0,balance*.20-existingOpenNotional),positionNotionalCap=balance*.05;
-    const quantity=sizingReady&&Number.isFinite(riskBudget)&&riskBudget>0?Math.min(riskBudget/distance,positionNotionalCap/entry,remainingPortfolioNotional/entry):NaN;
-    const usable=approved&&valid&&fresh&&paperStoreReady&&!paperOpening&&Number.isFinite(quantity)&&quantity>0&&quantity*distance<=riskBudget+Math.max(1e-8,balance*1e-10);
+    const openLedger=Array.isArray(window.tarotaiPaperLedger)?paperOpened(window.tarotaiPaperLedger):[],existingOpenNotional=openLedger.reduce((sum,t)=>sum+Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice)*Number(t.quantity),0),existingOpenRisk=paperOpenRisk(openLedger),requestedSide=long?"BUY":"SELL",sameMarket=openLedger.filter(t=>t.symbol===symbol&&(t.venue||"binance")===marketVenue);
+    const sizingReady=valid&&paperStoreReady&&Number.isFinite(balance)&&balance>=100&&Number.isFinite(riskPct)&&riskPct>=.1&&riskPct<=1&&Number.isFinite(existingOpenNotional)&&existingOpenNotional>=0&&Number.isFinite(existingOpenRisk)&&existingOpenRisk>=0;
+    const remainingPortfolioNotional=Math.max(0,balance*PAPER_UI_MAX_PORTFOLIO_EXPOSURE_PCT/100-existingOpenNotional),positionNotionalCap=balance*PAPER_UI_MAX_POSITION_EXPOSURE_PCT/100,remainingPortfolioRisk=Math.max(0,balance*PAPER_UI_MAX_OPEN_RISK_PCT/100-existingOpenRisk),permittedRisk=Math.min(riskBudget,remainingPortfolioRisk);
+    const quantity=sizingReady&&permittedRisk>0?Math.min(permittedRisk/distance,positionNotionalCap/entry,remainingPortfolioNotional/entry):NaN;
+    const usable=approved&&valid&&fresh&&paperStoreReady&&!paperOpening&&openLedger.length<PAPER_UI_MAX_OPEN_POSITIONS&&sameMarket.length<PAPER_UI_MAX_POSITIONS_PER_SYMBOL&&!sameMarket.some(t=>t.side!==requestedSide)&&Number.isFinite(quantity)&&quantity>0&&quantity*distance<=permittedRisk+Math.max(1e-8,balance*1e-10);
     const put=(id,value)=>{const el=byId(id);if(el)el.textContent=value;};
     put("demoMarketSymbol",symbol+(interval!=="—"?" · "+interval:""));
     put("demoMarketVenue",marketVenue.toUpperCase()+" perpetual");
@@ -1382,8 +1409,12 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       else if(action==="WAIT")status.textContent="WAIT: no qualified live-chart setup. Agents will not invent an entry.";
       else if(!valid)status.textContent="Blocked: the live quote has crossed the setup's stop/invalidation level.";
       else if(!approved)status.textContent="Candidate "+action+" only. Waiting for all eight roles to approve this exact closed candle.";
+      else if(openLedger.length>=PAPER_UI_MAX_OPEN_POSITIONS)status.textContent="Blocked: the account has reached "+PAPER_UI_MAX_OPEN_POSITIONS+" simultaneous paper positions.";
+      else if(sameMarket.some(t=>t.side!==requestedSide))status.textContent="Blocked: an opposite-direction position is open in this market.";
+      else if(sameMarket.length>=PAPER_UI_MAX_POSITIONS_PER_SYMBOL)status.textContent="Blocked: the market has reached "+PAPER_UI_MAX_POSITIONS_PER_SYMBOL+" same-direction tickets.";
+      else if(!Number.isFinite(quantity)||quantity<=0)status.textContent="Blocked: the 3% combined open-risk or available 1× notional budget is exhausted.";
       else if(paperOpening)status.textContent="Paper order is being validated and recorded.";
-      else status.textContent="Ready: entry uses the latest live quote; stop comes from the active setup; target is recalculated at 2R. Independent risk review and server-side price verification still apply.";
+      else status.textContent="Ready: this can be an additional same-direction paper ticket. It uses the latest live quote, the active setup's stop, a 2R target, and the remaining portfolio risk budget.";
     }
   }
   function validatePaperRiskInput(options={}) {
@@ -1416,7 +1447,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const latestClosedForApproval=closedOnly(rows,currentInterval).slice(-1)[0];
     const approval=[window.tarotaiAgentCommitteeApproval,window.tarotaiContinuousTeamApproval].filter(Boolean).find(a=>a.symbol===d.symbol&&a.interval===d.interval&&Number(a.candleTime)===Number(d.candleTime)&&a.action===d.action&&["continuous-local-team","ai-eight-agent-review"].includes(a.source));
     if(!approval||!latestClosedForApproval||Number(latestClosedForApproval.time)!==Number(approval.candleTime)){paperStatus("Paper entry blocked: wait for the continuous eight-role team to approve this exact closed candle.",true);return;}
-    const balance=Number(byId("livePaperBalance").value),riskPct=validatedRiskPct,maxExposurePct=5;
+    const balance=Number(byId("livePaperBalance").value),riskPct=validatedRiskPct,maxExposurePct=PAPER_UI_MAX_POSITION_EXPOSURE_PCT;
     if(!Number.isFinite(balance)||balance<100||balance>10000000||!Number.isFinite(riskPct)||riskPct<0.1||riskPct>1){paperStatus("Balance must be 100–10,000,000 USDT and risk 0.1%–1%.",true);return;}
     const live=rows[rows.length-1],closed=closedOnly(rows,currentInterval).slice(-1)[0];
     if(!live||!closed||now-live.time>msFor(currentInterval)*2){paperStatus("Candles are stale. Refresh analysis before paper trading.",true);return;}
@@ -1434,12 +1465,15 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const drift=Math.abs(entry-Number(d.entry))/Number(d.entry);
     if(!Number.isFinite(drift)||drift>0.01){paperStatus("Price moved more than 1% from the signal reference. Do not chase it; refresh analysis.",true);return;}
     const distance=Math.abs(entry-stop),riskBudget=balance*riskPct/100,notionalCap=balance*maxExposurePct/100;
-    const existingOpen=paperOpened(window.tarotaiPaperLedger),existingOpenNotional=existingOpen.reduce((sum,t)=>sum+Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice)*Number(t.quantity),0);
-    if(existingOpen.some(t=>t.symbol===d.symbol&&(t.venue||"binance")===marketVenue)){paperStatus("Paper entry blocked: a position for this symbol is already open.",true);return;}
-    if(!Number.isFinite(existingOpenNotional)||existingOpenNotional<0){paperStatus("Paper entry blocked: existing ledger exposure is malformed; review the ledger before opening another position.",true);return;}
-    const portfolioNotionalCap=balance*.20,remainingPortfolioNotional=Math.max(0,portfolioNotionalCap-existingOpenNotional);
-    const quantity=Math.min(riskBudget/distance,notionalCap/entry,remainingPortfolioNotional/entry);
-    if(!Number.isFinite(quantity)||quantity<=0||quantity*distance>riskBudget+Math.max(1e-8,balance*1e-10)||quantity*entry>notionalCap+Math.max(1e-8,balance*1e-10)||existingOpenNotional+quantity*entry>portfolioNotionalCap+Math.max(1e-8,balance*1e-10)){paperStatus("Position sizing failed the stop-risk, 5% position cap, or remaining 20% portfolio-exposure limit.",true);return;}
+    const existingOpen=paperOpened(window.tarotaiPaperLedger),existingOpenNotional=existingOpen.reduce((sum,t)=>sum+Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice)*Number(t.quantity),0),existingOpenRisk=paperOpenRisk(existingOpen),requestedSide=long?"BUY":"SELL";
+    if(existingOpen.length>=PAPER_UI_MAX_OPEN_POSITIONS){paperStatus("Maximum of "+PAPER_UI_MAX_OPEN_POSITIONS+" simultaneous paper positions reached. Close a position before opening another.",true);return;}
+    const sameMarketOpen=existingOpen.filter(t=>t.symbol===d.symbol&&(t.venue||"binance")===marketVenue);
+    if(sameMarketOpen.some(t=>t.side!==requestedSide)){paperStatus("This market already has an opposite-direction paper position. Close it before reversing.",true);return;}
+    if(sameMarketOpen.length>=PAPER_UI_MAX_POSITIONS_PER_SYMBOL){paperStatus("Maximum of "+PAPER_UI_MAX_POSITIONS_PER_SYMBOL+" same-direction positions per market reached.",true);return;}
+    if(!Number.isFinite(existingOpenNotional)||existingOpenNotional<0||!Number.isFinite(existingOpenRisk)||existingOpenRisk<0){paperStatus("Paper entry blocked: existing ledger exposure or planned stop-risk is malformed; review the ledger.",true);return;}
+    const portfolioNotionalCap=balance*PAPER_UI_MAX_PORTFOLIO_EXPOSURE_PCT/100,remainingPortfolioNotional=Math.max(0,portfolioNotionalCap-existingOpenNotional),remainingPortfolioRisk=Math.max(0,balance*PAPER_UI_MAX_OPEN_RISK_PCT/100-existingOpenRisk),permittedRisk=Math.min(riskBudget,remainingPortfolioRisk);
+    const quantity=Math.min(permittedRisk/distance,notionalCap/entry,remainingPortfolioNotional/entry);
+    if(!Number.isFinite(quantity)||quantity<=0||quantity*distance>permittedRisk+Math.max(1e-8,balance*1e-10)||quantity*entry>notionalCap+Math.max(1e-8,balance*1e-10)||existingOpenNotional+quantity*entry>portfolioNotionalCap+Math.max(1e-8,balance*1e-10)){paperStatus("Position sizing failed the per-trade stop-risk, 25% position cap, 100% portfolio notional, or 3% combined open-risk limit.",true);return;}
     const target=long?entry+2*distance:entry-2*distance,side=long?"LONG":"SHORT";
     const age=Math.max(0,now-lastMarketUpdateAt);
     paperOpening=true;byId("livePaperOpen").disabled=true;byId("livePaperOpen").textContent="Reviewing risk…";
@@ -1450,7 +1484,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const requestId=window.tarotaiPaperRequestIdFor("signal-open",[d.symbol,d.interval,approval.candleTime,d.action].join("_"));
       const opened=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"OPEN",requestId:requestId,symbol:d.symbol,venue:marketVenue,side:long?"BUY":"SELL",quantity,price:entry,stopPrice:stop,targetPrice:target,feeBps:Number(byId("feeBps")?.value??5),slippageBps:Number(byId("slippageBps")?.value??2),marketTime:quoteTimestamp,paperBalance:balance,riskPct,maxExposurePct,spreadBps,decisionSource:approval.source,signalCandleTime:Number(approval.candleTime),decisionAction:d.action,agentTeamModel:approval.model||"local-rules-v1",agentVotes:Array.isArray(approval.agentVotes)?approval.agentVotes.slice(0,8):Array.isArray(window.tarotaiContinuousAgentReports)?window.tarotaiContinuousAgentReports.slice(0,8).map(r=>({role:r.role,bias:r.bias,veto:r.veto,model:r.model,fallback:r.fallback})):[],orderFlow:window.tarotaiOrderFlowSummary&&window.tarotaiOrderFlowSummary.symbol===d.symbol&&window.tarotaiOrderFlowSummary.venue===marketVenue?window.tarotaiOrderFlowSummary:null})});
       const trade=opened.trade||{};
-      paperStatus("Opened "+d.symbol+" "+side+" in the persistent paper ledger · verified fill "+paperFmt(trade.fillPrice??entry)+" · spread "+spreadBps.toFixed(2)+" bps · notional "+paperFmt(trade.fillNotional??quantity*entry)+" USDT · planned stop-risk ≤ "+paperFmt(trade.plannedRisk??quantity*distance)+" USDT. 5% position / 20% portfolio caps apply. No exchange order was sent.");
+      paperStatus("Opened "+d.symbol+" "+side+" in the persistent paper ledger · verified fill "+paperFmt(trade.fillPrice??entry)+" · spread "+spreadBps.toFixed(2)+" bps · notional "+paperFmt(trade.fillNotional??quantity*entry)+" USDT · planned stop-risk ≤ "+paperFmt(trade.plannedRisk??quantity*distance)+" USDT. 25% position / 100% portfolio notional caps apply at 1×; aggregate planned stop-risk is capped at 3%. No exchange order was sent.");
       if(autoPaperEnabled)byId("livePaperAutoStatus").textContent="AUTO PAPER: ON · opened a simulated "+side+" on "+d.symbol+" after closed-candle approval, verified quote/spread and server-side risk checks. No real order.";
       log("Opened persistent paper position "+d.symbol+" "+side+". PAPER ONLY; no exchange order sent.");
       await paperRefresh(true);
@@ -1468,8 +1502,11 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       if(!await ensurePrivateSession()){paperStatus("Observation test blocked: unlock your private TarotAI session first.",true);return;}
       await paperRefresh(false);
       if(!paperStoreReady)throw new Error("Private persistent paper ledger is unavailable");
-      const ledger=Array.isArray(window.tarotaiPaperLedger)?window.tarotaiPaperLedger:[];
-      if(paperOpened(ledger).some(t=>t.symbol===currentSymbol))throw new Error("A paper position for "+currentSymbol+" is already open; this test won't create a duplicate");
+      const ledger=Array.isArray(window.tarotaiPaperLedger)?window.tarotaiPaperLedger:[],activePositions=paperOpened(ledger),requestedSide=byId("observationDirection").value;
+      if(activePositions.length>=PAPER_UI_MAX_OPEN_POSITIONS)throw new Error("Maximum of "+PAPER_UI_MAX_OPEN_POSITIONS+" simultaneous paper positions reached");
+      const initialSameMarket=activePositions.filter(t=>t.symbol===currentSymbol&&(t.venue||"binance")===marketVenue);
+      if(initialSameMarket.some(t=>t.side!==requestedSide))throw new Error("This market already has an opposite-direction position. Close it before reversing.");
+      if(initialSameMarket.length>=PAPER_UI_MAX_POSITIONS_PER_SYMBOL)throw new Error("Maximum of "+PAPER_UI_MAX_POSITIONS_PER_SYMBOL+" same-direction positions per market reached");
       const closed=closedOnly(rows,currentInterval);
       if(closed.length<80)throw new Error("Need at least 80 verified closed candles for an ATR-based reference stop");
       const latest=closed[closed.length-1],closedAt=Number(latest.closeTime)||Number(latest.time)+msFor(currentInterval)-1;
@@ -1482,18 +1519,18 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const atrValues=atr(closed,14),atrValue=atrValues[atrValues.length-1],distance=Math.max(Number.isFinite(atrValue)&&atrValue>0?atrValue*1.5:0,entryReference*0.0015);
       if(!Number.isFinite(distance)||distance<=0)throw new Error("Could not calculate a valid ATR-based reference stop");
       const stopPrice=long?entryReference-distance:entryReference+distance,targetPrice=long?entryReference+2*distance:entryReference-2*distance;
-      const balance=Number(byId("livePaperBalance").value),riskPct=validatedRiskPct,maxExposurePct=5,riskBudget=balance*riskPct/100,notionalCap=balance*maxExposurePct/100;
+      const balance=Number(byId("livePaperBalance").value),riskPct=validatedRiskPct,maxExposurePct=PAPER_UI_MAX_POSITION_EXPOSURE_PCT,riskBudget=balance*riskPct/100,notionalCap=balance*maxExposurePct/100;
       if(!Number.isFinite(balance)||balance<100||balance>10000000||!Number.isFinite(riskPct)||riskPct<0.1||riskPct>1)throw new Error("Balance or risk settings are outside the allowed paper-only range");
       if(stopPrice<=0||targetPrice<=0)throw new Error("Calculated stop/target levels are invalid for this market");
-      const existingOpen=paperOpened(Array.isArray(window.tarotaiPaperLedger)?window.tarotaiPaperLedger:[]),existingOpenNotional=existingOpen.reduce((sum,t)=>sum+Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice)*Number(t.quantity),0),portfolioNotionalCap=balance*.20,remainingPortfolioNotional=Math.max(0,portfolioNotionalCap-existingOpenNotional);
-      if(!Number.isFinite(existingOpenNotional)||existingOpenNotional<0)throw new Error("Existing paper ledger exposure is malformed; inspect the ledger first");
-      const quantity=Math.min(riskBudget/distance,notionalCap/entryReference,remainingPortfolioNotional/entryReference)*0.995;
-      if(!Number.isFinite(quantity)||quantity<=0||quantity*entryReference>notionalCap+Math.max(1e-8,balance*1e-10)||quantity*distance>riskBudget+Math.max(1e-8,balance*1e-10)||existingOpenNotional+quantity*entryReference>portfolioNotionalCap+Math.max(1e-8,balance*1e-10))throw new Error("Observation position failed the stop-risk, 5% per-position, or 20% portfolio cap");
+      const existingOpen=paperOpened(Array.isArray(window.tarotaiPaperLedger)?window.tarotaiPaperLedger:[]),existingOpenNotional=existingOpen.reduce((sum,t)=>sum+Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice)*Number(t.quantity),0),existingOpenRisk=paperOpenRisk(existingOpen),portfolioNotionalCap=balance*PAPER_UI_MAX_PORTFOLIO_EXPOSURE_PCT/100,remainingPortfolioNotional=Math.max(0,portfolioNotionalCap-existingOpenNotional),remainingPortfolioRisk=Math.max(0,balance*PAPER_UI_MAX_OPEN_RISK_PCT/100-existingOpenRisk),permittedRisk=Math.min(riskBudget,remainingPortfolioRisk);
+      if(!Number.isFinite(existingOpenNotional)||existingOpenNotional<0||!Number.isFinite(existingOpenRisk)||existingOpenRisk<0)throw new Error("Existing paper ledger exposure or planned stop-risk is malformed; inspect the ledger first");
+      const quantity=Math.min(permittedRisk/distance,notionalCap/entryReference,remainingPortfolioNotional/entryReference)*0.995;
+      if(!Number.isFinite(quantity)||quantity<=0||quantity*entryReference>notionalCap+Math.max(1e-8,balance*1e-10)||quantity*distance>permittedRisk+Math.max(1e-8,balance*1e-10)||existingOpenNotional+quantity*entryReference>portfolioNotionalCap+Math.max(1e-8,balance*1e-10))throw new Error("Observation position failed the per-trade risk, 25% per-position, 100% portfolio, or 3% combined-risk limit");
       const observedDecision=window.tarotaiLiveDecision,agentAction=observedDecision&&observedDecision.symbol===symbol&&observedDecision.interval===currentInterval?observedDecision.action:"HOLD / WAIT";
       button.textContent="Saving paper test…";
       const result=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"same-origin",body:JSON.stringify({action:"OPEN",requestId:window.tarotaiPaperRequestIdFor("observation-open",[symbol,currentInterval,latest.time,direction].join("_")),symbol,venue,side:direction,quantity,price:entry,stopPrice,targetPrice,feeBps:Number(byId("feeBps")?.value??5),slippageBps:Number(byId("slippageBps")?.value??2),marketTime:timestamp,paperBalance:balance,riskPct,maxExposurePct,spreadBps,decisionSource:"target-only-observation",experimentMode:"target-only-observation",agentTeamModel:"target-only-observation-v1",agentVotes:Array.isArray(window.tarotaiContinuousAgentReports)?window.tarotaiContinuousAgentReports.slice(0,8).map(r=>({role:r.role,bias:r.bias,veto:r.veto,model:r.model,fallback:r.fallback})):[],observationAgentAction:agentAction,observationCandleTime:Number(latest.time),observationCycle:continuousCycle,orderFlow:window.tarotaiOrderFlowSummary&&window.tarotaiOrderFlowSummary.symbol===symbol&&window.tarotaiOrderFlowSummary.venue===venue?window.tarotaiOrderFlowSummary:null})});
       const trade=result.trade||{};
-      paperStatus("Target-only observation "+symbol+" "+(long?"LONG":"SHORT")+" opened in the persistent paper ledger at "+paperFmt(Number(trade.fillPrice??entry))+" USDT. It is NOT an agent-generated signal; the current agent decision and eight-role snapshot were saved for comparison. It won't auto-close at the reference stop and waits for an unambiguous profit target. Maximum notional: 5% per position / 20% total portfolio. No exchange order was sent.");
+      paperStatus("Target-only observation "+symbol+" "+(long?"LONG":"SHORT")+" opened in the persistent paper ledger at "+paperFmt(Number(trade.fillPrice??entry))+" USDT. It is NOT an agent-generated signal; the current agent decision and eight-role snapshot were saved for comparison. It won't auto-close at the reference stop and waits for an unambiguous profit target. Maximum notional: 25% per position / 100% total portfolio at 1×; aggregate planned stop-risk is capped at 3%. No exchange order was sent.");
       log("Opened target-only observation paper test "+symbol+" "+(long?"LONG":"SHORT")+"; current agent decision "+agentAction+". Excluded from strategy win-rate statistics.");
       await paperRefresh(true);
     }catch(e){paperStatus("Observation test not opened: "+(e instanceof Error?e.message:String(e))+". Existing positions and live trading were not changed.",true);}
@@ -1541,11 +1578,20 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       status.style.color="var(--muted)";
     }
   }
+  const paperBalanceInput=byId("livePaperBalance");
+  if(paperBalanceInput){
+    try{const saved=localStorage.getItem("tarotaiPaperBalance"),n=Number(saved);if(saved!==null&&Number.isFinite(n)&&n>=100&&n<=10000000)paperBalanceInput.value=String(n);}catch(_){}
+    const saveBalance=()=>{const raw=String(paperBalanceInput.value||"").trim(),n=Number(raw);if(raw!==""&&Number.isFinite(n)&&n>=100&&n<=10000000){try{localStorage.setItem("tarotaiPaperBalance",String(n));}catch(_){}if(Array.isArray(window.tarotaiPaperLedger))renderPaperAccount(window.tarotaiPaperLedger);}};
+    paperBalanceInput.addEventListener("input",saveBalance);
+    paperBalanceInput.addEventListener("change",saveBalance);
+  }
   const paperRiskInput=byId("livePaperRisk");
   if(paperRiskInput){
+    try{const saved=localStorage.getItem("tarotaiPaperRiskPct"),n=Number(saved);if(saved!==null&&Number.isFinite(n)&&n>=0.1&&n<=1)paperRiskInput.value=String(n);}catch(_){}
     validatePaperRiskInput({repair:true});
-    paperRiskInput.addEventListener("input",()=>validatePaperRiskInput());
-    paperRiskInput.addEventListener("change",()=>validatePaperRiskInput());
+    const saveRisk=()=>{const n=validatePaperRiskInput();if(n!==null){try{localStorage.setItem("tarotaiPaperRiskPct",String(n));}catch(_){}}};
+    paperRiskInput.addEventListener("input",saveRisk);
+    paperRiskInput.addEventListener("change",saveRisk);
   }
   byId("livePaperAutoToggle").addEventListener("click",()=>void setAutoPaperEnabled(!autoPaperEnabled));
   paperRefresh(true).finally(()=>{

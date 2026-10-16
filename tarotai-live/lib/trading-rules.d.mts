@@ -27,10 +27,13 @@ export function validateOrderRequest(input: {
   venue?: string;
 }): string | null;
 
-export const PAPER_MAX_POSITION_EXPOSURE_PCT: 5;
-export const PAPER_MAX_PORTFOLIO_EXPOSURE_PCT: 20;
+export const PAPER_MAX_POSITION_EXPOSURE_PCT: 25;
+export const PAPER_MAX_PORTFOLIO_EXPOSURE_PCT: 100;
+export const PAPER_MAX_OPEN_RISK_PCT: 3;
+export const PAPER_MAX_OPEN_POSITIONS: 10;
+export const PAPER_MAX_POSITIONS_PER_SYMBOL: 5;
 export const PAPER_MAX_DAILY_LOSS_PCT: 3;
-export const PAPER_MAX_ENTRIES_PER_UTC_DAY: 5;
+export const PAPER_MAX_ENTRIES_PER_UTC_DAY: 50;
 export function validatePaperDailyRisk(input: {
   ledger: Array<{
     status?: string;
@@ -57,4 +60,6 @@ export function validatePaperExposure(input: {
   existingExposure?: number;
   maxExposurePct?: number;
   maxTotalExposurePct?: number;
+  existingRisk?: number;
+  maxPortfolioRiskPct?: number;
 }): string | null;

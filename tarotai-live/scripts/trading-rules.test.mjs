@@ -1,13 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {applySlippage,calculateFee,isStale,validateStops,resolveStopTarget,resolveTargetOnlyObservation,validateOrderRequest,calculatePaperQuantity,validatePaperExposure,validatePaperDailyRisk,PAPER_MAX_POSITION_EXPOSURE_PCT,PAPER_MAX_PORTFOLIO_EXPOSURE_PCT,PAPER_MAX_DAILY_LOSS_PCT,PAPER_MAX_ENTRIES_PER_UTC_DAY} from "../lib/trading-rules.mjs";
+import {applySlippage,calculateFee,isStale,validateStops,resolveStopTarget,resolveTargetOnlyObservation,validateOrderRequest,calculatePaperQuantity,validatePaperExposure,validatePaperDailyRisk,PAPER_MAX_POSITION_EXPOSURE_PCT,PAPER_MAX_PORTFOLIO_EXPOSURE_PCT,PAPER_MAX_OPEN_RISK_PCT,PAPER_MAX_OPEN_POSITIONS,PAPER_MAX_POSITIONS_PER_SYMBOL,PAPER_MAX_DAILY_LOSS_PCT,PAPER_MAX_ENTRIES_PER_UTC_DAY} from "../lib/trading-rules.mjs";
 import { evaluateLiveAgentSignal, runLiveAgentStrategyBacktest, runWalkForwardStrategyComparison } from "../lib/live-agent-backtest.mjs";
 import strategyEnsemble from "../public/strategy-ensemble.js";
 import { computeTechnicalScorecard, parseSpecialistReport, auditSpecialistResults } from "../lib/trading-analysis-quality.mjs";
 const { evaluateStrategyEnsemble } = strategyEnsemble;
 test("autonomous paper daily safety limits remain explicit",()=>{
  assert.equal(PAPER_MAX_DAILY_LOSS_PCT,3);
- assert.equal(PAPER_MAX_ENTRIES_PER_UTC_DAY,5);
+ assert.equal(PAPER_MAX_ENTRIES_PER_UTC_DAY,50);
+ assert.equal(PAPER_MAX_OPEN_POSITIONS,10);
+ assert.equal(PAPER_MAX_POSITIONS_PER_SYMBOL,5);
+ assert.equal(PAPER_MAX_OPEN_RISK_PCT,3);
 });
 test("paper daily loss guard blocks entries at the realized-loss limit",()=>{
  const now=Date.UTC(2026,9,15,12),today=new Date(now-60_000).toISOString();
@@ -17,9 +20,9 @@ test("paper daily loss guard blocks entries at the realized-loss limit",()=>{
  ];
  assert.match(validatePaperDailyRisk({ledger,balance:10000,now}),/Daily paper loss limit/);
 });
-test("paper daily entry guard counts five entries even after they are closed",()=>{
+test("paper daily entry guard counts fifty entries even after they are closed",()=>{
  const now=Date.UTC(2026,9,15,12),today=new Date(now-60_000).toISOString();
- const ledger=Array.from({length:5},(_,i)=>({id:"entry-"+i,status:"PAPER_OPEN",createdAt:today}));
+ const ledger=Array.from({length:50},(_,i)=>({id:"entry-"+i,status:"PAPER_OPEN",createdAt:today}));
  assert.match(validatePaperDailyRisk({ledger,balance:10000,now}),/Daily paper entry limit/);
 });
 test("paper daily risk guard does not carry prior-UTC-day losses into today",()=>{
@@ -31,29 +34,33 @@ test("paper daily risk guard does not carry prior-UTC-day losses into today",()=
  assert.equal(validatePaperDailyRisk({ledger,balance:10000,now}),null);
 });
 
-test("paper position sizing caps notional at 5% while respecting stop-risk budget",()=>{
- assert.equal(PAPER_MAX_POSITION_EXPOSURE_PCT,5);
- assert.equal(PAPER_MAX_PORTFOLIO_EXPOSURE_PCT,20);
+test("paper position sizing supports multi-position 25% allocation while respecting stop-risk budget",()=>{
+ assert.equal(PAPER_MAX_POSITION_EXPOSURE_PCT,25);
+ assert.equal(PAPER_MAX_PORTFOLIO_EXPOSURE_PCT,100);
  const quantity=calculatePaperQuantity({balance:1000,riskPct:0.5,entry:100,stop:90});
  assert.equal(quantity,0.5);
- assert.ok(quantity*100<=1000*0.05);
+ assert.ok(quantity*100<=1000*0.25);
  assert.ok(quantity*Math.abs(100-90)<=1000*0.005+1e-8);
 });
 
 test("paper exposure checker rejects excessive per-position notional",()=>{
- assert.match(validatePaperExposure({balance:10000,riskPct:0.5,entry:100,stop:95,quantity:6,existingExposure:0}),/5% per-position exposure cap/);
+ assert.match(validatePaperExposure({balance:10000,riskPct:0.5,entry:100,stop:95,quantity:26,existingExposure:0}),/25% per-position exposure cap/);
 });
 
 test("paper exposure checker rejects stop risk that exceeds configured risk budget",()=>{
  assert.match(validatePaperExposure({balance:10000,riskPct:0.1,entry:100,stop:90,quantity:2,existingExposure:0}),/stop-distance risk exceeds/);
 });
 
-test("paper exposure checker rejects aggregate portfolio notional above 20%",()=>{
- assert.match(validatePaperExposure({balance:10000,riskPct:0.5,entry:100,stop:95,quantity:5,existingExposure:1800}),/20% portfolio cap/);
+test("paper exposure checker rejects aggregate portfolio notional above 100%",()=>{
+ assert.match(validatePaperExposure({balance:10000,riskPct:0.5,entry:100,stop:95,quantity:5,existingExposure:9800}),/100% portfolio cap/);
 });
 
 test("paper exposure checker permits a correctly risk-sized capped position",()=>{
  assert.equal(validatePaperExposure({balance:10000,riskPct:0.5,entry:100,stop:95,quantity:5,existingExposure:1000}),null);
+});
+
+test("paper exposure checker caps combined planned stop-risk across open positions at 3%",()=>{
+ assert.match(validatePaperExposure({balance:10000,riskPct:0.5,entry:100,stop:95,quantity:5,existingExposure:0,existingRisk:280}),/3% combined open-risk cap/);
 });
 
 test("paper position sizing rejects invalid balance, risk or geometry",()=>{
