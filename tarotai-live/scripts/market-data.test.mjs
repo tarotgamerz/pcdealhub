@@ -669,15 +669,19 @@ test("Binance live chart renders automatic support, resistance, trendlines and s
 });
 
 
-test("live quote fallback uses the selected venue and blocks stale prices", () => {
+test("live quote fallback supports Binance, Bybit and OKX while blocking stale prices", () => {
   assert.match(liveQuoteRoute, /api\/v5\/market\/ticker/);
+  assert.match(liveQuoteRoute, /api\/v5\/market\/tickers/);
+  assert.match(liveQuoteRoute, /venue === "bybit"/);
   assert.match(liveQuoteRoute, /new Set\(\["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT"\]\)/);
-  assert.match(liveQuoteRoute, /ageMs > 3000/);
+  assert.match(liveQuoteRoute, /ageMs <= 3500/);
   assert.match(liveQuoteRoute, /"Cache-Control": "no-store"/);
   assert.match(futuresDesk, /function hasFreshLiveQuote\(now=Date\.now\(\)\)/);
   assert.match(futuresDesk, /function refreshQuoteFallback\(\)/);
   assert.match(futuresDesk, /quoteFallbackTimer=setInterval/);
   assert.match(futuresDesk, /lastQuoteSource===marketVenue\+"-rest-ticker"/);
+  assert.match(futuresDesk, /if\(marketVenue==="bybit"\)\{/);
+  assert.match(futuresDesk, /quoteFallbackBusy[^;]*!\["binance","okx","bybit"\]/);
   assert.match(futuresDesk, /LIVE PRICE STALE/);
   assert.match(futuresDesk, /if\(!hasFreshLiveQuote\(\)\)/);
   assert.doesNotMatch(futuresDesk, /reloadAll\(true\)/);
@@ -720,4 +724,15 @@ test("strategy signal calculations remain based on closed candles while displayi
   assert.match(futuresDesk, /view\.push\(\{\.\.\.activeCandle,index:candles\.length,fast:visualFast/);
   assert.match(futuresDesk, /const last=candles\.length-1,prev=candles\[last-1\]/);
   assert.match(futuresDesk, /closedOnly\(rows,currentInterval\)/);
+});
+
+test("live forecast projection is drawn on both charts with a measured six-bar ATR envelope", () => {
+  assert.match(futuresDesk, /src="\/trading-forecast\.js"/);
+  assert.match(futuresDesk, /function drawForecastProjection\(candles,htf\)/);
+  assert.match(futuresDesk, /forecastPathSeries\.setData\(projection\.path\)/);
+  assert.match(futuresDesk, /mirrorForecastPathSeries\.setData\(projection\.path\)/);
+  assert.match(futuresDesk, /projected ATR envelope/);
+  assert.match(futuresDesk, /invalidation:/);
+  assert.match(futuresDesk, /window\.tarotaiForecastSnapshot=projection/);
+  assert.match(readFileSync(new URL("../public/trading-forecast.js", import.meta.url), "utf8"), /higherTrend/);
 });
