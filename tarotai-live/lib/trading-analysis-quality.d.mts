@@ -37,7 +37,7 @@ export type TechnicalScorecard = {
   version: string;
   label: string;
   isProbability: false;
-  status: "WAIT" | "READY";
+  status: "WAIT" | "READY_FOR_REVIEW";
   reason: string;
   evidenceLeader?: "LONG" | "SHORT" | "MIXED";
   long: TechnicalScorecardSide;

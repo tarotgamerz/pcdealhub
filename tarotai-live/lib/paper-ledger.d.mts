@@ -19,7 +19,7 @@ export function persistPaperTrade(
   redis: any,
   input: {
     requestId: string;
-    action: "OPEN" | "CLOSE";
+    action: string;
     trade: PaperTradeRecord;
     parentTradeId?: string;
   }
