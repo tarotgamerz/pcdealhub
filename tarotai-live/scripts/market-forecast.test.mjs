@@ -149,3 +149,36 @@ test("Trading Desk visibly draws both conditional forecast paths and reports wal
   assert.match(desk,/rate withheld/);
   assert.match(desk,/forecast\.scenarios\|\|\{\}/);
 });
+
+
+test("live EMA overlays update incrementally on each WebSocket candle instead of recalculating full history", () => {
+  assert.match(desk, /function rebuildEmaSeriesFromRows\(\)/);
+  assert.match(desk, /function updateLatestEmaPoint\(options=\{\}\)/);
+  assert.match(desk, /ema9Cache\.shift\(\);ema21Cache\.shift\(\);ema50Cache\.shift\(\)/);
+  assert.match(desk, /updateLatestEmaPoint\(\{trimmed\}\)/);
+  assert.match(desk, /updateLatestEmaPoint\(\{trimmed,historical:updatedHistorical\}\)/);
+  assert.doesNotMatch(desk, /const cls=rows\.map\(c=>c\.close\),e9Data=lineData\(ema\(cls,9\),rows\)/);
+  assert.match(desk, /catch\(e\)\{reportLiveChartError\(e,"Binance live candle update"\)\}/);
+  assert.match(desk, /catch\(e\)\{reportLiveChartError\(e,"OKX live candle update"\)\}/);
+});
+
+test("chart timestamps normalize millisecond and second epoch inputs", () => {
+  assert.match(desk, /const toSec=t=>\{const n=Number\(t\);return Math\.floor\(n>1e12\?n\/1000:n\);\}/);
+});
+
+test("scenario forecasting fails closed with a visible diagnostic instead of aborting the analysis cycle", () => {
+  assert.match(desk, /try\{[\s\S]{0,250}nextMoveForecast=typeof window\.tarotaiBuildMarketForecast/);
+  assert.match(desk, /Forecast calculation failed: \+reason/);
+  assert.match(desk, /reportLiveChartError\(error,"forecast calculation"\)/);
+  assert.match(desk, /reportLiveChartError\(error,"forecast walk-forward evaluation"\)/);
+  assert.match(desk, /drawForecastOverlay\(\{ready:false,reason:"Indicator history is incomplete; waiting for valid closed candles\."\}\)/);
+  assert.match(desk, /window\.tarotaiMarketForecast=null;window\.tarotaiForecastWalkForward=null/);
+});
+
+test("chart runtime failures are surfaced in the market status and forecast evidence panel", () => {
+  assert.match(desk, /function reportLiveChartError\(error,source\)/);
+  assert.match(desk, /LIVE CHART UPDATE ERROR/);
+  assert.match(desk, /Chart diagnostic · \+source\+:/);
+  assert.match(desk, /Forecast annotations may be stale; refresh to retry/);
+  assert.match(desk, /lastChartUpdateErrorAt<5000/);
+});
