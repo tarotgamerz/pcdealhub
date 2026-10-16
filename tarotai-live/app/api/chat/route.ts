@@ -1358,7 +1358,8 @@ export async function POST(request: Request) {
                 ? { type: "function", function: { name: "search_web" } }
                 : runtimeTools.length ? "auto" : "none",
             parallel_tool_calls: false,
-            max_tokens: 4096
+            temperature: requestedMode === "trading-room" || requestedMode === "trading" ? 0.1 : undefined,
+            max_tokens: requestedMode === "trading-room" ? 850 : requestedMode === "trading" ? 1400 : 4096
           }),
           cache: "no-store",
           signal: controller.signal

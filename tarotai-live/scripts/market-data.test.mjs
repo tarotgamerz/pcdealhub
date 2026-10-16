@@ -457,7 +457,7 @@ test("retired free models fall back to OpenRouter free router and supervisor aud
   assert.ok(parallelAgentsRoute.includes('configuredModel==="qwen/qwen3-next-80b-a3b-instruct:free"?"openrouter/free":configuredModel'));
   assert.ok(parallelAgentsRoute.includes("const unavailable=Number(response.status)===404"));
   assert.ok(parallelAgentsRoute.includes('role:"supervisor"'));
-  assert.ok(parallelAgentsRoute.includes("priorReports"));
+  assert.ok(parallelAgentsRoute.includes("auditSpecialistResults(results"));
   assert.ok(parallelAgentsRoute.includes("const paperTradeContext="));
   assert.ok(parallelAgentsRoute.includes("openrouter/free"));
 });
@@ -471,10 +471,13 @@ test("parallel specialist API performs distinct authenticated AI calls with inde
   assert.match(parallelAgentsRoute,/findSimilarCases\(market\.candles,interval/);
   assert.match(parallelAgentsRoute,/historicalAnalogueStudy/);
   assert.match(parallelAgentsRoute,/roles\.length!==8/);
-  assert.match(parallelAgentsRoute,/vetoDeclared:!!v/);
+  assert.match(parallelAgentsRoute,/parseSpecialistReport\(text\)/);
   assert.match(parallelAgentsRoute,/if\(!parsed\.vetoDeclared\)throw new Error\("Specialist report omitted required VETO field\."/);
   assert.match(parallelAgentsRoute,/if\(!parsed\.biasDeclared\)throw new Error\("Specialist report omitted required BIAS field\."/);
-  assert.ok(parallelAgentsRoute.includes('if(!monitorBias.vetoDeclared)throw new Error("Supervisor report omitted required VETO field.");'));
+  assert.match(parallelAgentsRoute,/auditSpecialistResults\(results/);
+  assert.match(parallelAgentsRoute,/model:"rules-supervisor-v1"/);
+  assert.match(parallelAgentsRoute,/technicalScorecard/);
+  assert.match(parallelAgentsRoute,/max_tokens:500/);
   assert.match(parallelAgentsRoute,/Market Structure Analyst/);
   assert.match(parallelAgentsRoute,/Entry Setup Specialist/);
   assert.match(parallelAgentsRoute,/Stop-Loss & Take-Profit Planner/);
@@ -491,7 +494,7 @@ test("parallel specialist API performs distinct authenticated AI calls with inde
    assert.match(parallelAgentsRoute,/qwen\/qwen3-next-80b-a3b-instruct:free/);
    assert.match(parallelAgentsRoute,/modelCandidates/);
    assert.match(parallelAgentsRoute,/openrouter\/free/);
-   assert.match(parallelAgentsRoute,/max_tokens:1200/);
+   assert.match(parallelAgentsRoute,/max_tokens:500/);
   assert.match(parallelAgentsRoute,/orderPlacement:false/);
   assert.doesNotMatch(parallelAgentsRoute,/fapi\.binance\.com\/fapi\/v1\/order/);
 });
@@ -930,4 +933,16 @@ test("trading chart displays persistent paper position size and estimates mark P
   assert.match(desk, /Estimated after entry \+ exit fees; exit slippage excluded/);
   assert.match(desk, /localStorage\.getItem\("tarotaiAutoPaperTrading"\)/);
   assert.match(desk, /void setAutoPaperEnabled\(true,false\)/);
+});
+
+
+test("specialist completeness, evidence scorecard and deterministic audit are wired into the live trading desk",()=>{
+ const quality=readFileSync(new URL("../lib/trading-analysis-quality.mjs",import.meta.url),"utf8");
+ assert.match(quality,/Setup evidence score \(not win probability\)/);
+ assert.match(quality,/export function computeTechnicalScorecard/);
+ assert.match(quality,/export function auditSpecialistResults/);
+ assert.match(parallelAgentsRoute,/if\(!parsed\.complete\)throw new Error\("Specialist report omitted required fields:/);
+ assert.match(futuresDesk,/Setup evidence \(not probability\)/);
+ assert.match(futuresDesk,/technicalScorecard\.long\.score/);
+ assert.match(quality,/Material directional conflict/);
 });

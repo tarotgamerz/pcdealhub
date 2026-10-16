@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isAuthorized } from "@/lib/auth";
 import { findSimilarCases } from "@/lib/market-patterns.mjs";
+import { auditSpecialistResults, computeTechnicalScorecard, parseSpecialistReport } from "@/lib/trading-analysis-quality.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,13 +16,13 @@ const HIGHER: Record<string, Interval> = {"1m":"15m","3m":"15m","5m":"1h","15m":
 const BYBIT_INTERVAL: Record<Interval,string> = {"1m":"1","3m":"3","5m":"5","15m":"15","30m":"30","1h":"60","2h":"120","4h":"240","1d":"D"};
 const OKX_INTERVAL: Record<Interval,string> = {"1m":"1m","3m":"3m","5m":"5m","15m":"15m","30m":"30m","1h":"1H","2h":"2H","4h":"4H","1d":"1D"};
 const SPECIALISTS: Record<string,{name:string;focus:string;instruction:string}> = {
- market:{name:"Market Structure Analyst",focus:"market structure, trend, support/resistance, momentum and multi-timeframe context",instruction:"Analyze trend/range, swing highs/lows, key levels, EMA/RSI/ATR and higher-timeframe alignment. State market regime and BIAS LONG/SHORT/WAIT. Derive levels only from supplied candles."},
- entry:{name:"Entry Setup Specialist",focus:"repeatable entry triggers and no-chase rules",instruction:"Define an exact entry trigger from closed candles and a maximum acceptable entry/drift rule. If the trigger has not closed and confirmed, BIAS WAIT. Never chase after a level is missed."},
- exits:{name:"Stop-Loss & Take-Profit Planner",focus:"invalidation, stop placement, targets and risk/reward geometry",instruction:"Propose entry reference, stop and target only when justified by supplied candle levels and ATR. Prefer reward/risk >=2R. If levels cannot be justified, VETO YES and WAIT. Never invent prices."},
- sizing:{name:"Position Sizing & Risk Manager",focus:"fixed cash risk, quantity sizing and account constraints",instruction:"Calculate quantity only if paper equity and risk percentage are supplied. Default risk cap 1%, hard maximum 2%; never invent balance or leverage. If equity, risk percentage, stop distance or required contract inputs are missing, state SIZE UNAVAILABLE, BIAS WAIT and VETO YES. VETO if risk exceeds 2%."},
- discipline:{name:"Execution Discipline Agent",focus:"trigger confirmation, order choice, slippage and anti-chasing rules",instruction:"Create a paper-only execution checklist for a qualified setup. Live spread, depth and fees are unavailable; mark them unavailable. Never send orders. VETO chasing or unconfirmed triggers."},
- position:{name:"Live Position Manager",focus:"open paper-position monitoring, stop protection and exit discipline",instruction:"Manage only an open paper position included in context. Check side, entry, stop and target against closed candles; recommend HOLD, cautious stop adjustment only after meaningful favorable movement, or EXIT if invalidated. This agent runs only when requested, not continuously in the background. If no position is supplied, state NO OPEN PAPER POSITION and BIAS WAIT."},
- journal:{name:"Trade Journal & Review Analyst",focus:"trade records, outcome review and process adherence",instruction:"Review only supplied completed paper-trade records. Identify evidence-based process patterns; never infer emotion or statistical significance from tiny samples. If no records are supplied, state JOURNAL DATA UNAVAILABLE and recommend recording entry, stop, target, setup, outcome, costs and adherence. This is not a directional vote: BIAS WAIT."},
+ market:{name:"Market Structure Analyst",focus:"market structure, trend, support/resistance, momentum and multi-timeframe context",instruction:"Describe market regime using supplied closed-candle evidence. Check the deterministic setup-evidence scorecard and higher-timeframe alignment; distinguish directional bias from a confirmed entry. Never call checklist points a probability or invent levels."},
+ entry:{name:"Entry Setup Specialist",focus:"repeatable entry triggers and no-chase rules",instruction:"Define one falsifiable trigger using the last CLOSED candle and cite its UTC timestamp and level. Require higher-timeframe alignment and no-chase drift; if breakout is not closed or candle differs from chart snapshot, BIAS WAIT."},
+ exits:{name:"Stop-Loss & Take-Profit Planner",focus:"invalidation, stop placement, targets and risk/reward geometry",instruction:"Propose price levels only from supplied candles and ATR. Geometry must be LONG stop < entry < target or SHORT target < entry < stop, with at least 2R reward/risk. VETO invalid geometry or unjustified levels; never invent prices."},
+ sizing:{name:"Position Sizing & Risk Manager",focus:"fixed cash risk, quantity sizing and account constraints",instruction:"Calculate quantity only from supplied paper equity, risk%, entry and stop: cash risk = equity × riskPct / 100; units = cash risk / absolute stop distance, capped at 5% per-position and 20% total notional. Target 1% risk; never exceed 2%. Missing/invalid inputs mean SIZE UNAVAILABLE, BIAS WAIT and VETO YES."},
+ discipline:{name:"Execution Discipline Agent",focus:"trigger confirmation, order choice, slippage and anti-chasing rules",instruction:"Check symbol, venue, timeframe and closed-candle timestamp match the chart. Require a fresh quote within 1% of reference, no chasing, and note when live spread/depth are unavailable. VETO mismatches, stale data and unconfirmed triggers. No orders."},
+ position:{name:"Live Position Manager",focus:"open paper-position monitoring, stop protection and exit discipline",instruction:"Manage only a supplied open paper position. Validate side-specific stop/target geometry, candle timestamp and supplied price against stops/targets. Recommend HOLD or risk-reducing EXIT if invalidated; never claim continuous monitoring. Without a position, say NO OPEN PAPER POSITION and BIAS WAIT."},
+ journal:{name:"Trade Journal & Review Analyst",focus:"trade records, outcome review and process adherence",instruction:"Review supplied completed paper records only. Separate gross/net P&L, check costs and rule adherence, and avoid predictive-edge claims from small samples; require 30+ closed trades before preliminary process-pattern claims. With no records, say JOURNAL DATA UNAVAILABLE. Not a directional vote: BIAS WAIT."},
  supervisor:{name:"Agent Operations Supervisor",focus:"specialist completion states, evidence quality, contradictions and protocol compliance",instruction:"Audit the seven other agent results supplied in your input. Count complete/failed, flag missing fields, unsupported prices, contradictions, invalid risk geometry and fabricated data. VETO YES if any required agent failed or a material safety/data-integrity issue exists; otherwise VETO NO. This is a monitor, not a directional vote: BIAS WAIT. Never claim continuous monitoring between runs."}
 };
 const VENUE_ORDER: Venue[] = ["binance","bybit","okx"];
@@ -161,7 +162,7 @@ function deterministicFallbackReport(role:string,market:any,higherTrend:any,pape
 }
 
 function compactCandles(candles:Candle[],count:number) {return candles.slice(-count).map(c=>({utc:new Date(c.time).toISOString(),o:Number(c.open.toPrecision(7)),h:Number(c.high.toPrecision(7)),l:Number(c.low.toPrecision(7)),c:Number(c.close.toPrecision(7)),v:Number(c.volume.toPrecision(5))}));}
-function parseBias(text:string) {const m=text.match(/^\s*(?:[-*]\s*)?(?:\*\*)?BIAS(?:\*\*)?\s*:\s*(LONG|SHORT|WAIT)\b/im),v=text.match(/^\s*(?:[-*]\s*)?(?:\*\*)?VETO(?:\*\*)?\s*:\s*(YES|NO)\b/im);return {bias:m?.[1]?.toUpperCase()||"WAIT",veto:v?.[1]?.toUpperCase()==="YES",vetoDeclared:!!v,biasDeclared:!!m};}
+function parseBias(text:string) {const p=parseSpecialistReport(text);return {bias:p.bias,veto:p.veto,vetoDeclared:p.vetoDeclared,biasDeclared:p.biasDeclared};}
 function specialistSystem(role:string) {
  const s=SPECIALISTS[role];
  return [
@@ -170,6 +171,7 @@ function specialistSystem(role:string) {
   "Grounding rules:",
   "- You receive a server-fetched, timestamped snapshot of real historical exchange OHLCV candles and similar past chart situations with their subsequently observed outcomes. Use only this evidence. Do not invent live prices, candles, indicators, funding, order-book data, or examples.",
   "- All candles supplied are CLOSED. Examples are nearest historical analogues from earlier candles in the SAME symbol, timeframe and sample. Forward returns are observed outcomes, not guarantees or calibrated probabilities. Small samples are weak evidence.",
+  "- The technical checklist contains evidence points, not a calibrated probability. Never relabel it as win probability or confidence.",
   "- Recommend WAIT if evidence conflicts, the sample is weak, or a setup is unconfirmed. Never force a trade.",
   "- Paper-trading research only. Never promise profits or invent prices, account size, leverage, or indicators.",
   "- Do not reveal private reasoning. Output the concise final report only, at most 90 words total.",
@@ -202,6 +204,7 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
  send({type:"phase",phase:"market",message:"Fetching fresh closed candles and checking the higher timeframe."});
  let market:any;try{market=await fetchVerifiedMarket(symbol,interval,preferred);}catch(e){return jsonError(e instanceof Error?e.message:"Verified market data unavailable.",502,{readOnly:true,orderPlacement:false});}
  const patternStudy=findSimilarCases(market.candles,interval,{horizon:6,maxExamples:8,maxDistance:0.34}),higherTrend=trendSummary(market.higherCandles),last=market.candles[market.candles.length-1];
+ const technicalScorecard=computeTechnicalScorecard({candles:market.candles,interval,higherTrend:higherTrend.direction,historicalStudy:patternStudy,lastClosedCandleAgeMs:market.lastClosedCandleAgeMs});
  send({type:"phase",phase:"agents",symbol,interval,message:"Market snapshot verified. Dispatching selected independent specialists concurrently.",roles:roles.map((role:string)=>({role,name:SPECIALISTS[role].name,focus:SPECIALISTS[role].focus}))});
  const suppliedLedger=Array.isArray(body.paperLedger)?body.paperLedger.slice(-20):[];
  const paperLedger=suppliedLedger.map((t:any)=>({id:String(t?.id||"").slice(0,100),status:String(t?.status||"").slice(0,40),symbol:String(t?.symbol||"").slice(0,20),side:String(t?.side||"").slice(0,10),quantity:Number.isFinite(Number(t?.quantity))?Number(t.quantity):null,fillPrice:Number.isFinite(Number(t?.fillPrice))?Number(t.fillPrice):null,stopPrice:Number.isFinite(Number(t?.stopPrice))?Number(t.stopPrice):null,targetPrice:Number.isFinite(Number(t?.targetPrice))?Number(t.targetPrice):null,pnlNet:Number.isFinite(Number(t?.pnlNet))?Number(t.pnlNet):null,createdAt:String(t?.createdAt||"").slice(0,40),closedAt:String(t?.closedAt||"").slice(0,40),parentTradeId:String(t?.parentTradeId||"").slice(0,100)}));
@@ -213,6 +216,7 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
   fetchedAt:market.fetchedAt,lastClosedCandleAgeSeconds:Math.max(0,Math.round(market.lastClosedCandleAgeMs/1000)),
   lastClosedCandle:{time:new Date(last.time).toISOString(),open:last.open,high:last.high,low:last.low,close:last.close,volume:last.volume},
   higherTimeframeSummary:higherTrend,
+  technicalScorecard,
   historicalAnalogueStudy:{
    method:"Nearest feature matches among earlier closed candles from this symbol/timeframe; features are EMA spread, price-vs-EMA50, RSI, prior-range location, relative ATR, candle body/ATR and relative volume.",
    horizon:"six candles after each historical pattern",sampleCount:patternStudy.sampleCount,sideBias:patternStudy.sideBias,
@@ -233,7 +237,7 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
     const candidateModel=modelCandidates[attempt];
     response=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",cache:"no-store",signal:AbortSignal.timeout(14000),
      headers:{"Authorization":"Bearer "+process.env.OPENROUTER_API_KEY,"Content-Type":"application/json","HTTP-Referer":"https://tarotai-core.vercel.app","X-Title":"TarotAI Live Specialist Team"},
-     body:JSON.stringify({model:candidateModel,messages:[{role:"system",content:specialistSystem(role)},{role:"user",content:"Independently analyze this verified closed-candle snapshot. Follow the concise 7-line report format exactly; do not repeat the prompt and do not assume other agents agree.\\n\\n"+serialized}],temperature:0.1,max_tokens:1200})});
+     body:JSON.stringify({model:candidateModel,messages:[{role:"system",content:specialistSystem(role)},{role:"user",content:"Independently analyze this verified closed-candle snapshot. Follow the concise 7-line report format exactly; do not repeat the prompt and do not assume other agents agree.\\n\\n"+serialized}],temperature:0.1,max_tokens:500})});
     const raw=await response.text();try{data=JSON.parse(raw);}catch{throw new Error("OpenRouter HTTP "+response.status+" returned a non-JSON response.");}
     if(response.ok&&!data?.error)break;
     const providerError=data?.error||{},message=String(providerError.message||data?.message||"Provider returned an unspecified error").replace(/sk-or-v1-[A-Za-z0-9_-]+/g,"[redacted key]").slice(0,280);
@@ -243,7 +247,7 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
     throw new Error("OpenRouter HTTP "+response.status+(code?" · "+code:"")+(kind?" · "+kind:"")+": "+message);
    }
    const report=data?.choices?.[0]?.message?.content;if(typeof report!=="string"||!report.trim()){const reason=data?.choices?.[0]?.finish_reason;const usage=data?.usage||{};const reasoningTokens=usage?.completion_tokens_details?.reasoning_tokens;const completionTokens=usage?.completion_tokens;const routedModel=typeof data?.model==="string"?data.model:model;throw new Error("OpenRouter returned no visible report"+(reason?" (finish_reason: "+String(reason)+")":"")+(Number.isFinite(Number(completionTokens))?"; completion tokens: "+Number(completionTokens):"")+(Number.isFinite(Number(reasoningTokens))?"; reasoning tokens: "+Number(reasoningTokens):"")+"; routed model: "+routedModel+". Output budget was increased; check provider availability or free-tier rate limits if this persists.");}
-   const parsed=parseBias(report);if(!parsed.biasDeclared)throw new Error("Specialist report omitted required BIAS field.");if(!parsed.vetoDeclared)throw new Error("Specialist report omitted required VETO field.");const {vetoDeclared,biasDeclared,...parsedVote}=parsed;const result={role,name:SPECIALISTS[role].name,ok:true,...parsedVote,veto:parsedVote.veto,text:report.trim().slice(0,6000),elapsedMs:Date.now()-agentStarted,model:typeof data?.model==="string"?data.model:model};
+   const parsed=parseSpecialistReport(report);if(!parsed.biasDeclared)throw new Error("Specialist report omitted required BIAS field.");if(!parsed.vetoDeclared)throw new Error("Specialist report omitted required VETO field.");if(!parsed.complete)throw new Error("Specialist report omitted required fields: "+parsed.missing.join(", ")+".");const result={role,name:SPECIALISTS[role].name,ok:true,bias:parsed.bias,veto:parsed.veto,reportFields:parsed.fields,text:report.trim().slice(0,6000),elapsedMs:Date.now()-agentStarted,model:typeof data?.model==="string"?data.model:model};
    send({type:"agent",role,status:"complete",result});
    return result;
   }catch(e){
@@ -254,35 +258,17 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
   }
  }));
 
- const monitorStarted=Date.now();
+ const supervisorStarted=Date.now();
  send({type:"agent",role:"supervisor",status:"running",name:SPECIALISTS.supervisor.name,focus:SPECIALISTS.supervisor.focus});
- try {
-  const priorReports=results.map(r=>({role:r.role,name:r.name,status:r.ok?"complete":"failed",bias:r.bias,veto:r.veto,model:r.model,fallback:Boolean(r.fallback),providerStatus:r.providerStatus||"ok",elapsedMs:r.elapsedMs,report:String(r.text||"").slice(0,1400)}));
-  const monitorPrompt="Audit these seven specialist results against their role responsibilities. Do not treat the supervisor as a directional voter. Flag failures, missing required facts, unsupported certainty, contradictory direction, unverified prices, missing stop/target, missing position-size inputs, missed-entry chasing, and false claims about journal/open-position context. Missing journal history or no open position is a valid N/A, not itself a veto. Return the standard seven-line report. Set VETO: YES if any specialist failed, used local fallback because the AI provider failed, or any material safety/evidence issue exists; otherwise VETO: NO.\n\n"+JSON.stringify({symbol,interval,market:{venue:market.venue,host:market.host,lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),higherTrend:higherTrend.direction},agents:priorReports});
-  let monitorData:any,monitorResponse:any,monitorModel="openrouter/free";
-  monitorResponse=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",cache:"no-store",signal:AbortSignal.timeout(12000),headers:{"Authorization":"Bearer "+process.env.OPENROUTER_API_KEY,"Content-Type":"application/json","HTTP-Referer":"https://tarotai-core.vercel.app","X-Title":"TarotAI Agent Operations Supervisor"},body:JSON.stringify({model:monitorModel,messages:[{role:"system",content:specialistSystem("supervisor")},{role:"user",content:monitorPrompt}],temperature:0.1,max_tokens:1000})});
-  const monitorRaw=await monitorResponse.text();try{monitorData=JSON.parse(monitorRaw);}catch{throw new Error("Supervisor returned non-JSON provider output (HTTP "+monitorResponse.status+").");}
-  if(!monitorResponse.ok||monitorData?.error)throw new Error("Supervisor provider HTTP "+monitorResponse.status+": "+String(monitorData?.error?.message||"unknown provider error").slice(0,220));
-  const monitorText=monitorData?.choices?.[0]?.message?.content;
-  if(typeof monitorText!=="string"||!monitorText.trim())throw new Error("Supervisor returned no report.");
-  const monitorBias=parseBias(monitorText);
-  if(!monitorBias.vetoDeclared)throw new Error("Supervisor report omitted required VETO field.");
-  if(!monitorBias.biasDeclared)throw new Error("Supervisor report omitted required BIAS field.");
-  const providerDegraded=results.some(r=>r.fallback||!r.ok);
-  const supervisorResult={role:"supervisor",name:SPECIALISTS.supervisor.name,ok:true,bias:"WAIT",veto:providerDegraded||results.some(r=>!r.ok)||monitorBias.veto,text:monitorText.trim().slice(0,6000)+(providerDegraded?"\n\nVETO ENFORCED: one or more specialists used local fallback because the AI provider failed.":""),elapsedMs:Date.now()-monitorStarted,model:typeof monitorData?.model==="string"?monitorData.model:monitorModel};
-  results.push(supervisorResult);send({type:"agent",role:"supervisor",status:"complete",result:supervisorResult});
- } catch(e) {
-  const providerError=e instanceof Error?e.message:"provider error";
-  const fallback=deterministicFallbackReport("supervisor",market,higherTrend,paperTradeContext,body,providerError,results);
-  const supervisorResult={role:"supervisor",name:SPECIALISTS.supervisor.name,ok:true,bias:"WAIT",veto:true,text:fallback.text,elapsedMs:Date.now()-monitorStarted,model:"local-deterministic-fallback-v1",fallback:true,providerStatus:"degraded",providerError:fallback.providerError};
-  results.push(supervisorResult);send({type:"agent",role:"supervisor",status:"complete",result:supervisorResult});
- }
+ const supervisorAudit=auditSpecialistResults(results,{symbol,interval,lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString()},userContext.historicalAnalogueStudy);
+ const supervisorResult={role:"supervisor",name:SPECIALISTS.supervisor.name,ok:true,bias:"WAIT",veto:supervisorAudit.veto,text:supervisorAudit.text,elapsedMs:Date.now()-supervisorStarted,model:supervisorAudit.model,auditIssues:supervisorAudit.issues};
+ results.push(supervisorResult);send({type:"agent",role:"supervisor",status:"complete",result:supervisorResult});
  const ok=results.filter(r=>r.ok).length; const failed=results.filter(r=>!r.ok).length; const specialistOk=results.filter(r=>r.role!=="supervisor"&&r.ok).length; const fallbackCount=results.filter(r=>r.fallback).length;
  if(results.length!==8||failed!==0||specialistOk!==7)return jsonError("The team did not return all eight usable role reports.",502,{results,model,elapsedMs:Date.now()-started,completedAgents:ok,requestedAgents:8});
  return NextResponse.json({ok:true,mode:fallbackCount?"hybrid-ai-with-deterministic-fallback":"parallel-llm-specialists",model,elapsedMs:Date.now()-started,
   market:{venue:market.venue,host:market.host,symbol,interval,higherInterval:market.higherInterval,fetchedAt:market.fetchedAt,
    lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),lastClosedCandleAgeSeconds:Math.max(0,Math.round(market.lastClosedCandleAgeMs/1000)),higherTimeframeTrend:higherTrend.direction},
-  historicalAnalogueStudy:userContext.historicalAnalogueStudy,results,completedAgents:ok,requestedAgents:8,fallbackAgents:fallbackCount,aiProviderStatus:fallbackCount?"degraded":"ok",
+  historicalAnalogueStudy:userContext.historicalAnalogueStudy,technicalScorecard,results,completedAgents:ok,requestedAgents:8,fallbackAgents:fallbackCount,aiProviderStatus:fallbackCount?"degraded":"ok",supervisorMode:"deterministic-rule-audit",
   safety:{readOnly:true,orderPlacement:false,paperTradingOnly:true}
  },{headers:{"Cache-Control":"no-store"}});
 }

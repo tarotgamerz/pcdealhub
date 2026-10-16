@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {applySlippage,calculateFee,isStale,validateStops,resolveStopTarget,resolveTargetOnlyObservation,validateOrderRequest,calculatePaperQuantity,validatePaperExposure,validatePaperDailyRisk,PAPER_MAX_POSITION_EXPOSURE_PCT,PAPER_MAX_PORTFOLIO_EXPOSURE_PCT,PAPER_MAX_DAILY_LOSS_PCT,PAPER_MAX_ENTRIES_PER_UTC_DAY} from "../lib/trading-rules.mjs";
 import { evaluateLiveAgentSignal, runLiveAgentStrategyBacktest, runWalkForwardStrategyComparison } from "../lib/live-agent-backtest.mjs";
 import strategyEnsemble from "../public/strategy-ensemble.js";
+import { computeTechnicalScorecard, parseSpecialistReport, auditSpecialistResults } from "../lib/trading-analysis-quality.mjs";
 const { evaluateStrategyEnsemble } = strategyEnsemble;
 test("autonomous paper daily safety limits remain explicit",()=>{
  assert.equal(PAPER_MAX_DAILY_LOSS_PCT,3);
@@ -393,3 +394,33 @@ test("ensemble walk-forward uses the same fees, slippage, sizing and no-order bo
  assert.equal(result.ensemble.walkForward.initialBalancePerFold,5000);
 });
 
+
+
+function syntheticQualityCandles(count=240,intervalMs=900000){
+ const first=Date.UTC(2025,0,1),candles=[];
+ for(let i=0;i<count;i++){const close=100+i*0.12+0.6*Math.sin(i*0.17),open=i===0?close-0.05:candles[i-1].close;candles.push({time:first+i*intervalMs,open,high:Math.max(open,close)+0.2,low:Math.min(open,close)-0.2,close,volume:1000+100*Math.sin(i*0.13),closeTime:first+(i+1)*intervalMs-1});}
+ return candles;
+}
+test("technical setup scorecard is deterministic, freshness-aware and never a probability",()=>{
+ const candles=syntheticQualityCandles(),history={ready:true,sampleCount:8,sideBias:"LONG",positiveSharePct:75,negativeSharePct:12.5,averageReturnPct:0.3};
+ const fresh=computeTechnicalScorecard({candles,interval:"15m",higherTrend:"BULLISH",historicalStudy:history,lastClosedCandleAgeMs:1000});
+ assert.equal(fresh.available,true);assert.equal(fresh.isProbability,false);assert.equal(fresh.label,"Setup evidence score (not win probability)");
+ assert.ok(fresh.long.score>fresh.short.score);assert.ok(fresh.long.score<=100&&fresh.short.score<=100);assert.equal(fresh.diagnostics.higherTimeframeTrend,"BULLISH");
+ const stale=computeTechnicalScorecard({candles,interval:"15m",higherTrend:"BULLISH",historicalStudy:history,lastClosedCandleAgeMs:9000000});
+ assert.equal(stale.status,"WAIT");assert.ok(stale.long.score<fresh.long.score);
+ assert.equal(computeTechnicalScorecard({candles:candles.slice(-40),interval:"15m",higherTrend:"BULLISH"}).available,false);
+});
+test("specialist reports must contain evidence, history, trigger, invalidation and counterargument",()=>{
+ const report=["BIAS: LONG","VETO: NO","EVIDENCE: closed candle above 20-bar level","HISTORICAL: 8 matched examples, observed returns positive","TRIGGER: entry only after close confirmation","INVALIDATION: close back below breakout","COUNTERARGUMENT: breakout can fail in a range"].join("\n");
+ const p=parseSpecialistReport(report);assert.equal(p.complete,true);assert.equal(p.bias,"LONG");assert.equal(p.veto,false);
+ assert.equal(parseSpecialistReport("BIAS: LONG\nVETO: NO").complete,false);
+});
+test("deterministic supervisor vetoes missing, fallback, vetoed and materially conflicting reports",()=>{
+ const roles=["market","entry","exits","sizing","discipline","position","journal"];
+ const make=(role,bias="WAIT",extra={})=>({role,ok:true,bias,veto:false,model:"test-model",text:["BIAS: "+bias,"VETO: NO","EVIDENCE: supplied closed-candle evidence","HISTORICAL: 8 matched cases or unavailable","TRIGGER: wait for close","INVALIDATION: thesis fails on opposite close","COUNTERARGUMENT: regime may change"].join("\n"),...extra});
+ const clean=roles.map(role=>make(role)),healthy=auditSpecialistResults(clean,{lastClosedCandleTime:"2026-10-16T10:00:00.000Z"},{sampleCount:8,sideBias:"NEUTRAL"});
+ assert.equal(healthy.veto,false);assert.match(healthy.text,/VETO: NO/);assert.equal(healthy.model,"rules-supervisor-v1");
+ const fallback=clean.map(x=>({...x}));fallback[0]={...fallback[0],fallback:true,model:"local-deterministic-fallback-v1"};assert.equal(auditSpecialistResults(fallback,{},{}).veto,true);
+ const conflict=roles.map(role=>make(role,["market","entry"].includes(role)?"LONG":["exits","sizing"].includes(role)?"SHORT":"WAIT"));assert.equal(auditSpecialistResults(conflict,{},{}).veto,true);
+ const incomplete=clean.map(x=>({...x}));incomplete[0]={...incomplete[0],text:"BIAS: LONG\nVETO: NO"};assert.equal(auditSpecialistResults(incomplete,{},{}).veto,true);
+});
