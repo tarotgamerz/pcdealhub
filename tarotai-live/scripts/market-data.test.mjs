@@ -948,10 +948,19 @@ test("specialist completeness, evidence scorecard and deterministic audit are wi
  assert.match(futuresDesk,/Setup evidence \(not probability\)/);
  assert.match(futuresDesk,/scorecard\.long\.score/);
  assert.match(quality,/Material directional conflict/);
+ assert.match(futuresDesk, /id="orderflowCanvas"/);
+ assert.match(futuresDesk, /@depth20@100ms/);
+ assert.match(futuresDesk, /@aggTrade/);
+ assert.match(futuresDesk, /m\?\.m===true\?"SELL":"BUY"/);
+ assert.match(futuresDesk, /window\.tarotaiOrderFlowSummary=/);
+ assert.match(futuresDesk, /SHADOW MODE/);
+ assert.match(futuresDesk, /does not yet change trade approvals/);
+ assert.match(futuresDesk, /depthFresh&&tradeFresh/);
+ assert.match(futuresDesk, /same selected symbol as the price chart/i);
+ assert.match(futuresDesk, /orderFlow:window\.tarotaiOrderFlowSummary/);
+ assert.match(paperRoute, /const orderFlowAtEntry=action==="OPEN"&&flowMatches/);
+ assert.match(paperRoute, /orderFlowAtEntry:parentTrade\?\.orderFlowAtEntry\|\|orderFlowAtEntry/);
 });
-
-
-test("live order-flow pane uses Binance USD-M depth and executed aggressor trades in shadow mode", () => {
   assert.match(futuresDesk, /id="orderflowCanvas"/);
   assert.match(futuresDesk, /@depth20@100ms/);
   assert.match(futuresDesk, /@aggTrade/);
