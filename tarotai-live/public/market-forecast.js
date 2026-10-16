@@ -209,8 +209,10 @@
       method: "past-only rolling walk-forward; higher-timeframe bars time-filtered at every origin",
       horizonBars, forecastOrigins: 0, directionalCalls: 0, sampleSize: 0, correct: 0,
       directionalHitRatePct: null, averageSignedReturnPct: null, meanAbsoluteEndpointErrorPct: null,
+      minimumMoveAtr: 0.15, minimumMoveFloorPct: 0.02,
+      hitDefinition: "A directional hit requires an actual close-to-close move in the forecast direction of at least max(0.02%, 0.15 ATR at the forecast origin). Smaller moves count as misses.",
       meetsMinimumSample: false, status: "BUILDING SAMPLE",
-      notice: "Historical directional hit rate is not calibrated probability or net profit; this test excludes fees, spread, slippage and live order-flow snapshots."
+      notice: "A directional hit requires at least max(0.02%, 0.15 ATR at the forecast origin) in the forecast direction; smaller moves count as misses. This is not calibrated probability or net profit and excludes fees, spread, slippage and live order-flow snapshots."
     };
     if (bars.length < 100) { result.notice = "Need at least 100 valid chronological main-timeframe candles; no historical performance claim is made."; return result; }
     const resolved = [];
@@ -226,10 +228,12 @@
       const future = bars[i + horizonBars];
       const actualReturnPct = (future.close / origin.close - 1) * 100;
       const signedReturnPct = forecast.direction === "BULLISH" ? actualReturnPct : -actualReturnPct;
-      if (!Number.isFinite(signedReturnPct)) continue;
+      if (!Number.isFinite(signedReturnPct) || !Number.isFinite(forecast.atr) || forecast.atr <= 0 || origin.close <= 0) continue;
+      // Do not inflate the score by counting an insignificant tick in the predicted direction as a useful hit.
+      const minimumMovePct = Math.max(result.minimumMoveFloorPct, forecast.atr / origin.close * 100 * result.minimumMoveAtr);
       const predictedEnd = Number(forecast.projectedEndpoint), endpointErrorPct = Number.isFinite(predictedEnd)
         ? Math.abs(future.close - predictedEnd) / origin.close * 100 : null;
-      resolved.push({ correct: signedReturnPct > 0, signedReturnPct, endpointErrorPct });
+      resolved.push({ correct: signedReturnPct >= minimumMovePct, signedReturnPct, endpointErrorPct, minimumMovePct });
     }
     result.directionalCalls = resolved.length; result.sampleSize = resolved.length;
     result.correct = resolved.filter(x => x.correct).length;
