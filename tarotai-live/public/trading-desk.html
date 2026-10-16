@@ -109,6 +109,21 @@
 .live-agent-footnote{font-size:11px;color:var(--muted);line-height:1.55;margin:10px 0 0}
 .live-agent-monitor{border:1px solid #30445b;border-radius:11px;padding:12px;margin:10px 0;background:#080e16}.live-agent-monitor-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.live-agent-monitor-head strong{font-size:14px}.live-agent-livecount{font-size:12px;font-weight:850;padding:5px 9px;border-radius:99px;background:#1c2a3b;color:#d2e3f6}.live-agent-livecount.active{background:#0c2b1e;color:var(--green)}.live-agent-progress{height:5px;background:#1c2938;border-radius:99px;overflow:hidden;margin:10px 0}.live-agent-progress span{display:block;width:0;height:100%;background:#65e6ad;transition:width .2s}.live-agent-activity{display:grid;gap:7px;margin-top:8px}.live-agent-activity-row{display:grid;grid-template-columns:9px minmax(0,1fr) auto;align-items:start;gap:8px;font-size:11px;line-height:1.45;color:#b8c5d5}.live-agent-activity-dot{width:8px;height:8px;border-radius:50%;margin-top:4px;background:#65768a}.live-agent-activity-row.running .live-agent-activity-dot{background:#65e6ad;box-shadow:0 0 0 3px #163426}.live-agent-activity-row.done .live-agent-activity-dot{background:#65e6ad}.live-agent-activity-row.error .live-agent-activity-dot{background:#ff7b83}.live-agent-activity-state{font-size:10px;font-weight:800;color:var(--muted)}
 @media(max-width:700px){.live-agent-grid,.live-agent-results{grid-template-columns:1fr}.live-agent-slot-hint{min-height:0}}
+
+/* Live order-flow shadow pane: real Binance Futures depth and aggressor trades. */
+.orderflow-panel{margin:12px 0 14px;padding:13px;border:1px solid #2b4056;border-radius:13px;background:linear-gradient(155deg,#0e1925,#090e15)}
+.orderflow-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.orderflow-title{font-size:14px;font-weight:850}.orderflow-sub{font-size:11px;line-height:1.5;color:var(--muted);margin-top:3px;max-width:760px}
+.orderflow-status{border:1px solid #65512d;background:#211a0d;color:var(--amber);border-radius:99px;padding:5px 9px;font-size:10px;font-weight:850}
+.orderflow-status.good{border-color:#295c49;background:#0b211a;color:var(--green)}.orderflow-status.bad{border-color:#64323a;background:#211014;color:var(--red)}
+.orderflow-metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin:9px 0}
+.orderflow-metric{min-width:0;padding:9px;background:#080e16;border:1px solid #202d3c;border-radius:9px}
+.orderflow-metric label{display:block;color:var(--muted);font-size:10px;line-height:1.35}.orderflow-metric strong{display:block;margin-top:4px;font-size:13px;line-height:1.3;overflow-wrap:anywhere}
+.orderflow-canvas-wrap{width:100%;height:285px;position:relative;overflow:hidden;border:1px solid #243345;border-radius:9px;background:#080d14}#orderflowCanvas{display:block;width:100%;height:100%}
+.orderflow-legend{display:flex;gap:13px;flex-wrap:wrap;margin-top:8px;color:var(--muted);font-size:10px}.orderflow-legend span{display:inline-flex;align-items:center;gap:5px}.of-key{display:inline-block;width:11px;height:7px;border-radius:2px}.of-bubble{display:inline-block;width:9px;height:9px;border-radius:50%}
+.orderflow-note{font-size:10px;color:#aebdce;line-height:1.55;margin-top:9px;padding-left:9px;border-left:2px solid #65512d}
+@media(max-width:700px){.orderflow-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.orderflow-canvas-wrap{height:250px}.orderflow-title{font-size:13px}}
+
 </style>
 </head>
 <body><main class="app">
@@ -194,6 +209,28 @@
   </div>
   <div class="live-chart-shell"><div id="liveMarketChart" role="img" aria-label="Interactive live candlestick chart with EMA indicators and current buy, sell, wait, entry, stop loss and take profit annotations"></div><div class="live-chart-overlay"><strong id="liveOverlayDecision">HOLD / WAIT</strong><span id="liveOverlayMeta">Awaiting verified closed candles…</span></div></div>
   <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:9px;font-size:11px;color:var(--muted)"><span><i class="swatch" style="background:#65e6ad"></i> Bull candle</span><span><i class="swatch" style="background:#ff7b83"></i> Bear candle</span><span><i class="swatch" style="background:#7eafff"></i> EMA 9</span><span><i class="swatch" style="background:#f2c46f"></i> EMA 21</span><span><i class="swatch" style="background:#b48cff"></i> EMA 50</span><span><i class="swatch" style="background:#48c8a6"></i> Auto support</span><span><i class="swatch" style="background:#f1a968"></i> Auto resistance</span><span><i class="swatch" style="background:#54c8ff"></i> Rising trendline</span><span><i class="swatch" style="background:#cf8bff"></i> Falling trendline</span><span><i class="swatch" style="background:#ff7b83"></i> Stop</span><span><i class="swatch" style="background:#65e6ad"></i> Target (2R)</span></div>
+
+  <section class="orderflow-panel" id="orderflowPanel" aria-label="Live order-flow heatmap">
+    <div class="orderflow-head"><div><div class="orderflow-title">Live Order Flow · Liquidity Heatmap & Trade Bubbles</div>
+      <div class="orderflow-sub">Real Binance USDⓈ-M Futures top-20 depth snapshots and executed aggregate trades over a rolling 60-second window. Same selected symbol as the price chart.</div>
+    </div><span class="orderflow-status" id="orderflowStatus">CONNECTING…</span></div>
+    <div class="orderflow-metrics">
+      <div class="orderflow-metric"><label>Aggressive buys · 60s</label><strong id="ofBuyNotional">Waiting…</strong></div>
+      <div class="orderflow-metric"><label>Aggressive sells · 60s</label><strong id="ofSellNotional">Waiting…</strong></div>
+      <div class="orderflow-metric"><label>Trade delta · buy − sell</label><strong id="ofDelta">—</strong></div>
+      <div class="orderflow-metric"><label>Top-20 book imbalance</label><strong id="ofImbalance">—</strong></div>
+      <div class="orderflow-metric"><label>Order-flow read · SHADOW</label><strong id="ofBias">WAITING FOR DATA</strong></div>
+    </div>
+    <div class="orderflow-canvas-wrap"><canvas id="orderflowCanvas" role="img" aria-label="Rolling order-book liquidity heatmap with executed buy and sell trade bubbles"></canvas></div>
+    <div class="orderflow-legend">
+      <span><i class="of-key" style="background:rgba(41,185,133,.85)"></i>Resting bid liquidity</span>
+      <span><i class="of-key" style="background:rgba(255,87,107,.85)"></i>Resting ask liquidity</span>
+      <span><i class="of-bubble" style="background:#55e6a5"></i>Aggressive buy trade</span>
+      <span><i class="of-bubble" style="background:#ff6f7e"></i>Aggressive sell trade</span>
+    </div>
+    <div class="orderflow-note" id="ofNote">Shadow mode only: signals are recorded for comparison and do not change BUY / SELL approvals until out-of-sample paper results validate incremental value. Resting orders can be cancelled.</div>
+  </section>
+
   <div class="live-levels"><div class="live-level"><label>Stop loss / invalidation</label><strong id="liveStop">—</strong></div><div class="live-level"><label>Take profit reference</label><strong id="liveTarget">—</strong></div><div class="live-level"><label>Risk : reward</label><strong id="liveRR">—</strong></div></div>
   <section class="live-strategy-confirmation" aria-label="Independent strategy confirmation">
     <div class="live-strategy-confirmation-head"><div><strong>Independent strategy confirmation</strong><div class="sub">Secondary rule check, shown as metrics only—no second chart. Uses the same selected market/timeframe and only completed candles for setup scoring.</div></div><span class="tag">CROSS-CHECK</span></div>
@@ -1104,6 +1141,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     }finally{busy=false;byId("liveRefresh").disabled=false;}
   }
   function connectSocket(){
+    connectOrderFlow();
     if(feedSocket){feedSocket.onclose=null;try{feedSocket.close();}catch(e){}feedSocket=null;}
     if(!currentSymbol||!currentInterval)return;
     if(marketVenue==="yahoo"){
@@ -1378,7 +1416,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const review=await paperRequest("/api/trading/review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({entry,stop,target,side,riskPct,paperBalance:balance,dataAgeMs:age,spreadBps})});
       if(review.combinedVerdict!=="PAPER_ONLY_APPROVAL")throw new Error("Risk review veto: "+[...(review.strategyAgent?.issues||[]),...(review.riskAgent?.issues||[])].join("; "));
       byId("livePaperOpen").textContent="Saving paper trade…";
-      const opened=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"OPEN",symbol:d.symbol,venue:marketVenue,side:long?"BUY":"SELL",quantity,price:entry,stopPrice:stop,targetPrice:target,feeBps:Number(byId("feeBps")?.value??5),slippageBps:Number(byId("slippageBps")?.value??2),marketTime:quoteTimestamp,paperBalance:balance,riskPct,maxExposurePct,spreadBps,decisionSource:approval.source,signalCandleTime:Number(approval.candleTime),decisionAction:d.action,agentTeamModel:approval.model||"local-rules-v1",agentVotes:Array.isArray(approval.agentVotes)?approval.agentVotes.slice(0,8):Array.isArray(window.tarotaiContinuousAgentReports)?window.tarotaiContinuousAgentReports.slice(0,8).map(r=>({role:r.role,bias:r.bias,veto:r.veto,model:r.model,fallback:r.fallback})):[]})});
+      const opened=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"OPEN",symbol:d.symbol,venue:marketVenue,side:long?"BUY":"SELL",quantity,price:entry,stopPrice:stop,targetPrice:target,feeBps:Number(byId("feeBps")?.value??5),slippageBps:Number(byId("slippageBps")?.value??2),marketTime:quoteTimestamp,paperBalance:balance,riskPct,maxExposurePct,spreadBps,decisionSource:approval.source,signalCandleTime:Number(approval.candleTime),decisionAction:d.action,agentTeamModel:approval.model||"local-rules-v1",agentVotes:Array.isArray(approval.agentVotes)?approval.agentVotes.slice(0,8):Array.isArray(window.tarotaiContinuousAgentReports)?window.tarotaiContinuousAgentReports.slice(0,8).map(r=>({role:r.role,bias:r.bias,veto:r.veto,model:r.model,fallback:r.fallback})):[],orderFlow:window.tarotaiOrderFlowSummary&&window.tarotaiOrderFlowSummary.symbol===d.symbol&&window.tarotaiOrderFlowSummary.venue===marketVenue?window.tarotaiOrderFlowSummary:null})});
       const trade=opened.trade||{};
       paperStatus("Opened "+d.symbol+" "+side+" in the persistent paper ledger · verified fill "+paperFmt(trade.fillPrice??entry)+" · spread "+spreadBps.toFixed(2)+" bps · notional "+paperFmt(trade.fillNotional??quantity*entry)+" USDT · planned stop-risk ≤ "+paperFmt(trade.plannedRisk??quantity*distance)+" USDT. 5% position / 20% portfolio caps apply. No exchange order was sent.");
       if(autoPaperEnabled)byId("livePaperAutoStatus").textContent="AUTO PAPER: ON · opened a simulated "+side+" on "+d.symbol+" after closed-candle approval, verified quote/spread and server-side risk checks. No real order.";
@@ -1419,7 +1457,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       if(!Number.isFinite(quantity)||quantity<=0||quantity*entryReference>notionalCap+Math.max(1e-8,balance*1e-10)||quantity*distance>riskBudget+Math.max(1e-8,balance*1e-10)||existingOpenNotional+quantity*entryReference>portfolioNotionalCap+Math.max(1e-8,balance*1e-10))throw new Error("Observation position failed the stop-risk, 5% per-position, or 20% portfolio cap");
       const observedDecision=window.tarotaiLiveDecision,agentAction=observedDecision&&observedDecision.symbol===symbol&&observedDecision.interval===currentInterval?observedDecision.action:"HOLD / WAIT";
       button.textContent="Saving paper test…";
-      const result=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"same-origin",body:JSON.stringify({action:"OPEN",symbol,venue,side:direction,quantity,price:entry,stopPrice,targetPrice,feeBps:Number(byId("feeBps")?.value??5),slippageBps:Number(byId("slippageBps")?.value??2),marketTime:timestamp,paperBalance:balance,riskPct,maxExposurePct,spreadBps,decisionSource:"target-only-observation",experimentMode:"target-only-observation",agentTeamModel:"target-only-observation-v1",agentVotes:Array.isArray(window.tarotaiContinuousAgentReports)?window.tarotaiContinuousAgentReports.slice(0,8).map(r=>({role:r.role,bias:r.bias,veto:r.veto,model:r.model,fallback:r.fallback})):[],observationAgentAction:agentAction,observationCandleTime:Number(latest.time),observationCycle:continuousCycle})});
+      const result=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"same-origin",body:JSON.stringify({action:"OPEN",symbol,venue,side:direction,quantity,price:entry,stopPrice,targetPrice,feeBps:Number(byId("feeBps")?.value??5),slippageBps:Number(byId("slippageBps")?.value??2),marketTime:timestamp,paperBalance:balance,riskPct,maxExposurePct,spreadBps,decisionSource:"target-only-observation",experimentMode:"target-only-observation",agentTeamModel:"target-only-observation-v1",agentVotes:Array.isArray(window.tarotaiContinuousAgentReports)?window.tarotaiContinuousAgentReports.slice(0,8).map(r=>({role:r.role,bias:r.bias,veto:r.veto,model:r.model,fallback:r.fallback})):[],observationAgentAction:agentAction,observationCandleTime:Number(latest.time),observationCycle:continuousCycle,orderFlow:window.tarotaiOrderFlowSummary&&window.tarotaiOrderFlowSummary.symbol===symbol&&window.tarotaiOrderFlowSummary.venue===venue?window.tarotaiOrderFlowSummary:null})});
       const trade=result.trade||{};
       paperStatus("Target-only observation "+symbol+" "+(long?"LONG":"SHORT")+" opened in the persistent paper ledger at "+paperFmt(Number(trade.fillPrice??entry))+" USDT. It is NOT an agent-generated signal; the current agent decision and eight-role snapshot were saved for comparison. It won't auto-close at the reference stop and waits for an unambiguous profit target. Maximum notional: 5% per position / 20% total portfolio. No exchange order was sent.");
       log("Opened target-only observation paper test "+symbol+" "+(long?"LONG":"SHORT")+"; current agent decision "+agentAction+". Excluded from strategy win-rate statistics.");
@@ -1472,6 +1510,118 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   });
   setInterval(()=>{if(document.visibilityState==="visible")paperRefresh(true).finally(updateDemoAgentTicket);},10000);
 
+
+  /* Order-flow observer: shadow signal only; no entry authority. */
+  const OF_WINDOW_MS=60000;
+  let orderFlowDepthSocket=null,orderFlowTradeSocket=null,orderFlowReconnectTimer=null,orderFlowSymbol="",orderFlowLastDepthAt=0,orderFlowLastTradeAt=0,orderFlowLastDepthStoreAt=0,orderFlowDrawTimer=null;
+  const orderFlowDepthHistory=[],orderFlowTrades=[],orderFlowTradeIds=new Set();
+  const ofMoney=n=>Number.isFinite(n)?(Math.abs(n)>=1e6?"$"+(Math.abs(n)/1e6).toFixed(2)+"M":Math.abs(n)>=1e3?"$"+(Math.abs(n)/1e3).toFixed(1)+"K":"$"+Math.abs(n).toFixed(0)):"—";
+  function ofStatus(text,mode=""){const el=byId("orderflowStatus");if(el){el.textContent=text;el.className="orderflow-status"+(mode?" "+mode:"");}}
+  function stopOrderFlowSockets(clearData=false){
+    if(orderFlowReconnectTimer){clearTimeout(orderFlowReconnectTimer);orderFlowReconnectTimer=null;}
+    for(const key of ["orderFlowDepthSocket","orderFlowTradeSocket"]){const ws=key==="orderFlowDepthSocket"?orderFlowDepthSocket:orderFlowTradeSocket;if(ws){ws.onopen=ws.onmessage=ws.onerror=ws.onclose=null;try{ws.close();}catch(e){}if(key==="orderFlowDepthSocket")orderFlowDepthSocket=null;else orderFlowTradeSocket=null;}}
+    if(clearData){orderFlowDepthHistory.length=0;orderFlowTrades.length=0;orderFlowTradeIds.clear();orderFlowLastDepthAt=0;orderFlowLastTradeAt=0;orderFlowLastDepthStoreAt=0;window.tarotaiOrderFlowSummary=null;}
+  }
+  function scheduleOrderFlowReconnect(){if(orderFlowReconnectTimer||document.visibilityState!=="visible"||marketVenue!=="binance"||!currentSymbol)return;orderFlowReconnectTimer=setTimeout(()=>{orderFlowReconnectTimer=null;connectOrderFlow();},1500);}
+  function connectOrderFlow(){
+    if(!byId("orderflowCanvas"))return;
+    if(document.visibilityState!=="visible"){stopOrderFlowSockets(false);ofStatus("PAUSED · TAB HIDDEN");return;}
+    if(!currentSymbol){ofStatus("WAITING FOR MARKET");return;}
+    if(marketVenue!=="binance"){
+      stopOrderFlowSockets(true);orderFlowSymbol="";ofStatus("BINANCE FUTURES ONLY","bad");
+      const note=byId("ofNote");if(note)note.textContent="Order-flow feed is supported for Binance USDⓈ-M Futures only. No other exchange is substituted. Select Binance to view depth and trade bubbles; this layer does not control trading decisions.";
+      renderOrderFlow();return;
+    }
+    if(orderFlowSymbol===currentSymbol&&orderFlowDepthSocket&&orderFlowTradeSocket&&orderFlowDepthSocket.readyState<=1&&orderFlowTradeSocket.readyState<=1)return;
+    const changed=orderFlowSymbol!==currentSymbol;stopOrderFlowSockets(changed);orderFlowSymbol=currentSymbol;
+    const note=byId("ofNote");if(note)note.textContent="SHADOW MODE · Visible top-20 depth only; executed trade bubbles use Binance aggressor-side flags. Resting orders can be cancelled or hidden. The readout does not yet control entries; it must demonstrate incremental out-of-sample paper-trading value first.";
+    try{
+      const depthWs=new WebSocket("wss://fstream.binance.com/ws/"+currentSymbol.toLowerCase()+"@depth20@100ms");orderFlowDepthSocket=depthWs;
+      depthWs.onopen=()=>{if(orderFlowDepthSocket===depthWs&&orderFlowSymbol===currentSymbol)ofStatus("BINANCE DEPTH LIVE","good");};
+      depthWs.onmessage=event=>{
+        if(orderFlowDepthSocket!==depthWs||orderFlowSymbol!==currentSymbol||marketVenue!=="binance")return;
+        let m;try{m=JSON.parse(event.data)}catch(e){return;}
+        if(m?.s&&String(m.s).toUpperCase()!==currentSymbol)return;
+        const br=m?.b||m?.bids,ar=m?.a||m?.asks;if(!Array.isArray(br)||!Array.isArray(ar)||!br.length||!ar.length)return;
+        const norm=a=>a.slice(0,20).map(v=>({price:Number(v?.[0]),qty:Number(v?.[1])})).filter(v=>Number.isFinite(v.price)&&Number.isFinite(v.qty)&&v.price>0&&v.qty>0);
+        const bids=norm(br),asks=norm(ar),eventTime=Number(m?.E||m?.T||Date.now()),now=Date.now(),age=now-eventTime;
+        if(!bids.length||!asks.length||bids[0].price>=asks[0].price||!Number.isFinite(eventTime)||age< -1500||age>5000)return;
+        orderFlowLastDepthAt=now;
+        if(now-orderFlowLastDepthStoreAt>=250){
+          orderFlowDepthHistory.push({time:eventTime,receivedAt:now,bids,asks,mid:(bids[0].price+asks[0].price)/2});orderFlowLastDepthStoreAt=now;
+          const cutoff=now-OF_WINDOW_MS;if(orderFlowDepthHistory.length>300)orderFlowDepthHistory.splice(0,orderFlowDepthHistory.length-300);
+          while(orderFlowDepthHistory.length&&orderFlowDepthHistory[0].receivedAt<cutoff)orderFlowDepthHistory.shift();
+        }renderOrderFlow();
+      };
+      depthWs.onerror=()=>{if(orderFlowDepthSocket===depthWs)ofStatus("DEPTH RECONNECTING","bad");};
+      depthWs.onclose=()=>{if(orderFlowDepthSocket===depthWs)orderFlowDepthSocket=null;scheduleOrderFlowReconnect();};
+      const tradeWs=new WebSocket("wss://fstream.binance.com/ws/"+currentSymbol.toLowerCase()+"@aggTrade");orderFlowTradeSocket=tradeWs;
+      tradeWs.onopen=()=>{if(orderFlowTradeSocket===tradeWs&&orderFlowSymbol===currentSymbol)ofStatus("BINANCE ORDER FLOW LIVE","good");};
+      tradeWs.onmessage=event=>{
+        if(orderFlowTradeSocket!==tradeWs||orderFlowSymbol!==currentSymbol||marketVenue!=="binance")return;
+        let m;try{m=JSON.parse(event.data)}catch(e){return;}
+        if(m?.s&&String(m.s).toUpperCase()!==currentSymbol)return;
+        const price=Number(m?.p),qty=Number(m?.q),time=Number(m?.T||m?.E||Date.now()),id=m?.a===undefined?null:String(m.a),now=Date.now(),age=now-time;
+        if(!Number.isFinite(price)||price<=0||!Number.isFinite(qty)||qty<=0||!Number.isFinite(time)||age< -1500||age>5000)return;
+        if(id!==null&&orderFlowTradeIds.has(id))return;
+        if(id!==null)orderFlowTradeIds.add(id);
+        orderFlowTrades.push({time,receivedAt:now,price,qty,notional:price*qty,side:m?.m===true?"SELL":"BUY",id});orderFlowLastTradeAt=now;
+        const cutoff=now-OF_WINDOW_MS;
+        while(orderFlowTrades.length&&orderFlowTrades[0].receivedAt<cutoff){const old=orderFlowTrades.shift();if(old?.id)orderFlowTradeIds.delete(old.id);}
+        if(orderFlowTrades.length>3000){const removed=orderFlowTrades.splice(0,orderFlowTrades.length-3000);for(const old of removed)if(old?.id)orderFlowTradeIds.delete(old.id);}
+        if(orderFlowTradeIds.size>5000){const oldestId=orderFlowTradeIds.values().next().value;if(oldestId!==undefined)orderFlowTradeIds.delete(oldestId);}
+        renderOrderFlow();
+      };
+      tradeWs.onerror=()=>{if(orderFlowTradeSocket===tradeWs)ofStatus("TRADE STREAM RECONNECTING","bad");};
+      tradeWs.onclose=()=>{if(orderFlowTradeSocket===tradeWs)orderFlowTradeSocket=null;scheduleOrderFlowReconnect();};
+      if(orderFlowDrawTimer)clearInterval(orderFlowDrawTimer);orderFlowDrawTimer=setInterval(renderOrderFlow,350);renderOrderFlow();
+    }catch(e){stopOrderFlowSockets(false);ofStatus("ORDER FLOW UNAVAILABLE","bad");scheduleOrderFlowReconnect();}
+  }
+  function renderOrderFlow(){
+    const canvas=byId("orderflowCanvas");if(!canvas)return;
+    const now=Date.now(),cutoff=now-OF_WINDOW_MS;
+    while(orderFlowDepthHistory.length&&orderFlowDepthHistory[0].receivedAt<cutoff)orderFlowDepthHistory.shift();
+    while(orderFlowTrades.length&&orderFlowTrades[0].receivedAt<cutoff){const old=orderFlowTrades.shift();if(old?.id)orderFlowTradeIds.delete(old.id);}
+    const snapshots=orderFlowDepthHistory,trades=orderFlowTrades,buy=trades.filter(t=>t.side==="BUY").reduce((s,t)=>s+t.notional,0),sell=trades.filter(t=>t.side==="SELL").reduce((s,t)=>s+t.notional,0),delta=buy-sell,total=buy+sell,deltaRatio=total?delta/total:0;
+    const latest=snapshots[snapshots.length-1],depthFresh=!!latest&&now-latest.receivedAt<=3000,tradeFresh=now-orderFlowLastTradeAt<=3000&&trades.length>0;
+    const bidDepth=depthFresh&&latest?latest.bids.slice(0,10).reduce((s,l)=>s+l.price*l.qty,0):0,askDepth=depthFresh&&latest?latest.asks.slice(0,10).reduce((s,l)=>s+l.price*l.qty,0):0,bookTotal=bidDepth+askDepth,imbalance=bookTotal?(bidDepth-askDepth)/bookTotal:0;
+    let bias="DATA WAIT",biasColor="#f2c46f";
+    if(depthFresh&&tradeFresh&&total>=25000){
+      if(deltaRatio>=0.15&&imbalance>=0.05){bias="BUYERS LEADING";biasColor="#65e6ad";}
+      else if(deltaRatio<=-0.15&&imbalance<=-0.05){bias="SELLERS LEADING";biasColor="#ff7b83";}
+      else if((deltaRatio>=0.15&&imbalance<=-0.05)||(deltaRatio<=-0.15&&imbalance>=0.05)){bias="FLOW / BOOK CONFLICT";biasColor="#ffbf69";}
+      else{bias="MIXED / NO EDGE";biasColor="#f2c46f";}
+    }else if(depthFresh&&tradeFresh){bias="LOW ACTIVITY";biasColor="#f2c46f";}
+    window.tarotaiOrderFlowSummary={symbol:currentSymbol,venue:marketVenue,windowMs:OF_WINDOW_MS,buyNotional:buy,sellNotional:sell,deltaNotional:delta,deltaRatio,bookBidNotional:bidDepth,bookAskNotional:askDepth,bookImbalance:imbalance,bias,depthFresh,tradeFresh,depthAgeMs:orderFlowLastDepthAt?now-orderFlowLastDepthAt:null,tradeAgeMs:orderFlowLastTradeAt?now-orderFlowLastTradeAt:null,tradeCount:trades.length,snapshotCount:snapshots.length,updatedAt:new Date(now).toISOString(),shadowOnly:true};
+    const set=(id,value,color)=>{const el=byId(id);if(el){el.textContent=value;if(color)el.style.color=color;}};
+    set("ofBuyNotional",ofMoney(buy),buy>=sell?"#65e6ad":null);set("ofSellNotional",ofMoney(sell),sell>=buy?"#ff7b83":null);
+    set("ofDelta",(delta>=0?"+":"−")+ofMoney(Math.abs(delta)),delta>=0?"#65e6ad":"#ff7b83");
+    set("ofImbalance",depthFresh?(imbalance>=0?"+":"−")+Math.abs(imbalance*100).toFixed(1)+"% "+(imbalance>=0?"bids":"asks"):"STALE",depthFresh?(imbalance>=0?"#65e6ad":"#ff7b83"):"#ff7b83");set("ofBias",bias,biasColor);
+    if(marketVenue==="binance"){const ready=depthFresh&&tradeFresh;ofStatus(ready?"LIVE · "+snapshots.length+" DEPTH SNAPSHOTS":"WAITING · "+(!depthFresh?"DEPTH":"TRADES")+" FEED",ready?"good":"bad");const note=byId("ofNote");if(note)note.textContent="SHADOW MODE · "+(depthFresh?"Depth age "+Math.max(0,now-orderFlowLastDepthAt)+" ms":"No fresh depth snapshot")+" · "+(tradeFresh?"Trade age "+Math.max(0,now-orderFlowLastTradeAt)+" ms":"No fresh aggregate trade")+" · "+trades.length+" trades in 60s. Binance's aggressor flag identifies buy/sell market pressure. Only visible top-20 depth is shown; resting orders can be cancelled. This readout does not yet change trade approvals.";}
+    const rect=canvas.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1),W=Math.max(320,rect.width),H=Math.max(180,rect.height);
+    if(canvas.width!==Math.round(W*dpr)||canvas.height!==Math.round(H*dpr)){canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);}
+    const ctx=canvas.getContext("2d");if(!ctx)return;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);ctx.fillStyle="#080d14";ctx.fillRect(0,0,W,H);
+    const pad={l:63,r:12,t:17,b:25},pw=W-pad.l-pad.r,ph=H-pad.t-pad.b,start=cutoff;
+    const levelPrices=snapshots.flatMap(s=>[...s.bids.map(v=>v.price),...s.asks.map(v=>v.price)]),tradePrices=trades.map(t=>t.price),mid=latest?.mid||tradePrices[tradePrices.length-1]||NaN;
+    let min=levelPrices.length?Math.min(...levelPrices):mid*(1-0.001),max=levelPrices.length?Math.max(...levelPrices):mid*(1+0.001);
+    if(tradePrices.length){min=Math.min(min,Math.min(...tradePrices));max=Math.max(max,Math.max(...tradePrices));}
+    if(!Number.isFinite(min)||!Number.isFinite(max)||min<=0||max<=min){min=Number.isFinite(mid)?mid*0.999:1;max=Number.isFinite(mid)?mid*1.001:2;}
+    const padding=Math.max((max-min)*0.08,Number.isFinite(mid)?mid*0.00015:0.01);min=Math.max(0,min-padding);max+=padding;
+    const x=time=>pad.l+Math.max(0,Math.min(1,(time-start)/OF_WINDOW_MS))*pw,y=price=>pad.t+(max-price)/(max-min)*ph;
+    ctx.font="10px system-ui";ctx.textBaseline="middle";
+    for(let i=0;i<=4;i++){const price=max-(max-min)*i/4,yy=y(price);ctx.strokeStyle="#1c2836";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(W-pad.r,yy);ctx.stroke();ctx.fillStyle="#8fa0b3";ctx.textAlign="right";ctx.fillText(price.toLocaleString("en-US",{maximumFractionDigits:price>=1000?1:4}),pad.l-6,yy);}
+    const maxDepthNotional=Math.max(1,...snapshots.flatMap(s=>[...s.bids,...s.asks].map(v=>v.price*v.qty))),heatH=Math.max(2,ph/100);
+    for(let i=0;i<snapshots.length;i++){const snap=snapshots[i],next=snapshots[i+1],x0=x(snap.time),x1=next?x(next.time):Math.min(W-pad.r,x0+Math.max(2,pw*0.25/OF_WINDOW_MS)),cw=Math.max(1.5,x1-x0+0.6);
+      for(const [levels,isBid] of [[snap.bids,true],[snap.asks,false]])for(const level of levels){if(level.price<min||level.price>max)continue;const notional=level.price*level.qty,intensity=Math.sqrt(Math.max(0,notional/maxDepthNotional)),alpha=0.10+0.66*intensity,yy=y(level.price);ctx.fillStyle=isBid?"rgba(41,185,133,"+alpha.toFixed(3)+")":"rgba(255,87,107,"+alpha.toFixed(3)+")";ctx.fillRect(x0,yy-heatH/2,cw,heatH);}
+    }
+    if(Number.isFinite(mid)&&mid>=min&&mid<=max){const yy=y(mid);ctx.strokeStyle="#56c9ff";ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(W-pad.r,yy);ctx.stroke();ctx.setLineDash([]);}
+    const minBubble=Math.max(2500,Number.isFinite(mid)?mid*0.01:2500),bubbles=trades.filter(t=>t.notional>=minBubble).slice(-180),maxBubble=Math.max(minBubble,...bubbles.map(t=>t.notional));
+    for(const t of bubbles){if(t.price<min||t.price>max)continue;const xx=x(t.time),yy=y(t.price),rad=2.4+Math.min(6.2,Math.sqrt(t.notional/maxBubble)*7);ctx.globalAlpha=0.76;ctx.fillStyle=t.side==="BUY"?"#55e6a5":"#ff6f7e";ctx.beginPath();ctx.arc(xx,yy,rad,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;ctx.strokeStyle=t.side==="BUY"?"#b0ffda":"#ffc0c6";ctx.lineWidth=0.7;ctx.stroke();}
+    ctx.font="10px system-ui";ctx.textAlign="center";ctx.textBaseline="top";ctx.fillStyle="#8393a6";for(const sec of [60,45,30,15,0])ctx.fillText(sec===0?"NOW":"-"+sec+"s",pad.l+pw*(60-sec)/60,H-pad.b+5);
+    if(!snapshots.length&&!trades.length){ctx.fillStyle="#a9b8c8";ctx.textAlign="center";ctx.textBaseline="middle";ctx.font="12px system-ui";ctx.fillText(marketVenue==="binance"?"Waiting for Binance depth and aggregate trades…":"Select Binance USDⓈ-M Futures to enable this feed.",W/2,H/2);}else{ctx.textAlign="left";ctx.textBaseline="top";ctx.fillStyle="#8fa0b3";ctx.font="10px system-ui";ctx.fillText("LIVE DEPTH · TOP 20",pad.l+5,pad.t+4);}
+  }
+
+
   byId("liveSymbol").addEventListener("change",()=>{if(autoPaperEnabled&&isReferenceMarket(byId("liveSymbol").value))void setAutoPaperEnabled(false,false);updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;window.tarotaiContinuousTeamApproval=null;window.tarotaiAgentCommitteeApproval=null;void refresh(true).then(()=>{runContinuousAgentCycle();void refreshQuoteFallback();if(paperAutoPreference&&!autoPaperEnabled&&!isReferenceMarket(byId("liveSymbol").value)&&marketVenue!=="yahoo")void setAutoPaperEnabled(true,false);});});
   byId("liveInterval").addEventListener("change",()=>{updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;window.tarotaiContinuousTeamApproval=null;window.tarotaiAgentCommitteeApproval=null;void refresh(true).then(()=>{runContinuousAgentCycle();void refreshQuoteFallback();});});
   window.tarotaiReloadLiveChart=()=>{higherCache=[];higherCacheKey="";higherCacheAt=0;void refresh(true).then(()=>runContinuousAgentCycle());};
@@ -1480,7 +1630,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   refresh(true).then(()=>{if(marketVenue!=="yahoo")connectSocket();runContinuousAgentCycle();void refreshQuoteFallback();});
   pollTimer=setInterval(()=>{if(document.visibilityState==="visible"&&Date.now()-lastMarketUpdateAt>(marketVenue==="yahoo"?15000:5000))void refresh(true);},5000);
   document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){void refresh(true).then(()=>runContinuousAgentCycle());void refreshQuoteFallback();}});
-  window.addEventListener("beforeunload",()=>{if(pollTimer)clearInterval(pollTimer);if(quoteFallbackTimer)clearInterval(quoteFallbackTimer);if(feedSocket)feedSocket.close();if(quoteSocket)quoteSocket.close();if(resizeObserver)resizeObserver.disconnect();});
+  window.addEventListener("beforeunload",()=>{if(pollTimer)clearInterval(pollTimer);if(quoteFallbackTimer)clearInterval(quoteFallbackTimer);if(feedSocket)feedSocket.close();if(quoteSocket)quoteSocket.close();stopOrderFlowSockets(false);if(orderFlowDrawTimer)clearInterval(orderFlowDrawTimer);if(resizeObserver)resizeObserver.disconnect();});
 })();
 
 </script><script src="/live-agent-monitor.js"></script></body></html>

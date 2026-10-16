@@ -52,3 +52,13 @@ All tests must run with live trading disabled and must never send production ord
 - Prevent future higher-timeframe candles from entering a signal; test fold boundaries and signal timestamps.
 - Report fold metrics and low-sample warnings; no result may automatically enable paper-entry authority or live order execution.
 - Treat OHLC-only backtests as incomplete because historical spread, funding, market impact, latency, partial fills and liquidation are not reconstructed.
+
+
+## Live order-flow shadow observer
+- Subscribe only to the selected Binance USDⓈ-M Futures symbol's partial top-20 depth and aggregate-trade streams; never silently change venue.
+- Reject malformed, crossed, stale, or wrong-symbol snapshots and non-finite/non-positive trade values.
+- Correctly interpret Binance buyer-is-maker flag: maker=true means the aggressor was a seller.
+- Show depth-history heatmap and executed-trade bubbles distinctly; never label resting orders as completed transactions.
+- Surface freshness and book/trade imbalance; missing/stale streams must display WAIT/UNAVAILABLE.
+- Attach a sanitized order-flow snapshot to paper-trade ledger records for later outcome analysis.
+- Keep order-flow in shadow mode until out-of-sample paper results demonstrate incremental value; this feature must not directly enable or submit exchange orders.
