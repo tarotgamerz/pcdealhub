@@ -1564,11 +1564,20 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       status.style.color="var(--muted)";
     }
   }
+  const paperBalanceInput=byId("livePaperBalance");
+  if(paperBalanceInput){
+    try{const saved=localStorage.getItem("tarotaiPaperBalance"),n=Number(saved);if(saved!==null&&Number.isFinite(n)&&n>=100&&n<=10000000)paperBalanceInput.value=String(n);}catch(_){}
+    const saveBalance=()=>{const raw=String(paperBalanceInput.value||"").trim(),n=Number(raw);if(raw!==""&&Number.isFinite(n)&&n>=100&&n<=10000000){try{localStorage.setItem("tarotaiPaperBalance",String(n));}catch(_){}if(Array.isArray(window.tarotaiPaperLedger))renderPaperAccount(window.tarotaiPaperLedger);}};
+    paperBalanceInput.addEventListener("input",saveBalance);
+    paperBalanceInput.addEventListener("change",saveBalance);
+  }
   const paperRiskInput=byId("livePaperRisk");
   if(paperRiskInput){
+    try{const saved=localStorage.getItem("tarotaiPaperRiskPct"),n=Number(saved);if(saved!==null&&Number.isFinite(n)&&n>=0.1&&n<=1)paperRiskInput.value=String(n);}catch(_){}
     validatePaperRiskInput({repair:true});
-    paperRiskInput.addEventListener("input",()=>validatePaperRiskInput());
-    paperRiskInput.addEventListener("change",()=>validatePaperRiskInput());
+    const saveRisk=()=>{const n=validatePaperRiskInput();if(n!==null){try{localStorage.setItem("tarotaiPaperRiskPct",String(n));}catch(_){}}};
+    paperRiskInput.addEventListener("input",saveRisk);
+    paperRiskInput.addEventListener("change",saveRisk);
   }
   byId("livePaperAutoToggle").addEventListener("click",()=>void setAutoPaperEnabled(!autoPaperEnabled));
   paperRefresh(true).finally(()=>{
