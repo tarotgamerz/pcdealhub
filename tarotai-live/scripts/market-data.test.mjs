@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { findSimilarCases } from "../lib/market-patterns.mjs";
 import { reviewAgentRoomMessage } from "../lib/trading-agent-room.mjs";
+import { buildAutomaticMarketDiscussionFocus } from "../lib/market-discussion-focus.mjs";
 
 const source = readFileSync(new URL("../app/api/exchanges/market/route.ts", import.meta.url), "utf8");
 const consolePage = readFileSync(new URL("../public/console.html", import.meta.url), "utf8");
@@ -1031,19 +1032,29 @@ test("live eight-agent review streams two peer discussion rounds through the alw
   assert.match(tradingAgentsRoomRoute,/type:"room-message"/);
   assert.match(tradingAgentsRoomRoute,/type:"room-supervisor"/);
   assert.match(tradingAgentsRoomRoute,/roomVeto=roomModeration\.blocked>0/);
-  assert.match(tradingAgentsRoomRoute,/discussionDirective&&!ROOM_TRADING_TOPIC_PATTERN\.test/);
+  assert.match(tradingAgentsRoomRoute,/const discussionEnabled=true/);
+  assert.match(tradingAgentsRoomRoute,/buildAutomaticMarketDiscussionFocus/);
+  assert.match(tradingAgentsRoomRoute,/automaticDiscussionFocus\.topic/);
   assert.match(tradingAgentsRoomRoute,/roomMessagesCanApproveTrades:false/);
 });
 
-test("trading agent discussion is owner-controlled, streamed safely and rendered without HTML injection", () => {
-  assert.match(futuresDesk,/id="enableAgentDiscussion" checked/);
-  assert.match(futuresDesk,/id="agentDiscussionDirective"/);
+test("market-driven agent room starts automatically without a permission toggle or user topic", () => {
+  assert.match(futuresDesk,/Automatic market focus/);
+  assert.doesNotMatch(futuresDesk,/id="enableAgentDiscussion"|id="agentDiscussionDirective"/);
+  assert.match(futuresDesk,/scheduleAutoAgentReview\("new closed candle"\)/);
+  assert.match(futuresDesk,/AUTO_DISCUSSION_MIN_GAP_MS=5\*60\*1000/);
+  assert.match(futuresDesk,/DEFAULT_TRADING_ROLES=Object\.freeze/);
+  assert.match(futuresDesk,/void runLiveAgentTeam\(\{automatic:true\}\)/);
   assert.match(futuresDesk,/id="agentRoomTranscript"/);
   assert.match(futuresDesk,/Accept":"text\/event-stream"/);
   assert.match(futuresDesk,/readLiveAgentRoomEvents\(response,statusEl\)/);
   assert.match(futuresDesk,/body\.textContent=m\.text/);
   assert.match(futuresDesk,/updateAgentRoomMonitor\(event\)/);
   assert.match(futuresDesk,/localStorage\.setItem\(AGENT_ROOM_STORAGE_KEY/);
+  assert.match(tradingAgentsRoomRoute,/buildAutomaticMarketDiscussionFocus/);
+  assert.match(tradingAgentsRoomRoute,/type:"discussion-focus"/);
+  assert.match(tradingAgentsRoomRoute,/const discussionEnabled=true/);
+  assert.doesNotMatch(tradingAgentsRoomRoute,/body\?\.discussionEnabled|body\?\.discussionDirective/);
 });
 
 test("agent-room requests reserve time for two rounds inside the serverless execution budget", () => {
@@ -1051,4 +1062,35 @@ test("agent-room requests reserve time for two rounds inside the serverless exec
   assert.ok(tradingAgentsRoomRoute.includes("signal:AbortSignal.timeout(6000)"));
   assert.ok(!tradingAgentsRoomRoute.includes("signal:AbortSignal.timeout(8500)"));
   assert.ok(futuresDesk.includes("signal:AbortSignal.timeout(58000)"));
+});
+
+
+const discussionFocusCandles = Array.from({ length: 80 }, (_, i) => {
+  const close = 100 + i * 0.25;
+  return { time: 1_800_000_000_000 + i * 300_000, open: close - 0.08, high: close + 0.15, low: close - 0.15, close, volume: 100 + i };
+});
+
+test("automatic discussion focus extracts breakout, momentum, ATR and timeframe conflict from closed candles", () => {
+  const focus = buildAutomaticMarketDiscussionFocus({
+    symbol: "BTCUSDT", interval: "5m", candles: discussionFocusCandles,
+    higherTrend: "BEARISH", historicalStudy: { sideBias: "SHORT", sampleCount: 4 }
+  });
+  assert.match(focus.topic, /BTCUSDT 5m/);
+  assert.match(focus.topic, /breakout confirmation versus failed breakout/);
+  assert.match(focus.directive, /prior-20 H\/L/);
+  assert.match(focus.directive, /ATR14/);
+  assert.match(focus.directive, /timeframe|HTF/i);
+  assert.ok(focus.directive.length <= 500);
+  assert.equal(focus.facts.status, "READY");
+  assert.equal(focus.facts.structure, "UPSIDE_BREAKOUT");
+  assert.equal(focus.facts.historicalSampleCount, 4);
+  assert.equal(focus.facts.timeframeAlignment, "MIXED_OR_UNAVAILABLE");
+  assert.doesNotMatch(focus.directive, /the order book confirms|guaranteed profit/i);
+});
+
+test("automatic discussion focus safely requests WAIT when the verified candle sample is too short", () => {
+  const focus = buildAutomaticMarketDiscussionFocus({ symbol: "ETHUSDT", interval: "1m", candles: discussionFocusCandles.slice(0, 20) });
+  assert.match(focus.topic, /insufficient verified candles/i);
+  assert.match(focus.directive, /recommend WAIT/i);
+  assert.equal(focus.facts.status, "INSUFFICIENT_DATA");
 });

@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { isAuthorized } from "@/lib/auth";
 import { findSimilarCases } from "@/lib/market-patterns.mjs";
 import { auditSpecialistResults, computeTechnicalScorecard, parseSpecialistReport } from "@/lib/trading-analysis-quality.mjs";
-import { reviewAgentRoomMessage, ROOM_TRADING_TOPIC_PATTERN } from "@/lib/trading-agent-room.mjs";
+import { reviewAgentRoomMessage } from "@/lib/trading-agent-room.mjs";
+import { buildAutomaticMarketDiscussionFocus } from "@/lib/market-discussion-focus.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -248,9 +249,7 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
  let body:any;try{body=JSON.parse(rawBody);}catch{return jsonError("Malformed JSON request body.",400);}
  const symbol=String(body?.symbol||"BTCUSDT").toUpperCase(),interval=String(body?.interval||"15m") as Interval,preferred=String(body?.venue||"binance").toLowerCase() as Venue;
  const roles=Array.isArray(body?.roles)?body.roles.map((v:any)=>String(v)):[];
- const discussionEnabled=body?.discussionEnabled!==false;
- const discussionDirective=typeof body?.discussionDirective==="string"?body.discussionDirective.trim().slice(0,500):"";
- if(discussionDirective&&!ROOM_TRADING_TOPIC_PATTERN.test(discussionDirective))return jsonError("The agent-room instruction must stay strictly about trading, market evidence or risk.",400);
+ const discussionEnabled=true;
  if(!/^[A-Z0-9]{4,20}$/.test(symbol))return jsonError("Invalid symbol.",400);
  if(!(ALLOWED_INTERVALS as readonly string[]).includes(interval))return jsonError("Unsupported timeframe.",400);
  if(!VENUE_ORDER.includes(preferred))return jsonError("Unsupported exchange.",400);
@@ -260,6 +259,8 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
  let market:any;try{market=await fetchVerifiedMarket(symbol,interval,preferred);}catch(e){return jsonError(e instanceof Error?e.message:"Verified market data unavailable.",502,{readOnly:true,orderPlacement:false});}
  const patternStudy=findSimilarCases(market.candles,interval,{horizon:6,maxExamples:8,maxDistance:0.34}),higherTrend=trendSummary(market.higherCandles),last=market.candles[market.candles.length-1];
  const technicalScorecard=computeTechnicalScorecard({candles:market.candles,interval,higherTrend:higherTrend.direction,historicalStudy:patternStudy,lastClosedCandleAgeMs:market.lastClosedCandleAgeMs});
+ const automaticDiscussionFocus=buildAutomaticMarketDiscussionFocus({symbol,interval,candles:market.candles,higherTrend:higherTrend.direction,historicalStudy:patternStudy,technicalScorecard});
+ send({type:"discussion-focus",topic:automaticDiscussionFocus.topic,directive:automaticDiscussionFocus.directive,facts:automaticDiscussionFocus.facts});
  send({type:"phase",phase:"agents",symbol,interval,message:"Market snapshot verified. Dispatching selected independent specialists concurrently.",roles:roles.map((role:string)=>({role,name:SPECIALISTS[role].name,focus:SPECIALISTS[role].focus}))});
  const suppliedLedger=Array.isArray(body.paperLedger)?body.paperLedger.slice(-20):[];
  const paperLedger=suppliedLedger.map((t:any)=>({id:String(t?.id||"").slice(0,100),status:String(t?.status||"").slice(0,40),symbol:String(t?.symbol||"").slice(0,20),side:String(t?.side||"").slice(0,10),quantity:Number.isFinite(Number(t?.quantity))?Number(t.quantity):null,fillPrice:Number.isFinite(Number(t?.fillPrice))?Number(t.fillPrice):null,stopPrice:Number.isFinite(Number(t?.stopPrice))?Number(t.stopPrice):null,targetPrice:Number.isFinite(Number(t?.targetPrice))?Number(t.targetPrice):null,pnlNet:Number.isFinite(Number(t?.pnlNet))?Number(t.pnlNet):null,createdAt:String(t?.createdAt||"").slice(0,40),closedAt:String(t?.closedAt||"").slice(0,40),parentTradeId:String(t?.parentTradeId||"").slice(0,100)}));
@@ -332,7 +333,7 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
    const target=ROOM_QUESTION_TARGET[role];
    send({type:"room-agent",round:1,role,status:"speaking",name:SPECIALISTS[role].name,target:SPECIALISTS[target].name});
    try{
-    const text=await requestAgentRoomReply({role,round:1,target,topic:symbol+" "+interval+" trading setup review",directive:discussionDirective,marketContext:{venue:market.venue,symbol,interval,lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),higherTimeframeTrend:higherTrend.direction,lastClosedCandle:userContext.lastClosedCandle,last24ClosedCandles:userContext.last24ClosedCandles,technicalScorecard,historicalAnalogueStudy:userContext.historicalAnalogueStudy,availableFeeds:userContext.availableFeeds},preliminaryReports,transcript:[],modelCandidates});
+    const text=await requestAgentRoomReply({role,round:1,target,topic:automaticDiscussionFocus.topic,directive:automaticDiscussionFocus.directive,marketContext:{venue:market.venue,symbol,interval,lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),higherTimeframeTrend:higherTrend.direction,lastClosedCandle:userContext.lastClosedCandle,last24ClosedCandles:userContext.last24ClosedCandles,technicalScorecard,historicalAnalogueStudy:userContext.historicalAnalogueStudy,availableFeeds:userContext.availableFeeds},preliminaryReports,transcript:[],modelCandidates});
     return moderateAndPublish(role,1,target,text);
    }catch(error){
     const failure=error instanceof Error?error.message:"peer reply failed";
@@ -350,7 +351,7 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
    }
    try{
     const transcript=firstRoundCleared.map((m:any)=>({round:m.round,role:m.name,to:m.target,text:m.text}));
-    const text=await requestAgentRoomReply({role,round:2,target,topic:symbol+" "+interval+" trading setup review",directive:discussionDirective,marketContext:{venue:market.venue,symbol,interval,lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),higherTimeframeTrend:higherTrend.direction,lastClosedCandle:userContext.lastClosedCandle,last24ClosedCandles:userContext.last24ClosedCandles,technicalScorecard,historicalAnalogueStudy:userContext.historicalAnalogueStudy,availableFeeds:userContext.availableFeeds},preliminaryReports,transcript,modelCandidates});
+    const text=await requestAgentRoomReply({role,round:2,target,topic:automaticDiscussionFocus.topic,directive:automaticDiscussionFocus.directive,marketContext:{venue:market.venue,symbol,interval,lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),higherTimeframeTrend:higherTrend.direction,lastClosedCandle:userContext.lastClosedCandle,last24ClosedCandles:userContext.last24ClosedCandles,technicalScorecard,historicalAnalogueStudy:userContext.historicalAnalogueStudy,availableFeeds:userContext.availableFeeds},preliminaryReports,transcript,modelCandidates});
     return moderateAndPublish(role,2,target,text);
    }catch(error){
     send({type:"room-agent",round:2,role,status:"failed",name:SPECIALISTS[role].name,target:SPECIALISTS[target].name});
@@ -373,7 +374,7 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
   market:{venue:market.venue,host:market.host,symbol,interval,higherInterval:market.higherInterval,fetchedAt:market.fetchedAt,
    lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),lastClosedCandleAgeSeconds:Math.max(0,Math.round(market.lastClosedCandleAgeMs/1000)),higherTimeframeTrend:higherTrend.direction},
   historicalAnalogueStudy:userContext.historicalAnalogueStudy,technicalScorecard,results,completedAgents:ok,requestedAgents:8,fallbackAgents:fallbackCount,aiProviderStatus:fallbackCount?"degraded":"ok",supervisorMode:"deterministic-rule-audit-plus-per-message-trading-room-monitor",
-  discussionEnabled,discussion:roomMessages,discussionModeration:{mode:"supervisor-checks-every-post-before-passing it to the next round",reviewed:roomModeration.reviewed,clear:roomModeration.clear,flagged:roomModeration.flagged,blocked:roomModeration.blocked,eligibleForTradeApproval:false},
+  automaticDiscussionFocus,discussionEnabled,discussion:roomMessages,discussionModeration:{mode:"supervisor-checks-every-post-before-passing it to the next round",reviewed:roomModeration.reviewed,clear:roomModeration.clear,flagged:roomModeration.flagged,blocked:roomModeration.blocked,eligibleForTradeApproval:false},
   safety:{readOnly:true,orderPlacement:false,paperTradingOnly:true,agentDiscussionTools:false,roomMessagesCanApproveTrades:false}
  },{headers:{"Cache-Control":"no-store"}});
 }
