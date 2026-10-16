@@ -98,6 +98,8 @@
 .live-agent-footnote{font-size:11px;color:var(--muted);line-height:1.55;margin:10px 0 0}
 .live-agent-monitor{border:1px solid #30445b;border-radius:11px;padding:12px;margin:10px 0;background:#080e16}.live-agent-monitor-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.live-agent-monitor-head strong{font-size:14px}.live-agent-livecount{font-size:12px;font-weight:850;padding:5px 9px;border-radius:99px;background:#1c2a3b;color:#d2e3f6}.live-agent-livecount.active{background:#0c2b1e;color:var(--green)}.live-agent-progress{height:5px;background:#1c2938;border-radius:99px;overflow:hidden;margin:10px 0}.live-agent-progress span{display:block;width:0;height:100%;background:#65e6ad;transition:width .2s}.live-agent-activity{display:grid;gap:7px;margin-top:8px}.live-agent-activity-row{display:grid;grid-template-columns:9px minmax(0,1fr) auto;align-items:start;gap:8px;font-size:11px;line-height:1.45;color:#b8c5d5}.live-agent-activity-dot{width:8px;height:8px;border-radius:50%;margin-top:4px;background:#65768a}.live-agent-activity-row.running .live-agent-activity-dot{background:#65e6ad;box-shadow:0 0 0 3px #163426}.live-agent-activity-row.done .live-agent-activity-dot{background:#65e6ad}.live-agent-activity-row.error .live-agent-activity-dot{background:#ff7b83}.live-agent-activity-state{font-size:10px;font-weight:800;color:var(--muted)}
 @media(max-width:700px){.live-agent-grid,.live-agent-results{grid-template-columns:1fr}.live-agent-slot-hint{min-height:0}}
+  .live-forecast-summary{margin-top:10px;padding:10px 12px;border:1px solid #29394a;border-radius:10px;background:#0a1119;color:#c6d5e4;font-size:12px;line-height:1.65;overflow-wrap:anywhere}
+  .live-forecast-summary strong{color:#f0f5fa}.live-forecast-summary.up{border-color:#285a47}.live-forecast-summary.down{border-color:#63333a}.live-forecast-summary.range{border-color:#465264}
 </style>
 </head>
 <body><main class="app">
@@ -173,7 +175,8 @@
     <div class="live-metric"><label>Entry reference</label><strong id="liveEntry">—</strong></div>
     <div class="live-metric"><label>Higher-timeframe trend</label><strong id="liveHtf">CHECKING</strong></div>
   </div>
-  <div class="live-chart-shell"><div id="liveMarketChart" role="img" aria-label="Interactive live candlestick chart with EMA indicators and current buy, sell, wait, entry, stop loss and take profit annotations"></div><div class="live-chart-overlay"><strong id="liveOverlayDecision">HOLD / WAIT</strong><span id="liveOverlayMeta">Awaiting verified closed candles…</span></div></div>
+  <div class="live-chart-shell"><div id="liveMarketChart" role="img" aria-label="Interactive live candlestick chart with EMA indicators, support, resistance, trendlines, and six-bar conditional forecast"></div><div class="live-chart-overlay"><strong id="liveOverlayDecision">HOLD / WAIT</strong><span id="liveOverlayMeta">Awaiting verified closed candles…</span></div></div>
+  <div id="liveForecastSummary" class="live-forecast-summary range" aria-live="polite"><strong>Six-bar scenario:</strong> Waiting for enough fresh closed candles to calculate a chart projection.</div>
   <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:9px;font-size:11px;color:var(--muted)"><span><i class="swatch" style="background:#65e6ad"></i> Bull candle</span><span><i class="swatch" style="background:#ff7b83"></i> Bear candle</span><span><i class="swatch" style="background:#7eafff"></i> EMA 9</span><span><i class="swatch" style="background:#f2c46f"></i> EMA 21</span><span><i class="swatch" style="background:#b48cff"></i> EMA 50</span><span><i class="swatch" style="background:#48c8a6"></i> Auto support</span><span><i class="swatch" style="background:#f1a968"></i> Auto resistance</span><span><i class="swatch" style="background:#54c8ff"></i> Rising trendline</span><span><i class="swatch" style="background:#cf8bff"></i> Falling trendline</span><span><i class="swatch" style="background:#ff7b83"></i> Stop</span><span><i class="swatch" style="background:#65e6ad"></i> Target (2R)</span></div>
   <div class="live-levels"><div class="live-level"><label>Stop loss / invalidation</label><strong id="liveStop">—</strong></div><div class="live-level"><label>Take profit reference</label><strong id="liveTarget">—</strong></div><div class="live-level"><label>Risk : reward</label><strong id="liveRR">—</strong></div></div>
   <div class="live-analysis-grid">
@@ -208,6 +211,7 @@
 <div class="feature-overlay" id="featureOverlay"><nav class="feature-drawer" role="dialog" aria-modal="true" aria-label="TarotAI features"><div class="feature-drawer-head"><div class="logo">T</div><div><div class="feature-drawer-title">tarotai</div><div class="feature-drawer-sub">Select an agent or workspace</div></div><button class="feature-drawer-close" id="featureClose" type="button" aria-label="Close menu">×</button></div><div class="feature-drawer-label">AI agents</div><a class="feature-drawer-link" href="/console.html?mode=chat"><span class="feature-drawer-icon">✳</span><span><b>Chat Agent</b><span class="feature-drawer-desc">General assistant and conversation</span></span></a><a class="feature-drawer-link" href="/console.html?mode=trading"><span class="feature-drawer-icon">↗</span><span><b>Trading Agent</b><span class="feature-drawer-desc">Market analysis, setup planning and risk review</span></span></a><a class="feature-drawer-link" href="/console.html?mode=work"><span class="feature-drawer-icon">◈</span><span><b>Work Agent</b><span class="feature-drawer-desc">Structured task execution</span></span></a><a class="feature-drawer-link" href="/console.html?mode=research"><span class="feature-drawer-icon">⌕</span><span><b>Research Agent</b><span class="feature-drawer-desc">Evidence and web sources</span></span></a><a class="feature-drawer-link" href="/console.html?mode=code"><span class="feature-drawer-icon">⌘</span><span><b>Code Agent</b><span class="feature-drawer-desc">Debugging and implementation</span></span></a><a class="feature-drawer-link" href="/agents.html"><span class="feature-drawer-icon">⎇</span><span><b>Multi-Agent Workspace</b><span class="feature-drawer-desc">Coordinate specialist roles</span></span></a><a class="feature-drawer-link" href="/agents.html?profile=trading"><span class="feature-drawer-icon">⚖</span><span><b>Trading Team</b><span class="feature-drawer-desc">Market Analyst → Trading Analyst → Risk Officer → Strategy Tester</span></span></a><div class="feature-drawer-label">Workspace</div><a class="feature-drawer-link" href="/trading-desk.html"><span class="feature-drawer-icon">▤</span><span><b>Futures Lab</b><span class="feature-drawer-desc">Paper trades, backtests and risk controls</span></span></a><a class="feature-drawer-link" href="/console.html"><span class="feature-drawer-icon">⌂</span><span><b>Command Center</b><span class="feature-drawer-desc">Memory, documents, tasks and connected apps</span></span></a><div class="feature-drawer-note">Live trading remains disabled. The Futures Lab is designed for research, backtesting, persistent paper trades and explicitly confirmed demo/testnet orders only.</div></nav></div>
 <script src="/market-patterns.js"></script>
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+<script src="/trading-forecast.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 
@@ -291,8 +295,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   if(required.some(id=>!byId(id)))return;
   const intervalMs={"1m":60000,"3m":180000,"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"2h":7200000,"4h":14400000,"1d":86400000};
   const higherMap={"1m":"15m","5m":"1h","15m":"4h","1h":"1d","4h":"1d"};
-  let chart=null,candleSeries=null,ema9Series=null,ema21Series=null,ema50Series=null,supportSeries=null,resistanceSeries=null,risingTrendSeries=null,fallingTrendSeries=null,socketReconnectTimer=null;let lastMarketUpdateAt=0,lastLiveCandleSyncAt=0;
-  let mirrorChart=null,mirrorCandleSeries=null,mirrorEma9Series=null,mirrorEma21Series=null,mirrorEma50Series=null,mirrorSupportSeries=null,mirrorResistanceSeries=null,mirrorRisingTrendSeries=null,mirrorFallingTrendSeries=null,mirrorResizeObserver=null,rangeSyncLock=false,mirrorPriceLines=[],mainLivePriceLine=null,mirrorLivePriceLine=null,lastLiveLineUpdateAt=0;
+  let chart=null,candleSeries=null,ema9Series=null,ema21Series=null,ema50Series=null,supportSeries=null,resistanceSeries=null,risingTrendSeries=null,fallingTrendSeries=null,forecastPathSeries=null,forecastUpperSeries=null,forecastLowerSeries=null,socketReconnectTimer=null;let lastMarketUpdateAt=0,lastLiveCandleSyncAt=0;
+  let mirrorChart=null,mirrorCandleSeries=null,mirrorEma9Series=null,mirrorEma21Series=null,mirrorEma50Series=null,mirrorSupportSeries=null,mirrorResistanceSeries=null,mirrorRisingTrendSeries=null,mirrorFallingTrendSeries=null,mirrorForecastPathSeries=null,mirrorForecastUpperSeries=null,mirrorForecastLowerSeries=null,mirrorResizeObserver=null,rangeSyncLock=false,mirrorPriceLines=[],mainLivePriceLine=null,mirrorLivePriceLine=null,lastLiveLineUpdateAt=0;
   let rows=[],marketVenue="binance",feedSocket=null,quoteSocket=null,quoteReconnectTimer=null,quoteSymbol="",lastTradePrice=NaN,lastTradeAt=0,lastQuoteSource="none",lastQuoteSourceTimestamp=0,lastWsTradeAt=0,lastQuoteFallbackErrorAt=0,quoteFallbackTimer=null,quoteFallbackBusy=false,lastQuoteRenderAt=0,pollTimer=null,resizeObserver=null;window.tarotaiMarketVenue=marketVenue;
   let currentSymbol="",currentInterval="",higherCache=[],higherCacheKey="",higherCacheAt=0,priceLines=[],busy=false,firstRender=true,lastWsCandleTime=0,historyBusy=false,historyExhausted=false,historyPages=0,historyLoadAllowedAt=0;
   const fmt=(n)=>Number.isFinite(n)?n.toLocaleString("en-US",{maximumFractionDigits:n>=1000?2:n>=1?4:7}):"—";
@@ -313,6 +317,9 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     resistanceSeries=chart.addLineSeries({color:"#f1a968",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"Auto resistance"});
     risingTrendSeries=chart.addLineSeries({color:"#54c8ff",lineWidth:2,lineStyle:window.LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"Rising swing-low trendline"});
     fallingTrendSeries=chart.addLineSeries({color:"#cf8bff",lineWidth:2,lineStyle:window.LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"Falling swing-high trendline"});
+    forecastPathSeries=chart.addLineSeries({color:"#65e6ad",lineWidth:2,lineStyle:window.LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:"Six-bar scenario projection"});
+    forecastUpperSeries=chart.addLineSeries({color:"#6d8798",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dotted,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"ATR scenario upper edge"});
+    forecastLowerSeries=chart.addLineSeries({color:"#6d8798",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dotted,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"ATR scenario lower edge"});
     if(window.ResizeObserver){resizeObserver=new ResizeObserver(entries=>{const box=entries[0]&&entries[0].contentRect;if(box&&chart)chart.applyOptions({width:Math.max(320,Math.floor(box.width)),height:Math.max(300,Math.floor(box.height))});});resizeObserver.observe(host);}
   }
   function createMirrorChart(){
@@ -327,11 +334,14 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     mirrorResistanceSeries=mirrorChart.addLineSeries({color:"#f1a968",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"Auto resistance"});
     mirrorRisingTrendSeries=mirrorChart.addLineSeries({color:"#54c8ff",lineWidth:2,lineStyle:window.LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"Rising swing-low trendline"});
     mirrorFallingTrendSeries=mirrorChart.addLineSeries({color:"#cf8bff",lineWidth:2,lineStyle:window.LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"Falling swing-high trendline"});
+    mirrorForecastPathSeries=mirrorChart.addLineSeries({color:"#65e6ad",lineWidth:2,lineStyle:window.LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:"Six-bar scenario projection"});
+    mirrorForecastUpperSeries=mirrorChart.addLineSeries({color:"#6d8798",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dotted,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"ATR scenario upper edge"});
+    mirrorForecastLowerSeries=mirrorChart.addLineSeries({color:"#6d8798",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dotted,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"ATR scenario lower edge"});
     if(window.ResizeObserver){mirrorResizeObserver=new ResizeObserver(entries=>{const box=entries[0]&&entries[0].contentRect;if(box&&mirrorChart)mirrorChart.applyOptions({width:Math.max(320,Math.floor(box.width)),height:Math.max(300,Math.floor(box.height))});});mirrorResizeObserver.observe(host);}
     mirrorChart.timeScale().subscribeVisibleLogicalRangeChange(range=>{if(!range||!chart||rangeSyncLock)return;rangeSyncLock=true;try{chart.timeScale().setVisibleLogicalRange(range);}catch(e){}finally{rangeSyncLock=false;}});
   }
   function hasFreshLiveQuote(now=Date.now()){
-    if(!["binance","okx"].includes(marketVenue)||!currentSymbol||quoteSymbol!==currentSymbol||!Number.isFinite(lastTradePrice)||lastTradePrice<=0||!Number.isFinite(lastTradeAt))return false;
+    if(!["binance","okx","bybit"].includes(marketVenue)||!currentSymbol||quoteSymbol!==currentSymbol||!Number.isFinite(lastTradePrice)||lastTradePrice<=0||!Number.isFinite(lastTradeAt))return false;
     const localAge=now-lastTradeAt;
     if(localAge<0||localAge>3000)return false;
     if(lastQuoteSource===marketVenue+"-rest-ticker"){
@@ -369,20 +379,21 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     window.tarotaiSharedQuoteSource=fresh?lastQuoteSource:"stale";
     if(fresh)syncLiveQuoteToCurrentCandle(price,Number(lastQuoteSourceTimestamp)||lastTradeAt,now);
     if(typeof window.tarotaiUpdateStrategyLiveQuote==="function")window.tarotaiUpdateStrategyLiveQuote(price,now);
-    if(fresh)setFeed((marketVenue==="binance"?"BINANCE USDⓈ-M FUTURES":"OKX USDT PERPETUAL")+" · "+(lastQuoteSource===marketVenue+"-websocket"?"LIVE TRADE STREAM":"REST TICK FALLBACK"),"good");
-    else setFeed((marketVenue==="binance"?"BINANCE USDⓈ-M FUTURES":"OKX USDT PERPETUAL")+" · LIVE QUOTE STALE","bad");
+    const venueDisplay=({binance:"BINANCE USDⓈ-M FUTURES",bybit:"BYBIT LINEAR PERPETUAL",okx:"OKX USDT PERPETUAL"})[marketVenue]||String(marketVenue).toUpperCase();
+    if(fresh)setFeed(venueDisplay+" · "+(lastQuoteSource===marketVenue+"-websocket"?"LIVE TRADE STREAM":"REST TICK FALLBACK"),"good");
+    else setFeed(venueDisplay+" · LIVE QUOTE STALE","bad");
     updateDemoAgentTicket();
     if(now-lastQuoteRenderAt>=100){
       byId("livePrice").textContent=fresh?fmt(price):"STALE";
       const badge=byId("tvSyncedPrice"),meta=byId("tvSyncedMeta");
       if(badge)badge.textContent=fresh?currentSymbol+" · "+fmt(price)+" USDT":"LIVE PRICE STALE";
-      const venueLabel=marketVenue==="binance"?"Binance USDⓈ-M Futures":"OKX perpetual";
+      const venueLabel=({binance:"Binance USDⓈ-M Futures",bybit:"Bybit linear perpetual",okx:"OKX perpetual"})[marketVenue]||String(marketVenue).toUpperCase();
       if(meta)meta.textContent=fresh
         ?(lastQuoteSource===marketVenue+"-websocket"?"Same "+venueLabel+" last-trade tick in both charts · WebSocket · "+new Date(lastTradeAt).toLocaleTimeString():"Same "+venueLabel+" last-trade quote in both charts · REST fallback · source age "+Math.max(0,Math.round(now-lastQuoteSourceTimestamp))+" ms")
         :"No verified live quote. Candles remain visible, but this is not a live price; paper entries are blocked.";
       byId("tvStatus").textContent=fresh
-        ?"IN-APP CHARTS SYNCED · "+currentSymbol+" "+currentInterval+" · shared "+(marketVenue==="binance"?"Binance Futures":"OKX")+" last trade "+fmt(price)+" · "+(lastQuoteSource===marketVenue+"-websocket"?"WebSocket":"REST fallback")+"."
-        :"LIVE QUOTE STALE · internal charts are showing candles only; waiting for a verified "+(marketVenue==="binance"?"Binance":"OKX")+" quote.";
+        ?"IN-APP CHARTS SYNCED · "+currentSymbol+" "+currentInterval+" · shared "+({binance:"Binance Futures",bybit:"Bybit linear",okx:"OKX"})[marketVenue]+" last trade "+fmt(price)+" · "+(lastQuoteSource===marketVenue+"-websocket"?"WebSocket":"REST fallback")+"."
+        :"LIVE QUOTE STALE · internal charts are showing candles only; waiting for a verified "+({binance:"Binance",bybit:"Bybit",okx:"OKX"})[marketVenue]+" quote.";
       lastQuoteRenderAt=now;
     }
     if(now-lastLiveLineUpdateAt>=350){
@@ -398,7 +409,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     }
   }
   async function refreshQuoteFallback(){
-    if(quoteFallbackBusy||document.visibilityState!=="visible"||!currentSymbol||!["binance","okx"].includes(marketVenue)||(hasFreshLiveQuote()&&lastQuoteSource===marketVenue+"-websocket"))return;
+    if(quoteFallbackBusy||document.visibilityState!=="visible"||!currentSymbol||!["binance","okx","bybit"].includes(marketVenue)||(hasFreshLiveQuote()&&lastQuoteSource===marketVenue+"-websocket"))return;
     const symbol=currentSymbol,startedAt=Date.now();quoteFallbackBusy=true;
     try{
       const quoteVenue=marketVenue;const url="/api/exchanges/quote?"+new URLSearchParams({venue:quoteVenue,symbol});
@@ -424,9 +435,18 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   }
 
   function connectQuoteSocket(force=false){
-    if(!currentSymbol||!["binance","okx"].includes(marketVenue)){
+    if(!currentSymbol||!["binance","okx","bybit"].includes(marketVenue)){
       if(quoteSocket){quoteSocket.onclose=null;try{quoteSocket.close();}catch(e){}quoteSocket=null;}
       quoteSymbol="";lastTradePrice=NaN;lastTradeAt=0;lastQuoteSource="none";lastQuoteSourceTimestamp=0;lastWsTradeAt=0;renderSharedQuote(NaN);return;
+    }
+    if(marketVenue==="bybit"){
+      if(quoteReconnectTimer)clearTimeout(quoteReconnectTimer);quoteReconnectTimer=null;
+      if(quoteSocket){quoteSocket.onclose=null;try{quoteSocket.close();}catch(e){}quoteSocket=null;}
+      const wrongVenue=!String(lastQuoteSource||"").startsWith("bybit-");
+      if(quoteSymbol!==currentSymbol||wrongVenue){lastTradePrice=NaN;lastTradeAt=0;lastQuoteSource="none";lastQuoteSourceTimestamp=0;lastWsTradeAt=0;}
+      quoteSymbol=currentSymbol;renderSharedQuote(NaN);
+      const meta=byId("tvSyncedMeta");if(meta)meta.textContent="Bybit linear perpetual uses the validated REST ticker path; WebSocket quote ticks are not enabled for this venue.";
+      return;
     }
     if(!force&&quoteSocket&&quoteSymbol===currentSymbol&&(quoteSocket.readyState===WebSocket.CONNECTING||quoteSocket.readyState===WebSocket.OPEN))return;
     if(quoteReconnectTimer)clearTimeout(quoteReconnectTimer);quoteReconnectTimer=null;
@@ -521,6 +541,28 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     if(Number.isFinite(target))addPlanLine("TARGET",target,"#65e6ad",window.LightweightCharts.LineStyle.Dashed);
     if(candleSeries&&marker)candleSeries.setMarkers([marker]);else if(candleSeries)candleSeries.setMarkers([]);if(mirrorCandleSeries&&marker)mirrorCandleSeries.setMarkers([marker]);else if(mirrorCandleSeries)mirrorCandleSeries.setMarkers([]);
   }
+  function clearForecastProjection(message){
+    [forecastPathSeries,forecastUpperSeries,forecastLowerSeries,mirrorForecastPathSeries,mirrorForecastUpperSeries,mirrorForecastLowerSeries].forEach(series=>{try{if(series)series.setData([]);}catch(e){}});
+    const summary=byId("liveForecastSummary");if(summary){summary.className="live-forecast-summary range";summary.textContent=message||"Six-bar scenario is unavailable.";}
+    window.tarotaiForecastSnapshot=null;return null;
+  }
+  function drawForecastProjection(candles,htf){
+    const builder=window.TarotAIForecast&&window.TarotAIForecast.buildForecast;
+    if(typeof builder!=="function"||!rows.length||!forecastPathSeries)return clearForecastProjection("Six-bar scenario unavailable: forecast engine or chart series did not load.");
+    let projection;try{projection=builder({candles,visualCandle:rows[rows.length-1],interval:currentInterval,higherTrend:htf&&htf.direction});}catch(e){return clearForecastProjection("Six-bar scenario unavailable: the input snapshot failed validation.");}
+    if(!projection||!projection.ready)return clearForecastProjection("Six-bar scenario unavailable: "+(projection&&projection.reason||"waiting for valid closed candles."));
+    const pathColor=projection.direction==="UP"?"#65e6ad":projection.direction==="DOWN"?"#ff7b83":"#f2c46f";
+    try{
+      forecastPathSeries.applyOptions({color:pathColor});forecastUpperSeries.applyOptions({color:"#6d8798"});forecastLowerSeries.applyOptions({color:"#6d8798"});
+      forecastPathSeries.setData(projection.path);forecastUpperSeries.setData(projection.upper);forecastLowerSeries.setData(projection.lower);
+      if(mirrorForecastPathSeries){mirrorForecastPathSeries.applyOptions({color:pathColor});mirrorForecastUpperSeries.applyOptions({color:"#6d8798"});mirrorForecastLowerSeries.applyOptions({color:"#6d8798"});mirrorForecastPathSeries.setData(projection.path);mirrorForecastUpperSeries.setData(projection.upper);mirrorForecastLowerSeries.setData(projection.lower);}
+    }catch(e){return clearForecastProjection("Six-bar scenario unavailable: chart rejected the projection points.");}
+    const summary=byId("liveForecastSummary");
+    const sign=projection.projectedMovePct>=0?"+":"";
+    const invalidation=typeof projection.invalidation==="number"?(projection.direction==="UP"?"below "+fmt(projection.invalidation):"above "+fmt(projection.invalidation)):"range break above "+fmt(projection.invalidation.above)+" / below "+fmt(projection.invalidation.below);
+    if(summary){summary.className="live-forecast-summary "+(projection.direction==="UP"?"up":projection.direction==="DOWN"?"down":"range");summary.textContent="6-bar "+projection.direction+" scenario · indicator alignment "+projection.alignmentVotes+"/5 (not a probability) · "+fmt(projection.startPrice)+" → "+fmt(projection.targetPrice)+" ("+sign+projection.projectedMovePct.toFixed(2)+"%) · ATR "+fmt(projection.atr)+" ("+projection.atrPct.toFixed(2)+"%) · projected ATR envelope "+fmt(projection.rangeLow)+"–"+fmt(projection.rangeHigh)+" · invalidation: "+invalidation+". Price path is a technical scenario, not a calibrated confidence interval or guarantee.";}
+    window.tarotaiForecastSnapshot=projection;return projection;
+  }
   function trendFor(input,interval){const c=closedOnly(input,interval);if(c.length<55)return {ready:false,direction:"UNAVAILABLE",detail:"Not enough closed higher-timeframe candles to confirm trend."};const cls=c.map(x=>x.close),e20=ema(cls,20),e50=ema(cls,50),i=c.length-1;const up=cls[i]>e50[i]&&e20[i]>e50[i],down=cls[i]<e50[i]&&e20[i]<e50[i];return {ready:true,direction:up?"BULLISH":down?"BEARISH":"MIXED / NEUTRAL",up,down,close:cls[i],ema20:e20[i],ema50:e50[i],time:c[i].time};}
   function analyze(){
     if(!rows.length||!candleSeries)return;
@@ -528,6 +570,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     if(lastLive)byId("livePrice").textContent=hasFreshLiveQuote()?fmt(lastTradePrice):"STALE";
     if(closed.length<80){
       drawStructureAnnotations(closed,NaN);
+      clearForecastProjection("Six-bar scenario: need at least 80 valid closed candles. No projection is drawn from incomplete history.");
       byId("liveHtf").textContent="UNAVAILABLE";
       paintChecks([{title:"Market history",pass:false,detail:"Need at least 80 valid closed candles.",neutral:true}]);
       setDecision("HOLD / WAIT","HOLD / WAIT — not enough closed candles for a reliable setup. Do not enter until fresh history is available.",NaN,NaN,NaN,NaN,null);
@@ -537,6 +580,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const vals=closed.map(c=>c.close),e9=ema(vals,9),e21=ema(vals,21),e50=ema(vals,50),rv=rsi(vals,14),av=atr(closed,14),i=closed.length-1,last=closed[i],prev=closed[i-1],prior=closed.slice(Math.max(0,i-20),i);
     const structure=drawStructureAnnotations(closed,av[i]);
     if(prior.length<20||!Number.isFinite(av[i])||!Number.isFinite(rv[i])){
+      clearForecastProjection("Six-bar scenario: indicators are incomplete; waiting for a verified snapshot.");
       setDecision("HOLD / WAIT","HOLD / WAIT — indicator history is incomplete; wait for more valid closed candles.",NaN,NaN,NaN,NaN,null);return;
     }
     const priorHigh=Math.max.apply(null,prior.map(c=>c.high)),priorLow=Math.min.apply(null,prior.map(c=>c.low));
@@ -557,6 +601,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     ];
     const htfInterval=higherMap[currentInterval]||"1d";
     const htf=trendFor(higherCache,htfInterval);
+    const forecast=drawForecastProjection(closed,htf);
     byId("liveHtf").textContent=htf.direction;
     byId("liveHtf").className=htf.up?"live-action-buy":htf.down?"live-action-sell":"live-action-hold";
     byId("liveOverlayMeta").textContent=currentSymbol+" · "+currentInterval+" · last CLOSED candle "+new Date(last.time).toLocaleTimeString();
@@ -592,6 +637,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       detail="HOLD / WAIT — no validated entry now. "+reasons.join("; ")+". Do not chase the forming candle. Wait for a candle to close, a 4/5 factor setup, a clean 20-bar breakout/breakdown and matching higher-timeframe trend.";
       selected=htf.down?shortChecks:longChecks;
     }
+    if(forecast&&forecast.ready){const move=forecast.projectedMovePct>=0?"+":"";detail+="\nConditional forecast: "+forecast.direction+" over the next "+forecast.horizon+" bars; projected reference "+fmt(forecast.targetPrice)+" ("+move+forecast.projectedMovePct.toFixed(2)+"%); ATR envelope "+fmt(forecast.rangeLow)+"–"+fmt(forecast.rangeHigh)+". This is a scenario, not a probability or guarantee.";}
     detail+="\nAuto chart structure — support: "+(Number.isFinite(structure.support)?fmt(structure.support):"not confirmed")+"; resistance: "+(Number.isFinite(structure.resistance)?fmt(structure.resistance):"not confirmed")+"; rising swing-low trendline: "+(structure.rising?"drawn":"not confirmed")+"; falling swing-high trendline: "+(structure.falling?"drawn":"not confirmed")+". These are pivot-based chart references, not guarantees.";
     paintChecks(selected,htfCheck);
     if(!htf.ready)paintChecks(selected,{pass:false,detail:htf.detail,neutral:true});
@@ -1103,7 +1149,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     if(!Number.isFinite(balance)||balance<100||balance>10000000||!Number.isFinite(riskPct)||riskPct<0.1||riskPct>1){paperStatus("Balance must be 100–10,000,000 USDT and risk 0.1%–1%.",true);return;}
     const live=rows[rows.length-1],closed=closedOnly(rows,currentInterval).slice(-1)[0];
     if(!live||!closed||now-live.time>msFor(currentInterval)*2){paperStatus("Candles are stale. Refresh analysis before paper trading.",true);return;}
-    if(!hasFreshLiveQuote()){paperStatus("Paper entry blocked: no fresh validated live quote. Wait for the "+(marketVenue==="binance"?"Binance Futures":"OKX")+" WebSocket or REST ticker fallback; no delayed entry is allowed.",true);return;}
+    if(!hasFreshLiveQuote()){paperStatus("Paper entry blocked: no fresh validated live quote. Wait for the "+({binance:"Binance Futures",bybit:"Bybit linear",okx:"OKX"})[marketVenue]+" WebSocket or REST ticker fallback; no delayed entry is allowed.",true);return;}
     const entry=Number(currentMarketPrice()),stop=Number(d.stop),long=d.action==="BUY / LONG";
     if(!Number.isFinite(entry)||entry<=0||!Number.isFinite(stop)||(long?stop>=entry:stop<=entry)){paperStatus("Price crossed the setup's invalidation level. Signal expired; re-analyze.",true);return;}
     const drift=Math.abs(entry-Number(d.entry))/Number(d.entry);
