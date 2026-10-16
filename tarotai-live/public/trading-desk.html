@@ -257,7 +257,7 @@
     <div class="live-checks"><h3>Why the agent decided this</h3><div id="liveCheckList" class="live-check-list"><div class="live-check neutral"><em>•</em><span>Waiting for closed candles and higher-timeframe data.</span></div></div></div>
   </div>
   <div id="liveMarketStatus" class="live-market-status">Market data has not been checked yet. No orders are sent from this panel.</div>
-<div class="live-instructions" style="margin-top:12px"><h3>Paper trade controls</h3><div class="sub">Only fresh confirmed BUY / LONG or SELL / SHORT setups qualify. Risk is capped at 0.1–1% of balance by stop distance, 5% notional per position and 20% total open notional. A verified exchange quote and bid-ask spread ≤20 bps are mandatory. Paper only. No real exchange orders are sent.</div><div class="live-paper-controls"><div class="field"><label for="livePaperBalance">Simulated balance (USDT)</label><input id="livePaperBalance" type="number" min="100" max="10000000" step="100" value="10000"></div><div class="field"><label for="livePaperRisk">Risk per trade (%)</label><input id="livePaperRisk" type="number" min="0.1" max="1" step="0.1" value="0.5"></div><button class="btn primary" id="livePaperOpen" type="button" disabled>Open paper trade from signal</button><button class="btn" id="livePaperReload" type="button">Refresh ledger / check stops</button><button class="btn" id="livePaperAutoToggle" type="button" aria-pressed="false">Enable auto paper trading</button><div class="field"><label for="observationDirection">Observation test direction</label><select id="observationDirection"><option value="BUY" selected>LONG · paper only</option><option value="SELL">SHORT · paper only</option></select></div><button class="btn" id="livePaperObservationOpen" type="button">Start target-only paper test</button></div><div class="live-paper-experiment-note">Target-only observation test: the paper position stays open after a stop touch and auto-closes only when its profit target is confirmed. If the same closed candle touches both stop and target, it stays open because the order of touch is unknown. The reference stop is used for sizing, not as an auto-exit; simulated drawdown can exceed the planned stop-risk. 5% position and 20% portfolio notional caps still apply. Observation trials are excluded from strategy win-rate stats; manual close remains available.</div><div id="livePaperAutoStatus" class="live-market-status">AUTO PAPER: STARTING. After your private session and persistent ledger are ready, the 8-role team can open and manage approved crypto-perpetual paper positions automatically. Pause any time. No real orders are sent.</div><div class="live-paper-summary"><div class="live-level"><label>Open positions</label><strong id="livePaperOpenCount">—</strong></div><div class="live-level"><label>Closed paper trades</label><strong id="livePaperClosedCount">—</strong></div><div class="live-level"><label>Realized net P&amp;L (USDT)</label><strong id="livePaperNetPnl">—</strong></div><div class="live-level"><label>Signal win rate · tests excluded</label><strong id="livePaperWinRate">—</strong></div><div class="live-level"><label>AI-review win rate</label><strong id="livePaperAiWinRate">—</strong><small id="livePaperAiSamples">0 closed trades</small></div><div class="live-level"><label>Continuous-rule win rate</label><strong id="livePaperLocalWinRate">—</strong><small id="livePaperLocalSamples">0 closed trades</small></div></div><div id="livePaperPositions" class="live-paper-positions"><div class="muted">Loading persistent paper ledger…</div></div><div id="livePaperStatus" class="live-market-status">Paper trading is disabled until a valid signal and persistent private ledger are available.</div></div>
+<div class="live-instructions" style="margin-top:12px"><h3>Paper trade controls</h3><div class="sub">Only fresh confirmed BUY / LONG or SELL / SHORT setups qualify. Risk is capped at 0.1–1% of balance by stop distance, 5% notional per position and 20% total open notional. A verified exchange quote and bid-ask spread ≤20 bps are mandatory. Paper only. No real exchange orders are sent.</div><div class="live-paper-controls"><div class="field"><label for="livePaperBalance">Simulated balance (USDT)</label><input id="livePaperBalance" type="number" min="100" max="10000000" step="100" value="10000"></div><div class="field"><label for="livePaperRisk">Risk per trade (%)</label><input id="livePaperRisk" type="number" min="0.1" max="1" step="0.1" inputmode="decimal" value="0.5" aria-describedby="livePaperRiskHelp"><small id="livePaperRiskHelp" class="muted">Allowed range: 0.1–1.0% of balance. Example: 0.5 means half a percent, not 50%.</small></div><button class="btn primary" id="livePaperOpen" type="button" disabled>Open paper trade from signal</button><button class="btn" id="livePaperReload" type="button">Refresh ledger / check stops</button><button class="btn" id="livePaperAutoToggle" type="button" aria-pressed="false">Enable auto paper trading</button><div class="field"><label for="observationDirection">Observation test direction</label><select id="observationDirection"><option value="BUY" selected>LONG · paper only</option><option value="SELL">SHORT · paper only</option></select></div><button class="btn" id="livePaperObservationOpen" type="button">Start target-only paper test</button></div><div class="live-paper-experiment-note">Target-only observation test: the paper position stays open after a stop touch and auto-closes only when its profit target is confirmed. If the same closed candle touches both stop and target, it stays open because the order of touch is unknown. The reference stop is used for sizing, not as an auto-exit; simulated drawdown can exceed the planned stop-risk. 5% position and 20% portfolio notional caps still apply. Observation trials are excluded from strategy win-rate stats; manual close remains available.</div><div id="livePaperAutoStatus" class="live-market-status">AUTO PAPER: STARTING. After your private session and persistent ledger are ready, the 8-role team can open and manage approved crypto-perpetual paper positions automatically. Pause any time. No real orders are sent.</div><div class="live-paper-summary"><div class="live-level"><label>Open positions</label><strong id="livePaperOpenCount">—</strong></div><div class="live-level"><label>Closed paper trades</label><strong id="livePaperClosedCount">—</strong></div><div class="live-level"><label>Realized net P&amp;L (USDT)</label><strong id="livePaperNetPnl">—</strong></div><div class="live-level"><label>Signal win rate · tests excluded</label><strong id="livePaperWinRate">—</strong></div><div class="live-level"><label>AI-review win rate</label><strong id="livePaperAiWinRate">—</strong><small id="livePaperAiSamples">0 closed trades</small></div><div class="live-level"><label>Continuous-rule win rate</label><strong id="livePaperLocalWinRate">—</strong><small id="livePaperLocalSamples">0 closed trades</small></div></div><div id="livePaperPositions" class="live-paper-positions"><div class="muted">Loading persistent paper ledger…</div></div><div id="livePaperStatus" class="live-market-status">Paper trading is disabled until a valid signal and persistent private ledger are available.</div></div>
   <div class="live-safety-note"><strong>Execution safety:</strong> BUY means a potential long setup; SELL means a potential short setup; HOLD / WAIT means do not enter. Levels are analytical references calculated from closed candles, not guaranteed fills. The chart is read-only and never submits orders.</div>
 </section>
 
@@ -1386,7 +1386,28 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       else status.textContent="Ready: entry uses the latest live quote; stop comes from the active setup; target is recalculated at 2R. Independent risk review and server-side price verification still apply.";
     }
   }
+  function validatePaperRiskInput(options={}) {
+    const input=byId("livePaperRisk"),help=byId("livePaperRiskHelp");
+    if(!input)return null;
+    const raw=String(input.value??"").trim(),value=Number(raw),valid=raw!==""&&Number.isFinite(value)&&value>=0.1&&value<=1;
+    if(valid){
+      input.removeAttribute("aria-invalid");input.setCustomValidity("");input.style.borderColor="";
+      if(help){help.textContent="Allowed range: 0.1–1.0% of balance. Example: 0.5 means half a percent, not 50%.";help.style.color="var(--muted)";}
+      return value;
+    }
+    input.setAttribute("aria-invalid","true");input.setCustomValidity("Risk must be between 0.1% and 1.0%.");input.style.borderColor="var(--red)";
+    if(options.repair){
+      input.value="0.5";input.removeAttribute("aria-invalid");input.setCustomValidity("");input.style.borderColor="";
+      if(help){help.textContent="An out-of-range restored value was reset to 0.5%. Allowed range: 0.1–1.0% of balance.";help.style.color="var(--amber)";}
+      return 0.5;
+    }
+    if(help){help.textContent="Invalid risk: enter 0.1–1.0%. A value of 25 means 25%, not 0.25%. Paper entries are blocked.";help.style.color="var(--red)";}
+    if(options.showStatus)paperStatus("Paper entry blocked: risk must be 0.1–1.0% of balance. A value of 25 means 25%, not 0.25%. No trade was created.",true);
+    return null;
+  }
   async function paperOpenSignal(){
+    const validatedRiskPct=validatePaperRiskInput({showStatus:true});
+    if(validatedRiskPct===null)return;
     if(marketVenue==="yahoo"||isReferenceMarket(byId("liveSymbol").value)){paperStatus("Paper entry blocked: NIFTY 50 and Gold use a delayed reference feed without a verified executable bid/ask or supported contract-risk model.",true);return;}
     if(paperOpening)return;
     if(!paperStoreReady||!Array.isArray(window.tarotaiPaperLedger)){paperStatus("Paper entry blocked: persistent paper ledger must be loaded before sizing or opening a position.",true);return;}
@@ -1395,7 +1416,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const latestClosedForApproval=closedOnly(rows,currentInterval).slice(-1)[0];
     const approval=[window.tarotaiAgentCommitteeApproval,window.tarotaiContinuousTeamApproval].filter(Boolean).find(a=>a.symbol===d.symbol&&a.interval===d.interval&&Number(a.candleTime)===Number(d.candleTime)&&a.action===d.action&&["continuous-local-team","ai-eight-agent-review"].includes(a.source));
     if(!approval||!latestClosedForApproval||Number(latestClosedForApproval.time)!==Number(approval.candleTime)){paperStatus("Paper entry blocked: wait for the continuous eight-role team to approve this exact closed candle.",true);return;}
-    const balance=Number(byId("livePaperBalance").value),riskPct=Number(byId("livePaperRisk").value),maxExposurePct=5;
+    const balance=Number(byId("livePaperBalance").value),riskPct=validatedRiskPct,maxExposurePct=5;
     if(!Number.isFinite(balance)||balance<100||balance>10000000||!Number.isFinite(riskPct)||riskPct<0.1||riskPct>1){paperStatus("Balance must be 100–10,000,000 USDT and risk 0.1%–1%.",true);return;}
     const live=rows[rows.length-1],closed=closedOnly(rows,currentInterval).slice(-1)[0];
     if(!live||!closed||now-live.time>msFor(currentInterval)*2){paperStatus("Candles are stale. Refresh analysis before paper trading.",true);return;}
@@ -1437,6 +1458,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     finally{paperOpening=false;byId("livePaperOpen").textContent="Open paper trade from signal";await paperRefresh(false);}
   }
   async function paperOpenObservation(){
+    const validatedRiskPct=validatePaperRiskInput({showStatus:true});
+    if(validatedRiskPct===null)return;
     const button=byId("livePaperObservationOpen");
     if(marketVenue==="yahoo"||isReferenceMarket(byId("liveSymbol").value)){paperStatus("Observation trade blocked: NIFTY 50 and Gold are reference-only; quote/spread and contract-risk checks are not supported.",true);return;}
     if(paperOpening)return;
@@ -1459,7 +1482,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const atrValues=atr(closed,14),atrValue=atrValues[atrValues.length-1],distance=Math.max(Number.isFinite(atrValue)&&atrValue>0?atrValue*1.5:0,entryReference*0.0015);
       if(!Number.isFinite(distance)||distance<=0)throw new Error("Could not calculate a valid ATR-based reference stop");
       const stopPrice=long?entryReference-distance:entryReference+distance,targetPrice=long?entryReference+2*distance:entryReference-2*distance;
-      const balance=Number(byId("livePaperBalance").value),riskPct=Number(byId("livePaperRisk").value),maxExposurePct=5,riskBudget=balance*riskPct/100,notionalCap=balance*maxExposurePct/100;
+      const balance=Number(byId("livePaperBalance").value),riskPct=validatedRiskPct,maxExposurePct=5,riskBudget=balance*riskPct/100,notionalCap=balance*maxExposurePct/100;
       if(!Number.isFinite(balance)||balance<100||balance>10000000||!Number.isFinite(riskPct)||riskPct<0.1||riskPct>1)throw new Error("Balance or risk settings are outside the allowed paper-only range");
       if(stopPrice<=0||targetPrice<=0)throw new Error("Calculated stop/target levels are invalid for this market");
       const existingOpen=paperOpened(Array.isArray(window.tarotaiPaperLedger)?window.tarotaiPaperLedger:[]),existingOpenNotional=existingOpen.reduce((sum,t)=>sum+Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice)*Number(t.quantity),0),portfolioNotionalCap=balance*.20,remainingPortfolioNotional=Math.max(0,portfolioNotionalCap-existingOpenNotional);
@@ -1496,6 +1519,10 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   async function setAutoPaperEnabled(next,persistPreference=true){
     const button=byId("livePaperAutoToggle"),status=byId("livePaperAutoStatus");
     if(next===autoPaperEnabled)return;
+    if(next&&validatePaperRiskInput({showStatus:true})===null){
+      status.textContent="AUTO PAPER BLOCKED: risk must be 0.1–1.0% of balance. No paper entry was created.";
+      status.style.color="var(--red)";button.setAttribute("aria-pressed","false");return;
+    }
     if(next&&(marketVenue==="yahoo"||isReferenceMarket(byId("liveSymbol").value))){status.textContent="AUTO PAPER BLOCKED: NIFTY 50 and Gold are delayed reference markets without supported execution/contract-risk verification. Select a supported crypto perpetual for paper trading.";status.style.color="var(--red)";button.setAttribute("aria-pressed","false");return;}
     if(next){
       if(!await ensurePrivateSession()){button.setAttribute("aria-pressed","false");return;}
@@ -1513,6 +1540,12 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       status.textContent="AUTO PAPER: OFF · new simulated entries paused. Existing paper positions remain in the persistent ledger and will still be checked for stop/target exits.";
       status.style.color="var(--muted)";
     }
+  }
+  const paperRiskInput=byId("livePaperRisk");
+  if(paperRiskInput){
+    validatePaperRiskInput({repair:true});
+    paperRiskInput.addEventListener("input",()=>validatePaperRiskInput());
+    paperRiskInput.addEventListener("change",()=>validatePaperRiskInput());
   }
   byId("livePaperAutoToggle").addEventListener("click",()=>void setAutoPaperEnabled(!autoPaperEnabled));
   paperRefresh(true).finally(()=>{
