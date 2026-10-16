@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
 import { isAuthorized } from "../../../../lib/auth";
-import { applySlippage, calculateFee, isStale, validateStops, resolveStopTarget, resolveTargetOnlyObservation, validatePaperExposure, validatePaperDailyRisk, PAPER_MAX_POSITION_EXPOSURE_PCT, PAPER_MAX_PORTFOLIO_EXPOSURE_PCT, PAPER_MAX_DAILY_LOSS_PCT, PAPER_MAX_ENTRIES_PER_UTC_DAY } from "../../../../lib/trading-rules.mjs";
+import { applySlippage, calculateFee, isStale, validateStops, resolveStopTarget, resolveTargetOnlyObservation, validatePaperExposure, validatePaperDailyRisk, PAPER_MAX_POSITION_EXPOSURE_PCT, PAPER_MAX_PORTFOLIO_EXPOSURE_PCT, PAPER_MAX_OPEN_RISK_PCT, PAPER_MAX_OPEN_POSITIONS, PAPER_MAX_POSITIONS_PER_SYMBOL, PAPER_MAX_DAILY_LOSS_PCT, PAPER_MAX_ENTRIES_PER_UTC_DAY } from "../../../../lib/trading-rules.mjs";
 import { persistPaperTrade, readPaperRequestRecord } from "../../../../lib/paper-ledger.mjs";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -187,14 +187,17 @@ export async function POST(req:Request){
    executionReferencePrice=canUseBook?(side==="BUY"?verifiedAskPrice:verifiedBidPrice):verifiedMarketPrice;
   }catch{return NextResponse.json({error:"Market freshness verification failed; paper entry blocked"},{status:502});}
   if(action==="OPEN"&&Math.abs(price-verifiedMarketPrice)/verifiedMarketPrice>0.01)return NextResponse.json({error:"Entry price moved more than 1% from the server-verified live price; re-analyze the chart before paper entry",requestedPrice:price,verifiedMarketPrice},{status:409});
-  let existingOpenExposure=0;
+  let existingOpenExposure=0,existingOpenRisk=0;
   if(action==="OPEN"){
    const existingRows=await readPaperLedger(d);
    const closedIds=new Set(existingRows.filter((x:any)=>x.parentTradeId&&["PAPER_CLOSE","PAPER_STOP","PAPER_TARGET"].includes(x.status)).map((x:any)=>x.parentTradeId));
    for(const id of closedIds)await d.hdel(OPEN_POSITIONS_KEY,id);
    const openRows=existingRows.filter((x:any)=>x.status==="PAPER_OPEN"&&!closedIds.has(x.id));
    for(const openTrade of openRows)await d.hset(OPEN_POSITIONS_KEY,{[openTrade.id]:JSON.stringify(openTrade)});
-   if(openRows.some((x:any)=>x.symbol===symbol))return NextResponse.json({error:"A paper position for this symbol is already open; close it before opening another"},{status:409});
+   if(openRows.length>=PAPER_MAX_OPEN_POSITIONS)return NextResponse.json({error:"Maximum of "+PAPER_MAX_OPEN_POSITIONS+" simultaneous paper positions reached; close a position before opening another."},{status:409});
+   const sameMarketRows=openRows.filter((x:any)=>x.symbol===symbol&&(x.venue||"binance")===venue);
+   if(sameMarketRows.some((x:any)=>x.side!==side))return NextResponse.json({error:"This market already has an open position in the opposite direction. Close it before reversing; same-direction scale-in positions are supported."},{status:409});
+   if(sameMarketRows.length>=PAPER_MAX_POSITIONS_PER_SYMBOL)return NextResponse.json({error:"Maximum of "+PAPER_MAX_POSITIONS_PER_SYMBOL+" same-direction position tickets per market reached."},{status:409});
    if(openRows.some((x:any)=>!Number.isFinite(Number(x.paperBalance))||Number(x.paperBalance)<=0))return NextResponse.json({error:"A legacy open paper position has no recorded starting balance. Close legacy positions before opening another trade."},{status:409});
    const openBalances=openRows.map((x:any)=>Number(x.paperBalance));
    if(openBalances.some((value:number)=>Math.abs(value-openBalances[0])>Math.max(0.01,openBalances[0]*1e-9)))return NextResponse.json({error:"Open paper positions have inconsistent recorded balances. Close all open positions before continuing."},{status:409});
@@ -209,7 +212,13 @@ export async function POST(req:Request){
    const dailyRiskError=validatePaperDailyRisk({ledger:existingRows,balance:dailyBaseline,now:Date.now()});
    if(dailyRiskError)return NextResponse.json({error:dailyRiskError,limits:{maxDailyLossPct:PAPER_MAX_DAILY_LOSS_PCT,maxEntriesPerUtcDay:PAPER_MAX_ENTRIES_PER_UTC_DAY}},{status:409});
    existingOpenExposure=openRows.reduce((sum:number,x:any)=>sum+Number(x.fillPrice||x.verifiedMarketPrice||x.requestedPrice)*Number(x.quantity),0);
-   if(!Number.isFinite(existingOpenExposure)||existingOpenExposure<0)return NextResponse.json({error:"Existing paper exposure is malformed; opening another position is blocked"},{status:409});
+   existingOpenRisk=openRows.reduce((sum:number,x:any)=>{
+    const stored=x.plannedRisk===null||x.plannedRisk===undefined?NaN:Number(x.plannedRisk);
+    if(Number.isFinite(stored)&&stored>=0)return sum+stored;
+    const mark=Number(x.fillPrice||x.verifiedMarketPrice||x.requestedPrice),stop=Number(x.stopPrice),quantity=Number(x.quantity);
+    return Number.isFinite(mark)&&mark>0&&Number.isFinite(stop)&&stop>0&&Number.isFinite(quantity)&&quantity>0?sum+Math.abs(mark-stop)*quantity:NaN;
+   },0);
+   if(!Number.isFinite(existingOpenExposure)||existingOpenExposure<0||!Number.isFinite(existingOpenRisk)||existingOpenRisk<0)return NextResponse.json({error:"Existing paper exposure or planned stop-risk is malformed; opening another position is blocked"},{status:409});
   }
   let parentTrade:any=null;
   if(action==="CLOSE"){
@@ -226,9 +235,9 @@ export async function POST(req:Request){
   if(action==="OPEN"){
    if(!Number.isFinite(paperBalance)||paperBalance<100||paperBalance>10000000)return NextResponse.json({error:"Simulated balance must be between 100 and 10,000,000 USDT; no paper trade was created."},{status:400});
    if(!Number.isFinite(riskPct)||riskPct<0.1||riskPct>1)return NextResponse.json({error:"Risk per trade must be between 0.1% and 1.0% of simulated balance; no paper trade was created.",limits:{minRiskPct:0.1,maxRiskPct:1}},{status:400});
-   if(!Number.isFinite(maxExposurePct)||maxExposurePct<=0||maxExposurePct>PAPER_MAX_POSITION_EXPOSURE_PCT)return NextResponse.json({error:"Maximum position exposure must be greater than 0% and no more than 5%; no paper trade was created."},{status:400});
-   const riskError=validatePaperExposure({balance:paperBalance,riskPct,entry:executionReferencePrice,stop:Number(stopPrice),quantity:qty,existingExposure:existingOpenExposure,maxExposurePct,maxTotalExposurePct:PAPER_MAX_PORTFOLIO_EXPOSURE_PCT});
-   if(riskError)return NextResponse.json({error:riskError,limits:{maxPositionExposurePct:PAPER_MAX_POSITION_EXPOSURE_PCT,maxPortfolioExposurePct:PAPER_MAX_PORTFOLIO_EXPOSURE_PCT,maxRiskPct:1}},{status:409});
+   if(!Number.isFinite(maxExposurePct)||maxExposurePct<=0||maxExposurePct>PAPER_MAX_POSITION_EXPOSURE_PCT)return NextResponse.json({error:"Maximum position exposure must be greater than 0% and no more than "+PAPER_MAX_POSITION_EXPOSURE_PCT+"%; no paper trade was created."},{status:400});
+   const riskError=validatePaperExposure({balance:paperBalance,riskPct,entry:executionReferencePrice,stop:Number(stopPrice),quantity:qty,existingExposure:existingOpenExposure,maxExposurePct,maxTotalExposurePct:PAPER_MAX_PORTFOLIO_EXPOSURE_PCT,existingRisk:existingOpenRisk,maxPortfolioRiskPct:PAPER_MAX_OPEN_RISK_PCT});
+   if(riskError)return NextResponse.json({error:riskError,limits:{maxPositionExposurePct:PAPER_MAX_POSITION_EXPOSURE_PCT,maxPortfolioExposurePct:PAPER_MAX_PORTFOLIO_EXPOSURE_PCT,maxOpenRiskPct:PAPER_MAX_OPEN_RISK_PCT,maxOpenPositions:PAPER_MAX_OPEN_POSITIONS,maxPositionsPerSymbol:PAPER_MAX_POSITIONS_PER_SYMBOL,maxRiskPct:1}},{status:409});
   }
   const fill=applySlippage(side,executionReferencePrice,slipBps),fee=calculateFee(fill,qty,feeBps);
   const grossPnl=parentTrade?(parentTrade.side==="BUY"?(fill-Number(parentTrade.fillPrice))*qty:(Number(parentTrade.fillPrice)-fill)*qty):null;
