@@ -58,7 +58,7 @@ async function requestAgentRoomReply(input:{role:string;round:number;target:stri
  let lastError="provider did not return usable text";
  for(let attempt=0;attempt<input.modelCandidates.length;attempt++){
   const candidateModel=input.modelCandidates[attempt];
-  const response=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",cache:"no-store",signal:AbortSignal.timeout(8500),
+  const response=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",cache:"no-store",signal:AbortSignal.timeout(6000),
    headers:{"Authorization":"Bearer "+process.env.OPENROUTER_API_KEY,"Content-Type":"application/json","HTTP-Referer":"https://tarotai-core.vercel.app","X-Title":"TarotAI Trading Agent Room"},
    body:JSON.stringify({model:candidateModel,messages:[{role:"system",content:system},{role:"user",content:user}],temperature:0.2,max_tokens:260})});
   const raw=await response.text();let data:any;
