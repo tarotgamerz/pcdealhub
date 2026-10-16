@@ -1385,11 +1385,11 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const valid=Number.isFinite(entry)&&entry>0&&Number.isFinite(stop)&&stop>0&&(long?stop<entry:stop>entry);
     const distance=valid?Math.abs(entry-stop):NaN,target=valid?(long?entry+2*distance:entry-2*distance):NaN;
     const balance=Number(byId("livePaperBalance")?.value),riskPct=Number(byId("livePaperRisk")?.value),riskBudget=balance*riskPct/100;
-    const openLedger=Array.isArray(window.tarotaiPaperLedger)?paperOpened(window.tarotaiPaperLedger):[],existingOpenNotional=openLedger.reduce((sum,t)=>sum+Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice)*Number(t.quantity),0),existingOpenRisk=paperOpenRisk(openLedger);
+    const openLedger=Array.isArray(window.tarotaiPaperLedger)?paperOpened(window.tarotaiPaperLedger):[],existingOpenNotional=openLedger.reduce((sum,t)=>sum+Number(t.fillPrice||t.verifiedMarketPrice||t.requestedPrice)*Number(t.quantity),0),existingOpenRisk=paperOpenRisk(openLedger),requestedSide=long?"BUY":"SELL",sameMarket=openLedger.filter(t=>t.symbol===symbol&&(t.venue||"binance")===marketVenue);
     const sizingReady=valid&&paperStoreReady&&Number.isFinite(balance)&&balance>=100&&Number.isFinite(riskPct)&&riskPct>=.1&&riskPct<=1&&Number.isFinite(existingOpenNotional)&&existingOpenNotional>=0&&Number.isFinite(existingOpenRisk)&&existingOpenRisk>=0;
     const remainingPortfolioNotional=Math.max(0,balance*PAPER_UI_MAX_PORTFOLIO_EXPOSURE_PCT/100-existingOpenNotional),positionNotionalCap=balance*PAPER_UI_MAX_POSITION_EXPOSURE_PCT/100,remainingPortfolioRisk=Math.max(0,balance*PAPER_UI_MAX_OPEN_RISK_PCT/100-existingOpenRisk),permittedRisk=Math.min(riskBudget,remainingPortfolioRisk);
     const quantity=sizingReady&&permittedRisk>0?Math.min(permittedRisk/distance,positionNotionalCap/entry,remainingPortfolioNotional/entry):NaN;
-    const usable=approved&&valid&&fresh&&paperStoreReady&&!paperOpening&&openLedger.length<PAPER_UI_MAX_OPEN_POSITIONS&&Number.isFinite(quantity)&&quantity>0&&quantity*distance<=permittedRisk+Math.max(1e-8,balance*1e-10);
+    const usable=approved&&valid&&fresh&&paperStoreReady&&!paperOpening&&openLedger.length<PAPER_UI_MAX_OPEN_POSITIONS&&sameMarket.length<PAPER_UI_MAX_POSITIONS_PER_SYMBOL&&!sameMarket.some(t=>t.side!==requestedSide)&&Number.isFinite(quantity)&&quantity>0&&quantity*distance<=permittedRisk+Math.max(1e-8,balance*1e-10);
     const put=(id,value)=>{const el=byId(id);if(el)el.textContent=value;};
     put("demoMarketSymbol",symbol+(interval!=="—"?" · "+interval:""));
     put("demoMarketVenue",marketVenue.toUpperCase()+" perpetual");
@@ -1409,8 +1409,12 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       else if(action==="WAIT")status.textContent="WAIT: no qualified live-chart setup. Agents will not invent an entry.";
       else if(!valid)status.textContent="Blocked: the live quote has crossed the setup's stop/invalidation level.";
       else if(!approved)status.textContent="Candidate "+action+" only. Waiting for all eight roles to approve this exact closed candle.";
+      else if(openLedger.length>=PAPER_UI_MAX_OPEN_POSITIONS)status.textContent="Blocked: the account has reached "+PAPER_UI_MAX_OPEN_POSITIONS+" simultaneous paper positions.";
+      else if(sameMarket.some(t=>t.side!==requestedSide))status.textContent="Blocked: an opposite-direction position is open in this market.";
+      else if(sameMarket.length>=PAPER_UI_MAX_POSITIONS_PER_SYMBOL)status.textContent="Blocked: the market has reached "+PAPER_UI_MAX_POSITIONS_PER_SYMBOL+" same-direction tickets.";
+      else if(!Number.isFinite(quantity)||quantity<=0)status.textContent="Blocked: the 3% combined open-risk or available 1× notional budget is exhausted.";
       else if(paperOpening)status.textContent="Paper order is being validated and recorded.";
-      else status.textContent="Ready: entry uses the latest live quote; stop comes from the active setup; target is recalculated at 2R. Independent risk review and server-side price verification still apply.";
+      else status.textContent="Ready: this can be an additional same-direction paper ticket. It uses the latest live quote, the active setup's stop, a 2R target, and the remaining portfolio risk budget.";
     }
   }
   function validatePaperRiskInput(options={}) {
