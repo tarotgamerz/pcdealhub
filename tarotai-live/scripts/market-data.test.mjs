@@ -480,7 +480,7 @@ test("parallel specialist API performs distinct authenticated AI calls with inde
   assert.match(parallelAgentsRoute,/if\(!parsed\.biasDeclared\)throw new Error\("Specialist report omitted required BIAS field\."/);
   assert.match(parallelAgentsRoute,/auditSpecialistResults\(results/);
   assert.match(parallelAgentsRoute,/model:supervisorAudit\.model/);
-  assert.match(parallelAgentsRoute,/supervisorMode:"deterministic-rule-audit"/);
+  assert.match(parallelAgentsRoute,/supervisorMode:"deterministic-rule-audit(?:-plus-per-message-trading-room-monitor)?"/);
   assert.match(parallelAgentsRoute,/technicalScorecard/);
   assert.match(parallelAgentsRoute,/max_tokens:500/);
   assert.match(parallelAgentsRoute,/Market Structure Analyst/);
