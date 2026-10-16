@@ -419,6 +419,7 @@ test("live chart offers eight trade-lifecycle agents including a supervisor", ()
 
 
 const parallelAgentsRoute = readFileSync(new URL("../app/api/trading/agents/route.ts", import.meta.url), "utf8");
+const helperSourceForTests = readFileSync(new URL("../lib/trading-analysis-quality.mjs", import.meta.url), "utf8");
 const historicalPatternSource = readFileSync(new URL("../public/market-patterns.js", import.meta.url), "utf8");
 test("PDF extraction avoids an unconfigured pdfjs import and initializes the Node worker explicitly", () => {
   const documentsRoute = readFileSync(new URL("../app/api/documents/route.ts", import.meta.url), "utf8");
@@ -475,7 +476,8 @@ test("parallel specialist API performs distinct authenticated AI calls with inde
   assert.match(parallelAgentsRoute,/if\(!parsed\.vetoDeclared\)throw new Error\("Specialist report omitted required VETO field\."/);
   assert.match(parallelAgentsRoute,/if\(!parsed\.biasDeclared\)throw new Error\("Specialist report omitted required BIAS field\."/);
   assert.match(parallelAgentsRoute,/auditSpecialistResults\(results/);
-  assert.match(parallelAgentsRoute,/model:"rules-supervisor-v1"/);
+  assert.match(parallelAgentsRoute,/model:supervisorAudit\.model/);
+  assert.match(parallelAgentsRoute,/supervisorMode:"deterministic-rule-audit"/);
   assert.match(parallelAgentsRoute,/technicalScorecard/);
   assert.match(parallelAgentsRoute,/max_tokens:500/);
   assert.match(parallelAgentsRoute,/Market Structure Analyst/);
@@ -558,7 +560,8 @@ test("live trading desk continuously runs eight distinct local roles while visib
 test("AI provider failures produce explicit fallback reports and block AI-review approval", () => {
   assert.match(parallelAgentsRoute, /function deterministicFallbackReport/);
   assert.match(parallelAgentsRoute, /fallback:true,providerStatus:"degraded"/);
-  assert.match(parallelAgentsRoute, /providerDegraded\|\|results\.some\(r=>!r\.ok\)\|\|monitorBias\.veto/);
+  assert.match(parallelAgentsRoute,/const supervisorAudit=auditSpecialistResults\(results/);
+  assert.match(helperSourceForTests,/r\.fallback\|\|r\.providerStatus==="degraded"/);
   assert.match(parallelAgentsRoute, /fallbackAgents:fallbackCount,aiProviderStatus:fallbackCount\?"degraded":"ok"/);
   assert.match(parallelAgentsRoute, /results\.length!==8\|\|failed!==0\|\|specialistOk!==7/);
 });
@@ -943,6 +946,6 @@ test("specialist completeness, evidence scorecard and deterministic audit are wi
  assert.match(quality,/export function auditSpecialistResults/);
  assert.match(parallelAgentsRoute,/if\(!parsed\.complete\)throw new Error\("Specialist report omitted required fields:/);
  assert.match(futuresDesk,/Setup evidence \(not probability\)/);
- assert.match(futuresDesk,/technicalScorecard\.long\.score/);
+ assert.match(futuresDesk,/scorecard\.long\.score/);
  assert.match(quality,/Material directional conflict/);
 });
