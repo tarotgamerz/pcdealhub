@@ -72,3 +72,13 @@ test("all visible paper OPEN and CLOSE UI actions include idempotency identifier
   assert.match(page, /action:"CLOSE",requestId:"close_"\+t\.id/);
   assert.match(page, /tarotaiPaperRequestIdFor/);
 });
+
+test("paper risk controls reject out-of-range values and explain percent units", () => {
+  assert.match(page, /id="livePaperRisk" type="number" min="0\.1" max="1" step="0\.1" inputmode="decimal" value="0\.5" aria-describedby="livePaperRiskHelp"/);
+  assert.match(page, /function validatePaperRiskInput\(options=\{\}\)/);
+  assert.match(page, /A value of 25 means 25%, not 0\.25%/);
+  assert.match(page, /async function paperOpenSignal\(\)\{\s*const validatedRiskPct=validatePaperRiskInput\(\{showStatus:true\}\);\s*if\(validatedRiskPct===null\)return;/);
+  assert.match(page, /async function paperOpenObservation\(\)\{\s*const validatedRiskPct=validatePaperRiskInput\(\{showStatus:true\}\);\s*if\(validatedRiskPct===null\)return;/);
+  assert.match(page, /validatePaperRiskInput\(\{repair:true\}\)/);
+  assert.match(route, /Risk per trade must be between 0\.1% and 1\.0% of simulated balance/);
+});
