@@ -1,0 +1,160 @@
+(function(root, factory) {
+  const api = factory();
+  if (typeof module === "object" && module.exports) module.exports = api;
+  if (root) root.tarotaiBuildMarketForecast = api.buildMarketForecast;
+})(typeof window !== "undefined" ? window : (typeof globalThis !== "undefined" ? globalThis : null), function() {
+  "use strict";
+  const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
+  const finite = x => x !== null && x !== undefined && x !== "" && Number.isFinite(Number(x));
+  const asMilliseconds = x => Number(x) > 1e12 ? Number(x) : Number(x) * 1000;
+  function ema(values, period) {
+    if (!values.length) return [];
+    const alpha = 2 / (period + 1), out = [values[0]];
+    for (let i = 1; i < values.length; i++) out.push(values[i] * alpha + out[i - 1] * (1 - alpha));
+    return out;
+  }
+  function rsi(values, period) {
+    if (values.length <= period) return NaN;
+    let gain = 0, loss = 0;
+    for (let i = 1; i <= period; i++) {
+      const d = values[i] - values[i - 1];
+      gain += Math.max(0, d); loss += Math.max(0, -d);
+    }
+    gain /= period; loss /= period;
+    for (let i = period + 1; i < values.length; i++) {
+      const d = values[i] - values[i - 1];
+      gain = (gain * (period - 1) + Math.max(0, d)) / period;
+      loss = (loss * (period - 1) + Math.max(0, -d)) / period;
+    }
+    if (loss === 0) return gain === 0 ? 50 : 100;
+    return 100 - 100 / (1 + gain / loss);
+  }
+  function atr(candles, period) {
+    if (candles.length < period + 1) return NaN;
+    const trs = [];
+    for (let i = candles.length - period; i < candles.length; i++) {
+      const c = candles[i], prev = candles[i - 1];
+      trs.push(Math.max(c.high - c.low, Math.abs(c.high - prev.close), Math.abs(c.low - prev.close)));
+    }
+    return trs.reduce((sum, value) => sum + value, 0) / trs.length;
+  }
+  function regressionSlope(values) {
+    const n = Math.min(12, values.length), slice = values.slice(-n);
+    if (n < 3) return NaN;
+    let sx = 0, sy = 0, sxx = 0, sxy = 0;
+    for (let i = 0; i < n; i++) { sx += i; sy += slice[i]; sxx += i * i; sxy += i * slice[i]; }
+    const den = n * sxx - sx * sx;
+    return den ? (n * sxy - sx * sy) / den : 0;
+  }
+  function unavailable(reason, extra = {}) {
+    return { ready: false, status: "WAIT", direction: "WAIT", technicalDirection: "WAIT", reason, points: [], targetPrice: null, triggerPrice: null, invalidationPrice: null, support: null, resistance: null, ...extra };
+  }
+  function buildMarketForecast(input, options = {}) {
+    const intervalMs = finite(options.intervalMs) && Number(options.intervalMs) > 0 ? Number(options.intervalMs) : 300000;
+    const asOf = finite(options.asOf) ? Number(options.asOf) : Date.now();
+    if (options.referenceOnly) return unavailable("Reference-only or delayed market data: no actionable next-move scenario is issued.", { status: "REFERENCE ONLY" });
+    if (!Array.isArray(input)) return unavailable("Closed-candle data is unavailable.");
+    const seen = new Set(), bars = [];
+    for (const raw of input) {
+      if (!raw || !["time", "open", "high", "low", "close"].every(k => finite(raw[k]))) continue;
+      const time = Number(raw.time), open = Number(raw.open), high = Number(raw.high), low = Number(raw.low), close = Number(raw.close);
+      const unitMs = time > 1e12 ? 1 : 1000;
+      const closeTimeMs = finite(raw.closeTime) ? asMilliseconds(raw.closeTime) : asMilliseconds(time) + intervalMs - 1;
+      const volume = finite(raw.volume) ? Number(raw.volume) : 0;
+      if (!(time > 0 && open > 0 && close > 0 && low > 0 && volume >= 0 && high >= Math.max(open, close, low) && low <= Math.min(open, close, high))) continue;
+      if (seen.has(time) || closeTimeMs > asOf) continue;
+      seen.add(time); bars.push({ time, open, high, low, close, volume, closeTimeMs, unitMs });
+    }
+    bars.sort((a, b) => a.time - b.time);
+    const clean = bars.slice(-240);
+    if (clean.length < 80) return unavailable("Need at least 80 valid closed candles; found " + clean.length + ".", { count: clean.length });
+    const last = clean[clean.length - 1], ageMs = Math.max(0, asOf - last.closeTimeMs);
+    if (ageMs > intervalMs * 2 + 60000) return unavailable("Market data is stale (" + Math.round(ageMs / 1000) + "s since the last closed candle). Waiting for fresh data.", { stale: true, count: clean.length, ageMs, lastTime: last.time });
+    const closes = clean.map(c => c.close), e9 = ema(closes, 9), e21 = ema(closes, 21), e50 = ema(closes, 50);
+    const lastIndex = clean.length - 1, close = closes[lastIndex], atrNow = atr(clean, 14), rsiNow = rsi(closes, 14);
+    if (!Number.isFinite(atrNow) || atrNow <= 0 || !Number.isFinite(rsiNow)) return unavailable("ATR/RSI could not be computed reliably.", { count: clean.length, lastTime: last.time });
+    const slope = regressionSlope(closes), momentum3 = close - closes[Math.max(0, lastIndex - 3)];
+    const slopeAtr = slope / atrNow, momentumAtr = momentum3 / atrNow;
+    const prior = clean.slice(Math.max(0, clean.length - 21), clean.length - 1);
+    const priorHigh = Math.max(...prior.map(c => c.high)), priorLow = Math.min(...prior.map(c => c.low));
+    const higherTrend = String(options.higherTrend || "UNAVAILABLE").toUpperCase();
+    const longChecks = [
+      e9[lastIndex] > e21[lastIndex], close > e50[lastIndex], slopeAtr > 0.015,
+      momentumAtr > 0.08, rsiNow >= 52 && rsiNow <= 74,
+      higherTrend === "BULLISH", close > priorHigh
+    ];
+    const shortChecks = [
+      e9[lastIndex] < e21[lastIndex], close < e50[lastIndex], slopeAtr < -0.015,
+      momentumAtr < -0.08, rsiNow >= 26 && rsiNow <= 48,
+      higherTrend === "BEARISH", close < priorLow
+    ];
+    const longScore = longChecks.filter(Boolean).length, shortScore = shortChecks.filter(Boolean).length;
+    let technicalDirection = "MIXED / RANGE";
+    if (higherTrend === "BULLISH" && longScore >= 4 && longScore - shortScore >= 2) technicalDirection = "BULLISH";
+    else if (higherTrend === "BEARISH" && shortScore >= 4 && shortScore - longScore >= 2) technicalDirection = "BEARISH";
+    const flow = options.orderFlow && typeof options.orderFlow === "object" ? options.orderFlow : null;
+    const flowUpdatedAt = flow && Date.parse(flow.updatedAt);
+    const flowFresh = !!flow && flow.depthFresh === true && flow.tradeFresh === true && Number.isFinite(flowUpdatedAt) && asOf - flowUpdatedAt >= -1000 && asOf - flowUpdatedAt <= 5000;
+    const flowBias = flowFresh ? String(flow.bias || "MIXED / NO EDGE").toUpperCase() : "ORDER FLOW UNAVAILABLE / STALE";
+    const flowDirection = flowBias === "BUYERS LEADING" ? "BULLISH" : flowBias === "SELLERS LEADING" ? "BEARISH" : null;
+    const flowConflict = !!flowDirection && ((technicalDirection === "BULLISH" && flowDirection === "BEARISH") || (technicalDirection === "BEARISH" && flowDirection === "BULLISH"));
+    const flowAligned = !!flowDirection && technicalDirection === flowDirection;
+    const direction = flowConflict ? "MIXED / FLOW CONFLICT" : technicalDirection;
+    const structureSupport = finite(options.support) && Number(options.support) < close ? Number(options.support) : priorLow < close ? priorLow : null;
+    const structureResistance = finite(options.resistance) && Number(options.resistance) > close ? Number(options.resistance) : priorHigh > close ? priorHigh : null;
+    const recent = clean.slice(-5), recentThree = clean.slice(-3);
+    const recentLow = Math.min(...recent.map(c => c.low)), recentHigh = Math.max(...recent.map(c => c.high));
+    const technicalScore = technicalDirection === "BULLISH" ? longScore : technicalDirection === "BEARISH" ? shortScore : Math.max(longScore, shortScore);
+    const maxTechnicalScore = 7;
+    let drift = clamp(slope * 0.58 + (momentum3 / 3) * 0.2, -atrNow * 0.42, atrNow * 0.42);
+    if (technicalDirection === "BULLISH" && !flowConflict) drift = Math.max(drift, atrNow * 0.06);
+    else if (technicalDirection === "BEARISH" && !flowConflict) drift = Math.min(drift, -atrNow * 0.06);
+    else if (flowConflict) drift = clamp(slope * 0.16, -atrNow * 0.12, atrNow * 0.12);
+    else drift = clamp(drift, -atrNow * 0.12, atrNow * 0.12);
+    const horizonBars = 4, timeStep = intervalMs / last.unitMs;
+    const points = [];
+    for (let step = 1; step <= horizonBars; step++) {
+      const price = close + drift * step;
+      const width = atrNow * (0.62 + 0.16 * Math.sqrt(step));
+      points.push({ step, time: last.time + timeStep * step, price, upper: price + width, lower: price - width });
+    }
+    const endpoint = points[points.length - 1].price;
+    const directional = direction === "BULLISH" || direction === "BEARISH";
+    let targetPrice = null, triggerPrice = null, invalidationPrice = null;
+    if (directional) {
+      targetPrice = direction === "BULLISH"
+        ? (structureResistance !== null && structureResistance < endpoint ? structureResistance : endpoint)
+        : (structureSupport !== null && structureSupport > endpoint ? structureSupport : endpoint);
+      if (!(direction === "BULLISH" ? targetPrice > close : targetPrice < close)) targetPrice = endpoint;
+      const highs3 = Math.max(...recentThree.map(c => c.high)), lows3 = Math.min(...recentThree.map(c => c.low));
+      triggerPrice = direction === "BULLISH" ? Math.max(highs3, close) + atrNow * 0.05 : Math.min(lows3, close) - atrNow * 0.05;
+      invalidationPrice = direction === "BULLISH" ? (structureSupport !== null ? structureSupport : recentLow) : (structureResistance !== null ? structureResistance : recentHigh);
+    }
+    const strengthLabel = technicalScore >= 6 && (flowAligned || !flowFresh) ? "Strong rule agreement" : technicalScore >= 5 ? "Moderate rule agreement" : "Weak / mixed rule agreement";
+    const evidence = [];
+    evidence.push("EMA 9 is " + (e9[lastIndex] > e21[lastIndex] ? "above" : e9[lastIndex] < e21[lastIndex] ? "below" : "near") + " EMA 21");
+    evidence.push("last close is " + (close > e50[lastIndex] ? "above" : "below") + " EMA 50");
+    evidence.push("12-bar regression slope is " + (slope > 0 ? "rising" : slope < 0 ? "falling" : "flat") + " at " + slopeAtr.toFixed(2) + " ATR/bar");
+    evidence.push("RSI 14 = " + rsiNow.toFixed(1));
+    evidence.push("higher timeframe = " + higherTrend);
+    evidence.push("order flow = " + (flowFresh ? flowBias + (flowAligned ? " (aligned)" : flowConflict ? " (conflicts)" : "") : flowBias));
+    if (close > priorHigh) evidence.push("closed above the prior 20-bar high");
+    else if (close < priorLow) evidence.push("closed below the prior 20-bar low");
+    const moveReference = directional ? targetPrice : endpoint;
+    const move = moveReference - close;
+    return {
+      ready: true, status: "TECHNICAL SCENARIO · SHADOW ONLY", direction, technicalDirection,
+      flowConflict, flowFresh, flowBias, flowStatus: flowFresh ? flowBias + (flowAligned ? " · ALIGNED" : flowConflict ? " · CONFLICT" : " · NO CONFIRMED ALIGNMENT") : "NOT USED · DEPTH/TRADE FEED STALE OR UNAVAILABLE",
+      technicalScore, maxTechnicalScore, longScore, shortScore, strengthLabel,
+      referencePrice: close, lastTime: last.time, lastClosedAt: last.closeTimeMs,
+      ageMs, count: clean.length, atr: atrNow, rsi: rsiNow, slopeAtr, horizonBars,
+      support: structureSupport, resistance: structureResistance,
+      targetPrice: directional ? targetPrice : null, triggerPrice, invalidationPrice,
+      projectedEndpoint: endpoint, projectedMove: move, projectedMovePct: Math.abs(move / close) * 100,
+      projectedMoveAtr: Math.abs(move) / atrNow, rangeLow: points[points.length - 1].lower,
+      rangeHigh: points[points.length - 1].upper, points, evidence,
+      calibratedProbability: null, paperOnly: true, tradeEligible: false
+    };
+  }
+  return { buildMarketForecast };
+});
