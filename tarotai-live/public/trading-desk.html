@@ -563,7 +563,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   function status(text){byId("liveMarketStatus").textContent=text;}
   function reportLiveChartError(error,source){
     const now=Date.now();if(now-lastChartUpdateErrorAt<5000)return;lastChartUpdateErrorAt=now;
-    const message=String(error&&error.message?error.message:error||"unknown chart error").replace(/\\s+/g," ").slice(0,180);
+    const message=String(error&&error.message?error.message:error||"unknown chart error").replace(/\s+/g," ").slice(0,180);
     try{setFeed("LIVE CHART UPDATE ERROR","bad");}catch(_){ }
     status("Live chart update failed ("+source+"): "+message+". Forecast annotations may be stale; refresh to retry.");
     const evidence=byId("liveForecastEvidence");if(evidence)evidence.textContent="Chart diagnostic · "+source+": "+message;
@@ -923,7 +923,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
         ?window.tarotaiBuildMarketForecast(closed,{intervalMs:msFor(currentInterval),horizonBars:4,asOf:Date.now(),higherTrend:htf.direction,support:structure.support,resistance:structure.resistance,orderFlow:flowSummary,referenceOnly:marketVenue==="yahoo"})
         :{ready:false,reason:"The market-forecast module did not load. Refresh the Trading Desk before using forecast annotations."};
     }catch(error){
-      const reason=String(error&&error.message?error.message:error||"unknown forecast error").replace(/\\s+/g," ").slice(0,180);
+      const reason=String(error&&error.message?error.message:error||"unknown forecast error").replace(/\s+/g," ").slice(0,180);
       nextMoveForecast={ready:false,reason:"Forecast calculation failed: "+reason};
       reportLiveChartError(error,"forecast calculation");
     }
