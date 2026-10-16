@@ -963,9 +963,9 @@ test("specialist completeness, evidence scorecard and deterministic audit are wi
 });
 
 test("order-flow observer never publishes unsupported venue snapshots and pauses cleanly when hidden",()=>{
- assert.match(futuresDesk,/window\\.tarotaiOrderFlowSummary=marketVenue==="binance"\\?\\{/);
- assert.match(futuresDesk,/if\\(document\\.visibilityState!=="visible"\\)\\{stopOrderFlowSockets\\(true\\);if\\(orderFlowDrawTimer\\)\\{clearInterval\\(orderFlowDrawTimer\\);orderFlowDrawTimer=null;\\}ofStatus\\("PAUSED · TAB HIDDEN"\\);return;\\}/);
- assert.match(futuresDesk,/if\\(marketVenue!=="binance"\\)\\{[\\s\\S]*?orderFlowSymbol="";if\\(orderFlowDrawTimer\\)\\{clearInterval\\(orderFlowDrawTimer\\);orderFlowDrawTimer=null;\\}ofStatus\\("BINANCE FUTURES ONLY","bad"\\);/);
- const visibilityHandler=futuresDesk.split("\\n").find(line=>line.includes('document.addEventListener("visibilitychange"'));
+ assert.match(futuresDesk,/window\.tarotaiOrderFlowSummary=marketVenue==="binance"\?\{/);
+ assert.match(futuresDesk,/if\(document\.visibilityState!=="visible"\)\{stopOrderFlowSockets\(true\);if\(orderFlowDrawTimer\)\{clearInterval\(orderFlowDrawTimer\);orderFlowDrawTimer=null;\}ofStatus\("PAUSED · TAB HIDDEN"\);return;\}/);
+ assert.match(futuresDesk,/if\(marketVenue!=="binance"\)\{[\s\S]*?orderFlowSymbol="";if\(orderFlowDrawTimer\)\{clearInterval\(orderFlowDrawTimer\);orderFlowDrawTimer=null;\}ofStatus\("BINANCE FUTURES ONLY","bad"\);/);
+ const visibilityHandler=futuresDesk.split("\n").find(line=>line.includes('document.addEventListener("visibilitychange"'));
  assert.ok(visibilityHandler&&visibilityHandler.includes("connectOrderFlow()")&&visibilityHandler.includes("stopOrderFlowSockets(true)"),"foreground resumes feed; background clears stale shadow data");
 });
