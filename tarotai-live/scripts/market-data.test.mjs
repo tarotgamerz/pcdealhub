@@ -969,3 +969,9 @@ test("order-flow observer never publishes unsupported venue snapshots and pauses
  const visibilityHandler=futuresDesk.split("\n").find(line=>line.includes('document.addEventListener("visibilitychange"'));
  assert.ok(visibilityHandler&&visibilityHandler.includes("connectOrderFlow()")&&visibilityHandler.includes("stopOrderFlowSockets(true)"),"foreground resumes feed; background clears stale shadow data");
 });
+
+test("aggregate-trade websocket uses the verified Binance market path while depth keeps its tested path",()=>{
+ assert.match(futuresDesk,/new WebSocket\("wss:\/\/fstream\.binance\.com\/market\/ws\/"\+currentSymbol\.toLowerCase\(\)\+"@aggTrade"\)/);
+ assert.match(futuresDesk,/new WebSocket\("wss:\/\/fstream\.binance\.com\/ws\/"\+currentSymbol\.toLowerCase\(\)\+"@depth20@100ms"\)/);
+ assert.match(futuresDesk,/m\?\.m===true\?"SELL":"BUY"/);
+});

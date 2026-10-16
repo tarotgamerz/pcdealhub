@@ -1555,7 +1555,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       };
       depthWs.onerror=()=>{if(orderFlowDepthSocket===depthWs)ofStatus("DEPTH RECONNECTING","bad");};
       depthWs.onclose=()=>{if(orderFlowDepthSocket===depthWs)orderFlowDepthSocket=null;scheduleOrderFlowReconnect();};
-      const tradeWs=new WebSocket("wss://fstream.binance.com/ws/"+currentSymbol.toLowerCase()+"@aggTrade");orderFlowTradeSocket=tradeWs;
+      const tradeWs=new WebSocket("wss://fstream.binance.com/market/ws/"+currentSymbol.toLowerCase()+"@aggTrade");orderFlowTradeSocket=tradeWs;
       tradeWs.onopen=()=>{if(orderFlowTradeSocket===tradeWs&&orderFlowSymbol===currentSymbol)ofStatus("BINANCE ORDER FLOW LIVE","good");};
       tradeWs.onmessage=event=>{
         if(orderFlowTradeSocket!==tradeWs||orderFlowSymbol!==currentSymbol||marketVenue!=="binance")return;
