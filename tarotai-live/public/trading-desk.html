@@ -1152,7 +1152,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       connectQuoteSocket();
       setFeed("BINANCE USDⓈ-M FUTURES · CONNECTING CANDLES","neutral");
       try{
-        const streamUrl="wss://fstream.binance.com/ws/"+currentSymbol.toLowerCase()+"@kline_"+currentInterval;
+        const streamUrl="wss://fstream.binance.com/market/ws/"+currentSymbol.toLowerCase()+"@kline_"+currentInterval;
         feedSocket=new WebSocket(streamUrl);
         feedSocket.onopen=()=>{if(feedSocket&&marketVenue==="binance"){if(socketReconnectTimer)clearTimeout(socketReconnectTimer);setFeed("BINANCE USDⓈ-M FUTURES · LIVE KLINE STREAM","good");}};
         feedSocket.onmessage=event=>{
@@ -1536,7 +1536,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const changed=orderFlowSymbol!==currentSymbol;stopOrderFlowSockets(changed);orderFlowSymbol=currentSymbol;
     const note=byId("ofNote");if(note)note.textContent="SHADOW MODE · Visible top-20 depth only; executed trade bubbles use Binance aggressor-side flags. Resting orders can be cancelled or hidden. The readout does not yet control entries; it must demonstrate incremental out-of-sample paper-trading value first.";
     try{
-      const depthWs=new WebSocket("wss://fstream.binance.com/ws/"+currentSymbol.toLowerCase()+"@depth20@100ms");orderFlowDepthSocket=depthWs;
+      const depthWs=new WebSocket("wss://fstream.binance.com/public/ws/"+currentSymbol.toLowerCase()+"@depth20@100ms");orderFlowDepthSocket=depthWs;
       depthWs.onopen=()=>{if(orderFlowDepthSocket===depthWs&&orderFlowSymbol===currentSymbol)ofStatus("BINANCE DEPTH LIVE","good");};
       depthWs.onmessage=event=>{
         if(orderFlowDepthSocket!==depthWs||orderFlowSymbol!==currentSymbol||marketVenue!=="binance")return;

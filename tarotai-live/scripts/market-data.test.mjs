@@ -970,9 +970,10 @@ test("order-flow observer never publishes unsupported venue snapshots and pauses
  assert.ok(visibilityHandler&&visibilityHandler.includes("connectOrderFlow()")&&visibilityHandler.includes("stopOrderFlowSockets(true)"),"foreground resumes feed; background clears stale shadow data");
 });
 
-test("aggregate-trade websocket uses the verified Binance market path while depth keeps its tested path",()=>{
+test("Binance Futures websocket categories route klines and aggregate trades to market and depth to public",()=>{
+ assert.match(futuresDesk,/new WebSocket\("wss:\/\/fstream\.binance\.com\/market\/ws\/"\+currentSymbol\.toLowerCase\(\)\+"@kline_"\+currentInterval\)/);
+ assert.match(futuresDesk,/new WebSocket\("wss:\/\/fstream\.binance\.com\/public\/ws\/"\+currentSymbol\.toLowerCase\(\)\+"@depth20@100ms"\)/);
  assert.match(futuresDesk,/new WebSocket\("wss:\/\/fstream\.binance\.com\/market\/ws\/"\+currentSymbol\.toLowerCase\(\)\+"@aggTrade"\)/);
- assert.match(futuresDesk,/new WebSocket\("wss:\/\/fstream\.binance\.com\/ws\/"\+currentSymbol\.toLowerCase\(\)\+"@depth20@100ms"\)/);
  assert.match(futuresDesk,/m\?\.m===true\?"SELL":"BUY"/);
 });
 
