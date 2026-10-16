@@ -158,8 +158,8 @@ test("live EMA overlays update incrementally on each WebSocket candle instead of
   assert.match(desk, /updateLatestEmaPoint\(\{trimmed\}\)/);
   assert.match(desk, /updateLatestEmaPoint\(\{trimmed,historical:updatedHistorical\}\)/);
   assert.doesNotMatch(desk, /const cls=rows\.map\(c=>c\.close\),e9Data=lineData\(ema\(cls,9\),rows\)/);
-  assert.match(desk, /catch\(e\)\{reportLiveChartError\(e,"Binance live candle update"\)\}/);
-  assert.match(desk, /catch\(e\)\{reportLiveChartError\(e,"OKX live candle update"\)\}/);
+  assert.match(desk, /catch\(e\)\{reportLiveChartError\(e,"Binance live candle update"\);\}/);
+  assert.match(desk, /catch\(e\)\{reportLiveChartError\(e,"OKX live candle update"\);\}/);
 });
 
 test("chart timestamps normalize millisecond and second epoch inputs", () => {
@@ -168,7 +168,7 @@ test("chart timestamps normalize millisecond and second epoch inputs", () => {
 
 test("scenario forecasting fails closed with a visible diagnostic instead of aborting the analysis cycle", () => {
   assert.match(desk, /try\{[\s\S]{0,250}nextMoveForecast=typeof window\.tarotaiBuildMarketForecast/);
-  assert.match(desk, /Forecast calculation failed: \+reason/);
+  assert.match(desk, /Forecast calculation failed: "\+reason/);
   assert.match(desk, /reportLiveChartError\(error,"forecast calculation"\)/);
   assert.match(desk, /reportLiveChartError\(error,"forecast walk-forward evaluation"\)/);
   assert.match(desk, /drawForecastOverlay\(\{ready:false,reason:"Indicator history is incomplete; waiting for valid closed candles\."\}\)/);
@@ -178,7 +178,7 @@ test("scenario forecasting fails closed with a visible diagnostic instead of abo
 test("chart runtime failures are surfaced in the market status and forecast evidence panel", () => {
   assert.match(desk, /function reportLiveChartError\(error,source\)/);
   assert.match(desk, /LIVE CHART UPDATE ERROR/);
-  assert.match(desk, /Chart diagnostic · \+source\+:/);
+  assert.match(desk, /Chart diagnostic · "\+source\+":/);
   assert.match(desk, /Forecast annotations may be stale; refresh to retry/);
   assert.match(desk, /lastChartUpdateErrorAt<5000/);
 });
