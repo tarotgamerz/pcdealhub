@@ -98,11 +98,38 @@
 .live-agent-footnote{font-size:11px;color:var(--muted);line-height:1.55;margin:10px 0 0}
 .live-agent-monitor{border:1px solid #30445b;border-radius:11px;padding:12px;margin:10px 0;background:#080e16}.live-agent-monitor-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}.live-agent-monitor-head strong{font-size:14px}.live-agent-livecount{font-size:12px;font-weight:850;padding:5px 9px;border-radius:99px;background:#1c2a3b;color:#d2e3f6}.live-agent-livecount.active{background:#0c2b1e;color:var(--green)}.live-agent-progress{height:5px;background:#1c2938;border-radius:99px;overflow:hidden;margin:10px 0}.live-agent-progress span{display:block;width:0;height:100%;background:#65e6ad;transition:width .2s}.live-agent-activity{display:grid;gap:7px;margin-top:8px}.live-agent-activity-row{display:grid;grid-template-columns:9px minmax(0,1fr) auto;align-items:start;gap:8px;font-size:11px;line-height:1.45;color:#b8c5d5}.live-agent-activity-dot{width:8px;height:8px;border-radius:50%;margin-top:4px;background:#65768a}.live-agent-activity-row.running .live-agent-activity-dot{background:#65e6ad;box-shadow:0 0 0 3px #163426}.live-agent-activity-row.done .live-agent-activity-dot{background:#65e6ad}.live-agent-activity-row.error .live-agent-activity-dot{background:#ff7b83}.live-agent-activity-state{font-size:10px;font-weight:800;color:var(--muted)}
 @media(max-width:700px){.live-agent-grid,.live-agent-results{grid-template-columns:1fr}.live-agent-slot-hint{min-height:0}}
+
+/* Scenario forecasting and automatic evidence-led discussion */
+.scenario-forecast{margin-top:12px;padding:13px;border:1px solid #2b3b4e;border-radius:12px;background:linear-gradient(145deg,#0d1721,#080d14)}
+.scenario-forecast-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.scenario-forecast-head strong{display:block;font-size:13px}
+.scenario-forecast-head small,.scenario-forecast p,.scenario-footnote{color:var(--muted);font-size:11px;line-height:1.55}
+.scenario-forecast p{margin:7px 0 10px}
+.scenario-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.scenario-card{padding:10px;border:1px solid #26384a;border-radius:10px;background:#0a1119;min-width:0}
+.scenario-card strong{display:block;font-size:12px;margin-bottom:6px}
+.scenario-card.bull strong{color:var(--green)}.scenario-card.bear strong{color:var(--red)}
+.scenario-card span{display:block;font-size:11px;color:#c2cedb;line-height:1.6;overflow-wrap:anywhere}
+.scenario-replay{margin-top:9px;padding:9px 10px;border-radius:8px;background:#0c131c;border:1px solid #233143;color:#c3cedb;font-size:11px;line-height:1.6}
+.scenario-footnote{display:block;margin-top:7px}
+.live-agent-room{margin-top:12px;padding:12px;border:1px solid #2c3d50;background:#080e16;border-radius:11px}
+.live-agent-room-head{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.live-agent-room-head strong{font-size:13px}
+.live-agent-room-head span{font-size:10px;color:#9fb0c4}
+.live-agent-room-status{font-size:11px;color:var(--muted);margin:7px 0}
+.live-agent-room-log{max-height:300px;overflow:auto;display:grid;gap:7px;overscroll-behavior:contain}
+.live-agent-room-message{border:1px solid #253446;background:#0b131d;border-radius:8px;padding:9px}
+.live-agent-room-message.topic{border-color:#38506a;background:#101c2a}
+.live-agent-room-message-head{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.live-agent-room-message-head b{font-size:11px}.live-agent-room-message-head time{font-size:10px;color:var(--muted)}
+.live-agent-room-message p{font-size:11px;line-height:1.55;color:#c1cddb;margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+@media(max-width:700px){.scenario-grid{grid-template-columns:1fr}.scenario-forecast{padding:10px}}
+
 </style>
 </head>
 <body><main class="app">
 <header class="top"><button class="feature-trigger" id="featureTrigger" type="button" aria-label="Open TarotAI features" aria-haspopup="dialog" aria-expanded="false">⋮</button><div class="brand"><div class="logo">T</div><div><h1>TarotAI <span class="muted">/ Futures Lab</span></h1><div class="sub">Multi-agent research desk · Binance USDⓈ-M Futures live data</div></div></div><span class="pill">● LIVE TRADING DISABLED</span></header>
-<div class="notice"><strong>Paper-only safety mode:</strong> TarotAI reads public Binance USDⓈ-M Futures market data and can save simulated trades to its private persistent paper ledger. It never sends real exchange orders. The two in-dashboard charts share one feed; the official TradingView site is external. Never enter exchange API keys here.</div>
+<div class="notice"><strong>Paper-only safety mode:</strong> TarotAI reads public Binance USDⓈ-M Futures market data and can save simulated trades to its private persistent paper ledger. It never sends real exchange orders. One synchronized interactive chart is shown in this desk; TradingView opens separately only when requested. Never enter exchange API keys here.</div>
 <section class="stats"><div class="stat"><label>Environment</label><strong class="green">TEST MODE</strong></div><div class="stat"><label>Simulated equity</label><strong id="equity">$10,000.00</strong></div><div class="stat"><label>Open demo positions</label><strong id="openCount">0</strong></div><div class="stat"><label>Daily demo P&amp;L</label><strong id="pnl">$0.00</strong></div></section>
 <div class="grid">
 <section class="panel wide"><h2>Agent room</h2><div class="agents"><div class="agent"><div class="agenthead"><div class="ico">⌁</div><div><strong>Market Structure Analyst</strong><div class="sub">Trend, swing structure and higher-timeframe alignment</div></div></div><span class="tag">MARKET</span></div>
@@ -162,6 +189,13 @@
     <div id="liveAgentAuthGate" class="live-agent-consensus warn" hidden><strong>Private session required</strong><span id="liveAgentAuthMessage">Your private session may have expired. Unlock to run the AI specialists.</span><div class="live-agent-auth-row"><input id="liveAgentAccessCode" type="password" autocomplete="current-password" placeholder="TarotAI private access code" aria-label="TarotAI private access code"><button id="liveAgentAuthButton" class="btn primary" type="button">Unlock &amp; continue</button></div></div>
     <div id="continuousTeamStatus" class="live-agent-consensus warn" aria-live="polite"><strong id="continuousTeamTitle">Continuous team: CONNECTING</strong><span id="continuousTeamDetails">Loading market candles before enabling all eight local rule agents.</span></div>
     <div id="continuousAgentResults" class="live-agent-results"><div class="live-agent-result"><p>Eight local agents will continuously evaluate the live chart once market candles load.</p></div></div>
+    <section class="live-agent-room" id="autoAgentDiscussion" aria-label="Automatic market-driven agent discussion">
+      <div class="live-agent-room-head"><strong>Agent discussion · automatic market topic</strong><span>Local evidence agents · no extra API calls</span></div>
+      <div id="autoAgentDiscussionStatus" class="live-agent-room-status" aria-live="polite">Waiting for 80 closed candles and a fresh quote; no topic input is needed.</div>
+      <div id="autoAgentDiscussionLog" class="live-agent-room-log" role="log" aria-live="polite" aria-relevant="additions text">
+        <article class="live-agent-room-message"><p>The team will select a topic from the live market regime, breakout/rejection state, volatility and risk gates automatically.</p></article>
+      </div>
+    </section>
     <div id="liveAgentConsensus" class="live-agent-consensus warn" aria-live="polite"><strong>AI review: NOT RUN</strong><span>The separate model-backed review runs only when requested. Provider failures are reported as degraded and veto that AI review.</span></div>
     <div id="livePatternStudy" class="live-agent-consensus warn" aria-live="polite"><strong id="livePatternTitle">Historical analogue study: not run</strong><span id="livePatternSummary">The seven trade-lifecycle specialists and supervisor use verified closed candles and earlier patterns from the same market and timeframe. Historical outcomes are descriptive, not guaranteed.</span></div>
     <div id="livePatternExamples" class="live-agent-results"><div class="live-agent-result"><p>Historical examples will appear here with similarity and their observed six-candle outcomes.</p></div></div>
@@ -175,6 +209,16 @@
     <div class="live-metric"><label>Higher-timeframe trend</label><strong id="liveHtf">CHECKING</strong></div>
   </div>
   <div class="live-chart-shell"><div id="liveMarketChart" role="img" aria-label="Interactive live candlestick chart with EMA indicators and current buy, sell, wait, entry, stop loss and take profit annotations"></div><div class="live-chart-overlay"><strong id="liveOverlayDecision">HOLD / WAIT</strong><span id="liveOverlayMeta">Awaiting verified closed candles…</span></div></div>
+  <section class="scenario-forecast" id="scenarioForecastPanel" aria-live="polite">
+    <div class="scenario-forecast-head"><div><strong>Next-move scenario forecast</strong><small id="scenarioForecastSource">Waiting for valid closed candles…</small></div><strong id="scenarioForecastBias" class="amber">RANGE / WAIT</strong></div>
+    <p id="scenarioForecastSummary">Conditional price paths will appear on the live chart after the market snapshot is validated. No guessed probability is displayed.</p>
+    <div class="scenario-grid">
+      <div class="scenario-card bull"><strong>Conditional bullish path</strong><span id="scenarioBullText">Trigger, target and invalidation pending.</span></div>
+      <div class="scenario-card bear"><strong>Conditional bearish path</strong><span id="scenarioBearText">Trigger, target and invalidation pending.</span></div>
+    </div>
+    <div class="scenario-replay" id="scenarioReplay">Walk-forward replay: collecting enough valid history.</div>
+    <small class="scenario-footnote">Dashed green/red paths are conditional scenarios from closed-candle EMA, RSI, ATR and 20-bar structure. Replay statistics are historical rule performance before fees, slippage and funding—not a calibrated live win probability.</small>
+  </section>
   <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:9px;font-size:11px;color:var(--muted)"><span><i class="swatch" style="background:#65e6ad"></i> Bull candle</span><span><i class="swatch" style="background:#ff7b83"></i> Bear candle</span><span><i class="swatch" style="background:#7eafff"></i> EMA 9</span><span><i class="swatch" style="background:#f2c46f"></i> EMA 21</span><span><i class="swatch" style="background:#b48cff"></i> EMA 50</span><span><i class="swatch" style="background:#48c8a6"></i> Auto support</span><span><i class="swatch" style="background:#f1a968"></i> Auto resistance</span><span><i class="swatch" style="background:#54c8ff"></i> Rising trendline</span><span><i class="swatch" style="background:#cf8bff"></i> Falling trendline</span><span><i class="swatch" style="background:#ff7b83"></i> Stop</span><span><i class="swatch" style="background:#65e6ad"></i> Target (2R)</span></div>
   <div class="live-levels"><div class="live-level"><label>Stop loss / invalidation</label><strong id="liveStop">—</strong></div><div class="live-level"><label>Take profit reference</label><strong id="liveTarget">—</strong></div><div class="live-level"><label>Risk : reward</label><strong id="liveRR">—</strong></div></div>
   <div class="live-analysis-grid">
@@ -209,6 +253,7 @@
 <div class="feature-overlay" id="featureOverlay"><nav class="feature-drawer" role="dialog" aria-modal="true" aria-label="TarotAI features"><div class="feature-drawer-head"><div class="logo">T</div><div><div class="feature-drawer-title">tarotai</div><div class="feature-drawer-sub">Select an agent or workspace</div></div><button class="feature-drawer-close" id="featureClose" type="button" aria-label="Close menu">×</button></div><div class="feature-drawer-label">AI agents</div><a class="feature-drawer-link" href="/console.html?mode=chat"><span class="feature-drawer-icon">✳</span><span><b>Chat Agent</b><span class="feature-drawer-desc">General assistant and conversation</span></span></a><a class="feature-drawer-link" href="/console.html?mode=trading"><span class="feature-drawer-icon">↗</span><span><b>Trading Agent</b><span class="feature-drawer-desc">Market analysis, setup planning and risk review</span></span></a><a class="feature-drawer-link" href="/console.html?mode=work"><span class="feature-drawer-icon">◈</span><span><b>Work Agent</b><span class="feature-drawer-desc">Structured task execution</span></span></a><a class="feature-drawer-link" href="/console.html?mode=research"><span class="feature-drawer-icon">⌕</span><span><b>Research Agent</b><span class="feature-drawer-desc">Evidence and web sources</span></span></a><a class="feature-drawer-link" href="/console.html?mode=code"><span class="feature-drawer-icon">⌘</span><span><b>Code Agent</b><span class="feature-drawer-desc">Debugging and implementation</span></span></a><a class="feature-drawer-link" href="/agents.html"><span class="feature-drawer-icon">⎇</span><span><b>Multi-Agent Workspace</b><span class="feature-drawer-desc">Coordinate specialist roles</span></span></a><a class="feature-drawer-link" href="/agents.html?profile=trading"><span class="feature-drawer-icon">⚖</span><span><b>Trading Team</b><span class="feature-drawer-desc">Market Analyst → Trading Analyst → Risk Officer → Strategy Tester</span></span></a><div class="feature-drawer-label">Workspace</div><a class="feature-drawer-link" href="/trading-desk.html"><span class="feature-drawer-icon">▤</span><span><b>Futures Lab</b><span class="feature-drawer-desc">Paper trades, backtests and risk controls</span></span></a><a class="feature-drawer-link" href="/console.html"><span class="feature-drawer-icon">⌂</span><span><b>Command Center</b><span class="feature-drawer-desc">Memory, documents, tasks and connected apps</span></span></a><div class="feature-drawer-note">Live trading remains disabled. The Futures Lab is designed for research, backtesting, persistent paper trades and explicitly confirmed demo/testnet orders only.</div></nav></div>
 <script src="/market-patterns.js"></script>
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+<script src="/trading-scenarios.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 
@@ -292,7 +337,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   if(required.some(id=>!byId(id)))return;
   const intervalMs={"1m":60000,"3m":180000,"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"2h":7200000,"4h":14400000,"1d":86400000};
   const higherMap={"1m":"15m","5m":"1h","15m":"4h","1h":"1d","4h":"1d"};
-  let chart=null,candleSeries=null,ema9Series=null,ema21Series=null,ema50Series=null,supportSeries=null,resistanceSeries=null,risingTrendSeries=null,fallingTrendSeries=null,socketReconnectTimer=null;let lastMarketUpdateAt=0,lastLiveCandleSyncAt=0;let followLive=true,chartPointerStart=null;
+  let chart=null,candleSeries=null,ema9Series=null,ema21Series=null,ema50Series=null,supportSeries=null,resistanceSeries=null,risingTrendSeries=null,fallingTrendSeries=null,bullForecastSeries=null,bearForecastSeries=null,socketReconnectTimer=null;let lastMarketUpdateAt=0,lastLiveCandleSyncAt=0;let followLive=true,chartPointerStart=null;
   let mirrorChart=null,mirrorCandleSeries=null,mirrorEma9Series=null,mirrorEma21Series=null,mirrorEma50Series=null,mirrorSupportSeries=null,mirrorResistanceSeries=null,mirrorRisingTrendSeries=null,mirrorFallingTrendSeries=null,mirrorResizeObserver=null,rangeSyncLock=false,mirrorPriceLines=[],mainLivePriceLine=null,mirrorLivePriceLine=null,lastLiveLineUpdateAt=0;
   let rows=[],marketVenue="binance",feedSocket=null,quoteSocket=null,quoteReconnectTimer=null,quoteSymbol="",lastTradePrice=NaN,lastTradeAt=0,lastQuoteSource="none",lastQuoteSourceTimestamp=0,lastWsTradeAt=0,lastQuoteFallbackErrorAt=0,quoteFallbackTimer=null,quoteFallbackBusy=false,lastQuoteRenderAt=0,pollTimer=null,resizeObserver=null;window.tarotaiMarketVenue=marketVenue;
   let currentSymbol="",currentInterval="",higherCache=[],higherCacheKey="",higherCacheAt=0,priceLines=[],busy=false,firstRender=true,lastWsCandleTime=0,historyBusy=false,historyExhausted=false,historyPages=0,historyLoadAllowedAt=0;
@@ -314,6 +359,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     resistanceSeries=chart.addLineSeries({color:"#f1a968",lineWidth:1,lineStyle:window.LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"Auto resistance"});
     risingTrendSeries=chart.addLineSeries({color:"#54c8ff",lineWidth:2,lineStyle:window.LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"Rising swing-low trendline"});
     fallingTrendSeries=chart.addLineSeries({color:"#cf8bff",lineWidth:2,lineStyle:window.LightweightCharts.LineStyle.Solid,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"Falling swing-high trendline"});
+    bullForecastSeries=chart.addLineSeries({color:"#65e6ad",lineWidth:2,lineStyle:window.LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"Conditional bullish scenario"});
+    bearForecastSeries=chart.addLineSeries({color:"#ff7b83",lineWidth:2,lineStyle:window.LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"Conditional bearish scenario"});
     if(window.ResizeObserver){resizeObserver=new ResizeObserver(entries=>{const box=entries[0]&&entries[0].contentRect;if(box&&chart)chart.applyOptions({width:Math.max(320,Math.floor(box.width)),height:Math.max(300,Math.floor(box.height))});});resizeObserver.observe(host);}
   }
   function createMirrorChart(){
@@ -523,11 +570,63 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     if(candleSeries&&marker)candleSeries.setMarkers([marker]);else if(candleSeries)candleSeries.setMarkers([]);if(mirrorCandleSeries&&marker)mirrorCandleSeries.setMarkers([marker]);else if(mirrorCandleSeries)mirrorCandleSeries.setMarkers([]);
   }
   function trendFor(input,interval){const c=closedOnly(input,interval);if(c.length<55)return {ready:false,direction:"UNAVAILABLE",detail:"Not enough closed higher-timeframe candles to confirm trend."};const cls=c.map(x=>x.close),e20=ema(cls,20),e50=ema(cls,50),i=c.length-1;const up=cls[i]>e50[i]&&e20[i]>e50[i],down=cls[i]<e50[i]&&e20[i]<e50[i];return {ready:true,direction:up?"BULLISH":down?"BEARISH":"MIXED / NEUTRAL",up,down,close:cls[i],ema20:e20[i],ema50:e50[i],time:c[i].time};}
+  let scenarioReplayCacheKey="",scenarioReplayCache=null;
+  function clearScenarioForecast(message){
+    try{if(bullForecastSeries)bullForecastSeries.setData([]);if(bearForecastSeries)bearForecastSeries.setData([]);}catch(e){}
+    const bias=byId("scenarioForecastBias"),source=byId("scenarioForecastSource"),summary=byId("scenarioForecastSummary");
+    if(bias){bias.textContent="RANGE / WAIT";bias.className="amber";}
+    if(source)source.textContent=message||"Forecast temporarily unavailable.";
+    if(summary)summary.textContent=message||"Forecast withheld until enough clean data is available.";
+    const bull=byId("scenarioBullText"),bear=byId("scenarioBearText"),replay=byId("scenarioReplay");
+    if(bull)bull.textContent="No scenario levels issued.";
+    if(bear)bear.textContent="No scenario levels issued.";
+    if(replay)replay.textContent="Walk-forward replay is unavailable until enough valid closed candles are loaded.";
+    window.tarotaiScenarioForecast=null;
+  }
+  function renderScenarioForecast(candles,htf,staleness){
+    const engine=window.TarotAIScenarioForecast;
+    if(!engine||!Array.isArray(candles)||candles.length<100){clearScenarioForecast("Need at least 100 verified closed candles for scenario forecasts.");return;}
+    if(staleness>msFor(currentInterval)*2+60000){clearScenarioForecast("Forecast paused: the latest closed candle is stale.");return;}
+    let forecast;
+    try{forecast=engine.buildScenarioForecast(candles,{intervalMs:msFor(currentInterval),symbol:currentSymbol,interval:currentInterval,higherTimeframeDirection:htf&&htf.direction||"UNAVAILABLE"});}
+    catch(e){clearScenarioForecast("Forecast engine error: "+String(e&&e.message||e));return;}
+    if(!forecast||!forecast.ready){clearScenarioForecast(forecast&&forecast.reason||"Forecast is not ready.");return;}
+    const rangeBefore=chart?chart.timeScale().getVisibleLogicalRange():null;
+    const project=(scenario)=>[{time:toSec(forecast.candleTime),value:forecast.close},...scenario.projected.map(point=>({time:toSec(point.time),value:point.value}))];
+    try{
+      if(bullForecastSeries)bullForecastSeries.setData(project(forecast.scenarios.bull));
+      if(bearForecastSeries)bearForecastSeries.setData(project(forecast.scenarios.bear));
+      // Forecast points extend the time scale. Do not let that move a user who is reviewing history.
+      if(chart&&!followLive&&rangeBefore)chart.timeScale().setVisibleLogicalRange(rangeBefore);
+      else if(chart&&followLive)chart.timeScale().scrollToRealTime();
+    }catch(e){clearScenarioForecast("Chart could not render the forecast overlay.");return;}
+    forecast.higherTimeframe=htf&&htf.direction||"UNAVAILABLE";
+    window.tarotaiScenarioForecast=forecast;
+    const bias=byId("scenarioForecastBias"),source=byId("scenarioForecastSource"),summary=byId("scenarioForecastSummary");
+    if(bias){bias.textContent=forecast.bias;bias.className=forecast.signal==="LONG"?"green":forecast.signal==="SHORT"?"red":"amber";}
+    if(source)source.textContent=currentSymbol+" · "+currentInterval+" · "+new Date(forecast.candleTime).toLocaleString()+" · "+forecast.longScore+"/5 long / "+forecast.shortScore+"/5 short checks";
+    if(summary)summary.textContent="Close "+fmt(forecast.close)+" · ATR(14) "+fmt(forecast.atr)+" ("+forecast.volatilityPct.toFixed(3)+"% of price) · HTF "+forecast.higherTimeframe+". No calibrated probability is claimed.";
+    const b=forecast.scenarios.bull,s=forecast.scenarios.bear;
+    byId("scenarioBullText").textContent=(b.activated?"TRIGGER ALREADY CONFIRMED":"Wait for close above "+fmt(b.trigger))+" · target "+fmt(b.target)+" ("+(b.movePct>=0?"+":"")+b.movePct.toFixed(3)+"%) · invalidation "+fmt(b.invalidation)+".";
+    byId("scenarioBearText").textContent=(s.activated?"TRIGGER ALREADY CONFIRMED":"Wait for close below "+fmt(s.trigger))+" · target "+fmt(s.target)+" ("+(s.movePct>=0?"+":"")+s.movePct.toFixed(3)+"%) · invalidation "+fmt(s.invalidation)+".";
+    const replayKey=currentSymbol+"|"+currentInterval+"|"+forecast.candleTime;
+    if(replayKey!==scenarioReplayCacheKey){
+      scenarioReplayCacheKey=replayKey;
+      try{scenarioReplayCache=engine.backtestScenarioForecast(candles,{horizon:3});}catch(e){scenarioReplayCache={ready:false,reason:"Walk-forward replay failed safely."};}
+    }
+    const replay=byId("scenarioReplay"),stats=scenarioReplayCache;
+    if(stats&&stats.ready){
+      const rate=Number.isFinite(stats.targetBeforeStopPct)?stats.targetBeforeStopPct.toFixed(1)+"%":"not enough resolved cases";
+      replay.textContent="Walk-forward replay · "+stats.candlesUsed+" recent candles · "+stats.signals+" non-overlapping signals · target before stop "+rate+" across "+stats.resolved+" resolved cases · "+stats.timeouts+" timeouts. No fees/slippage/funding included.";
+    }else replay.textContent="Walk-forward replay: "+(stats&&stats.reason||"not enough valid history")+".";
+  }
+
   function analyze(){
     if(!rows.length||!candleSeries)return;
     const closed=closedOnly(rows,currentInterval),lastLive=rows[rows.length-1];
     if(lastLive)byId("livePrice").textContent=hasFreshLiveQuote()?fmt(lastTradePrice):"STALE";
     if(closed.length<80){
+      clearScenarioForecast("Need at least 100 valid closed candles before measuring next-move scenarios.");
       drawStructureAnnotations(closed,NaN);
       byId("liveHtf").textContent="UNAVAILABLE";
       paintChecks([{title:"Market history",pass:false,detail:"Need at least 80 valid closed candles.",neutral:true}]);
@@ -566,6 +665,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     let action="HOLD / WAIT",entry=NaN,stop=NaN,target=NaN,rr=NaN,detail="",selected=longChecks,marker={time:toSec(last.time),position:"aboveBar",color:"#f2c46f",shape:"circle",text:"HOLD / WAIT"};
     const htfCheck={pass:htf.up,detail:htf.ready?htf.direction:"Higher timeframe unavailable",neutral:!htf.ready};
     const staleness=Date.now()-(Number.isFinite(last.closeTime)?last.closeTime:last.time+msFor(currentInterval));
+    renderScenarioForecast(closed,htf,staleness);
     if(staleness>msFor(currentInterval)*2+60000){
       detail="HOLD / WAIT — market data is stale ("+Math.round(staleness/1000)+"s since last closed candle). No setup is issued until fresh exchange data returns.";
       selected=longScore>=shortScore?longChecks:shortChecks;
@@ -621,6 +721,66 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   const localRoleNames={market:"Market Structure Analyst",entry:"Entry Setup Specialist",exits:"Stop-Loss & Take-Profit Planner",sizing:"Position Sizing & Risk Manager",discipline:"Execution Discipline Agent",position:"Live Position Manager",journal:"Trade Journal & Review Analyst",supervisor:"Agent Operations Supervisor"};
   let continuousTeamEnabled=true,continuousTeamTimer=null,continuousCycle=0;
   function localReport(role,bias,veto,lines){return {role,name:localRoleNames[role],ok:true,bias,veto,text:lines.join("\n"),model:"local-rules-v1",source:"continuous-local",fallback:false,elapsedMs:0};}
+  const autoDiscussionStorageKey="tarotai_market_agent_discussion_v1";
+  let autoDiscussionMessages=[],lastAutoDiscussionKey="";
+  try{
+    const saved=JSON.parse(localStorage.getItem(autoDiscussionStorageKey)||"[]");
+    if(Array.isArray(saved))autoDiscussionMessages=saved.filter(m=>m&&typeof m.text==="string"&&typeof m.role==="string").slice(-80);
+  }catch(e){autoDiscussionMessages=[];}
+  if(autoDiscussionMessages.length)lastAutoDiscussionKey=String(autoDiscussionMessages[autoDiscussionMessages.length-1].cycleKey||"");
+  function renderAutoAgentDiscussion(){
+    const log=byId("autoAgentDiscussionLog"),status=byId("autoAgentDiscussionStatus");if(!log||!status)return;
+    log.replaceChildren();
+    const shown=autoDiscussionMessages.slice(-32);
+    if(!shown.length){const item=document.createElement("article");item.className="live-agent-room-message";const p=document.createElement("p");p.textContent="The team will automatically infer discussion topics from fresh closed candles—trend alignment, breakout versus rejection, volatility, or data-quality risk.";item.append(p);log.append(item);return;}
+    shown.forEach(message=>{
+      const item=document.createElement("article");item.className="live-agent-room-message"+(message.kind==="topic"?" topic":"");
+      const head=document.createElement("div");head.className="live-agent-room-message-head";
+      const who=document.createElement("b");who.textContent=message.role;
+      const when=document.createElement("time");when.textContent=message.at?new Date(message.at).toLocaleTimeString():"";
+      const body=document.createElement("p");body.textContent=message.text;
+      head.append(who,when);item.append(head,body);log.append(item);
+    });
+    log.scrollTop=log.scrollHeight;
+  }
+  function updateAutoAgentDiscussion(context){
+    if(!context||!Number.isFinite(Number(context.candleTime)))return;
+    const cycleKey=context.symbol+"|"+context.interval+"|"+Number(context.candleTime);
+    if(cycleKey===lastAutoDiscussionKey)return;
+    lastAutoDiscussionKey=cycleKey;
+    const c=context;
+    let topic;
+    if(c.stale)topic="Feed freshness and why the team must WAIT";
+    else if(c.upBreak&&c.longScore>c.shortScore)topic="Upside breakout: continuation versus failed-breakout rejection";
+    else if(c.downBreak&&c.shortScore>c.longScore)topic="Downside breakdown: continuation versus reclaim";
+    else if(c.htf&&c.htf.up&&c.longScore>=3)topic="Bullish higher-timeframe trend: continuation versus resistance rejection";
+    else if(c.htf&&c.htf.down&&c.shortScore>=3)topic="Bearish higher-timeframe trend: continuation versus support reclaim";
+    else topic="Mixed structure: range expansion versus mean reversion";
+    const atrOk=Number.isFinite(c.atr)&&c.atr>0,close=Number(c.close);
+    const longTarget=atrOk?close+c.atr*1.5:NaN,longInvalid=atrOk?close-c.atr:NaN;
+    const shortTarget=atrOk?close-c.atr*1.5:NaN,shortInvalid=atrOk?close+c.atr:NaN;
+    const pct=v=>Number.isFinite(v)&&close>0?((v/close-1)*100).toFixed(3)+"%":"unavailable";
+    const at=new Date().toISOString();
+    const messages=[
+      {kind:"topic",role:"AUTO-SELECTED MARKET TOPIC",text:topic+" · "+c.symbol+" "+c.interval+" · closed candle "+new Date(c.candleTime).toLocaleString()+". No user topic was required."},
+      {role:"Market Structure Analyst",text:"Evidence: close "+fmt(c.close)+", EMA 9/21/50 alignment "+(c.ema9>c.ema21&&c.close>c.ema50?"bullish":c.ema9<c.ema21&&c.close<c.ema50?"bearish":"mixed")+", RSI "+(Number.isFinite(c.rsi)?c.rsi.toFixed(1):"unavailable")+", higher timeframe "+(c.htf&&c.htf.direction||"unavailable")+". I will not infer order-book liquidity because that feed is not connected."},
+      {role:"Entry Setup Specialist · response",text:"Current checks: long "+c.longScore+"/5, short "+c.shortScore+"/5. "+(c.upBreak?"The closed candle is above the prior 20-bar high.":c.downBreak?"The closed candle is below the prior 20-bar low.":"No confirmed close through the prior 20-bar boundary; a forming-candle move is not an entry trigger.")+" This is not sufficient by itself to authorize a trade."},
+      {role:"Stop-Loss & Target Planner · counter-scenario",text:"ATR(14) "+(atrOk?fmt(c.atr):"unavailable")+". Conditional long reference: target "+fmt(longTarget)+" ("+pct(longTarget)+"), invalidation "+fmt(longInvalid)+". Conditional short reference: target "+fmt(shortTarget)+" ("+pct(shortTarget)+"), invalidation "+fmt(shortInvalid)+". These are measurements from the close, not submitted orders."},
+      {role:"Position Sizing & Risk Manager",text:"Risk gate: use no more than the configured paper-risk limit, and do not size unless equity, contract multiplier, stop distance and fees are known. Missing required inputs means SIZE UNAVAILABLE—not an assumed balance or leverage."},
+      {role:"Execution Discipline Agent · challenge",text:"Quote freshness: "+(c.quoteFresh?"fresh":"STALE / unavailable")+". Spread, depth, funding and realistic slippage are not fully supplied. A clean chart setup can still be a poor fill; do not chase and do not send live orders."},
+      {role:"Live Position Manager",text:c.openCount?c.openCount+" open paper position(s) detected for this symbol; existing stop/target alerts must be handled before considering a new exposure.":"No open paper position is currently recorded for this symbol; nothing needs position management."},
+      {role:"Trade Journal & Review Analyst",text:c.closedTrades+" closed paper outcomes are stored. "+(c.closedTrades>=30?"Measure realized net outcomes against the same signal rule and include costs.":"The sample is too small to establish a reliable win rate; do not call the rule accurate based on a few outcomes.")},
+      {role:"Agent Operations Supervisor · decision",text:"Current rule-engine state: "+c.action+". "+(c.stale||!c.quoteFresh?"VETO / WAIT because data freshness fails.":c.action==="HOLD / WAIT"?"WAIT because the validated setup gates do not agree.":"This remains a paper-research setup, subject to independent risk and execution checks; specialist agreement is not proof of edge.")+" Cycle key: "+c.symbol+" "+c.interval+" "+new Date(c.candleTime).toISOString()+"."}
+    ];
+    autoDiscussionMessages.push(...messages.map(m=>({...m,cycleKey,at})));
+    if(autoDiscussionMessages.length>80)autoDiscussionMessages=autoDiscussionMessages.slice(-80);
+    try{localStorage.setItem(autoDiscussionStorageKey,JSON.stringify(autoDiscussionMessages));}catch(e){}
+    const status=byId("autoAgentDiscussionStatus");
+    if(status)status.textContent="Topic auto-selected from the latest closed candle · "+c.symbol+" "+c.interval+" · "+new Date(c.candleTime).toLocaleTimeString()+" · local deterministic roles · no extra model-provider calls.";
+    renderAutoAgentDiscussion();
+  }
+  renderAutoAgentDiscussion();
+
   function runContinuousAgentCycle(){
     if(!continuousTeamEnabled||document.visibilityState!=="visible"||!rows.length||!candleSeries)return;
     const closed=closedOnly(rows,currentInterval),live=rows[rows.length-1],statusPanel=byId("continuousTeamStatus"),title=byId("continuousTeamTitle"),detail=byId("continuousTeamDetails");
@@ -723,6 +883,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     renderLiveAgentResults(reports,"continuousAgentResults");
     window.tarotaiContinuousAgentReports=reports.map(r=>({role:r.role,bias:r.bias,veto:r.veto,model:r.model,fallback:Boolean(r.fallback)}));
     const approve=!!validLevels&&!localVeto&&!disciplineVeto&&sizeReady&&onSymbol.length===0&&alerts.length===0&&Number.isFinite(drift)&&drift<=.01;
+    updateAutoAgentDiscussion({symbol:currentSymbol,interval:currentInterval,candleTime:Number(last.time),close:last.close,ema9:e9[i],ema21:e21[i],ema50:e50[i],rsi:rsiValues[i],atr:atrValues[i],longScore,shortScore,upBreak,downBreak,htf,stale,quoteFresh,action:approve?bias==="LONG"?"BUY / LONG":bias==="SHORT"?"SELL / SHORT":"HOLD / WAIT":"HOLD / WAIT",openCount:onSymbol.length,closedTrades:finished.length});
     window.tarotaiContinuousTeamApproval=approve?{symbol:currentSymbol,interval:currentInterval,candleTime:Number(last.time),action:action,source:"continuous-local-team",model:"local-rules-v1",agentVotes:window.tarotaiContinuousAgentReports,checkedAt:now}:null;
     statusPanel.className="live-agent-consensus "+(localVeto?"warn":approve?"good":"warn");
     title.textContent="Continuous local team: "+(localVeto?"8/8 CHECKED · VETO / WAIT":approve?"8/8 CHECKED · "+bias+" SETUP REVIEWED":"8/8 CHECKED · HOLD / WAIT");
@@ -902,7 +1063,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     host.addEventListener("pointerdown",event=>{if(event.pointerType==="mouse"&&event.button!==0)return;chartPointerStart={id:event.pointerId,x:event.clientX,y:event.clientY};},{capture:true,passive:true});
     host.addEventListener("wheel",event=>{if(event.deltaX!==0||event.deltaY!==0)pauseLiveFollow();},{capture:true,passive:true});
   }
-  window.addEventListener("pointermove",event=>{const start=chartPointerStart;if(!start||event.pointerId!==start.id)return;if(Math.abs(event.clientX-start.x)>4||Math.abs(event.clientY-start.y)>4)pauseLiveFollow();},{capture:true,passive:true});
+  window.addEventListener("pointermove",event=>{const start=chartPointerStart;if(!start||event.pointerId!==start.id)return;if(Math.abs(event.clientX-start.x)>2||Math.abs(event.clientY-start.y)>2)pauseLiveFollow();},{capture:true,passive:true});
   const clearChartPointer=event=>{if(chartPointerStart&&event.pointerId===chartPointerStart.id)chartPointerStart=null;};
   window.addEventListener("pointerup",clearChartPointer,{capture:true,passive:true});
   window.addEventListener("pointercancel",clearChartPointer,{capture:true,passive:true});
@@ -913,7 +1074,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const e9Data=lineData(ema(closes,9),ts),e21Data=lineData(ema(closes,21),ts),e50Data=lineData(ema(closes,50),ts);
     candleSeries.setData(candleData);ema9Series.setData(e9Data);ema21Series.setData(e21Data);ema50Series.setData(e50Data);
     if(mirrorCandleSeries){mirrorCandleSeries.setData(candleData);mirrorEma9Series.setData(e9Data);mirrorEma21Series.setData(e21Data);mirrorEma50Series.setData(e50Data);}
-    if(firstRender||forceFit){historyLoadAllowedAt=Date.now()+1200;chart.timeScale().fitContent();if(mirrorChart)mirrorChart.timeScale().fitContent();firstRender=false;followLive=true;const goLiveButton=byId("liveGoLive");if(goLiveButton)goLiveButton.hidden=true;}else if(stayAtRealtime){chart.timeScale().scrollToRealTime();if(mirrorChart)mirrorChart.timeScale().scrollToRealTime();}
+    if(firstRender||forceFit){historyLoadAllowedAt=Date.now()+1200;chart.timeScale().fitContent();if(mirrorChart)mirrorChart.timeScale().fitContent();firstRender=false;followLive=true;const goLiveButton=byId("liveGoLive");if(goLiveButton)goLiveButton.hidden=true;}else if(stayAtRealtime){chart.timeScale().scrollToRealTime();if(mirrorChart)mirrorChart.timeScale().scrollToRealTime();}else if(rangeBefore){try{chart.timeScale().setVisibleLogicalRange(rangeBefore);}catch(e){/* preserve the user's view when new bars cannot be mapped */}}
     renderSharedQuote(currentMarketPrice());analyze();
   }
   async function refresh(force){
