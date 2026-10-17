@@ -643,6 +643,13 @@ test("demo order ticket uses live agent decision and persistent paper execution,
 });
 
 
+test("Binance Futures depth and aggregate-trade feeds use the current public combined-stream endpoint", () => {
+  const flow = readFileSync(new URL("../public/orderflow-panel.js", import.meta.url), "utf8");
+  assert.equal((flow.match(/wss:\\/\\/fstream\\.binance\\.com\\/public\\/stream\\?streams=/g) || []).length, 2);
+  assert.match(flow, /packet && packet\.data && typeof packet\.data === "object" \? packet\.data : packet/);
+  assert.doesNotMatch(flow, /wss:\\/\\/fstream\\.binance\\.com\\/ws\\//);
+});
+
 test("paper-entry approvals require signed short-lived server tokens, fresh books, and single-use execution", () => {
   const approval = readFileSync(new URL("../lib/paper-approval.mjs", import.meta.url), "utf8");
   assert.match(parallelAgentsRoute, /createPaperApprovalToken/);
