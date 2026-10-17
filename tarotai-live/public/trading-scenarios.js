@@ -151,7 +151,7 @@
     const indicators = { e9: ema(closes, 9), e21: ema(closes, 21), e50: ema(closes, 50),
       rv: rsi(closes, 14), av: atr(candles, 14) };
     let signals = 0, targetFirst = 0, stopFirst = 0, timeouts = 0;
-    const start = Math.max(50, candles.length - 400);
+    const start = Math.max(80, candles.length - 400);
     for (let i = start; i < candles.length - horizon - 1 && signals < 120; i++) {
       const setup = scoreAt(candles, i, indicators);
       if (!setup || setup.signal === "NONE" || !Number.isFinite(setup.atr) || setup.atr <= 0) continue;
