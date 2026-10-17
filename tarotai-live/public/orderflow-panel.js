@@ -13,7 +13,7 @@
   };
   const book = { bids: new Map(), asks: new Map(), lastUpdateId: null, synced: false, lastMessageAt: 0 };
   let depthSocket = null, tradeSocket = null, generation = 0, reconnectTimer = null, renderTimer = null;
-  let snapshotRetryTimer = null, snapshotInFlight = false, resyncAttempts = 0, reconnectAttempts = 0;
+  let snapshotRetryTimer = null, tradeReconnectTimer = null, snapshotInFlight = false, resyncAttempts = 0, reconnectAttempts = 0;
   let bufferedDepth = [], lastTakerMessageAt = 0, trades = [], activeSymbol = "";
 
   const setStatus = (text, tone) => {
@@ -36,8 +36,8 @@
     depthSocket = tradeSocket = null;
   }
   function clearTimers() {
-    for (const timer of [reconnectTimer, renderTimer, snapshotRetryTimer]) if (timer) clearTimeout(timer);
-    reconnectTimer = renderTimer = snapshotRetryTimer = null;
+    for (const timer of [reconnectTimer, renderTimer, snapshotRetryTimer, tradeReconnectTimer]) if (timer) clearTimeout(timer);
+    reconnectTimer = renderTimer = snapshotRetryTimer = tradeReconnectTimer = null;
   }
   function resetState() {
     book.bids.clear(); book.asks.clear(); book.lastUpdateId = null;
@@ -178,7 +178,7 @@
     }
     trySynchronize(runId);
   }
-  function startTradeSocket(symbol, runId) {
+  function startTradeSocket(symbol, runId, attempt = 0) {
     try {
       tradeSocket = new WebSocket("wss://fstream.binance.com/ws/" + symbol.toLowerCase() + "@aggTrade");
       tradeSocket.onmessage = (message) => {
@@ -193,12 +193,16 @@
         lastTakerMessageAt = Date.now();
         scheduleRender();
       };
-      tradeSocket.onerror = () => {};
+      tradeSocket.onerror = () => {
+        if (runId === generation && tradeSocket) { try { tradeSocket.close(); } catch (_) {} }
+      };
       tradeSocket.onclose = () => {
         if (runId !== generation) return;
-        if (lastTakerMessageAt && Date.now() - lastTakerMessageAt > 10000) {
-          els.takerSplit.textContent = "FEED RECONNECTING";
-        }
+        els.takerSplit.textContent = "FEED RECONNECTING";
+        const delay = Math.min(15000, 750 * Math.pow(2, Math.min(4, attempt)));
+        tradeReconnectTimer = setTimeout(() => {
+          if (runId === generation) startTradeSocket(symbol, runId, Math.min(attempt + 1, 5));
+        }, delay);
       };
     } catch (_) {
       els.takerSplit.textContent = "WS UNAVAILABLE";
