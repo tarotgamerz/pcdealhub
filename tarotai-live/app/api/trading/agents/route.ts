@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { isAuthorized } from "@/lib/auth";
 import { findSimilarCases } from "@/lib/market-patterns.mjs";
 import { evaluateTradeReadiness } from "@/lib/trade-readiness-gate.mjs";
+import { normalizeDepthSnapshot, summarizeOrderBook } from "@/lib/orderbook.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ const SPECIALISTS: Record<string,{name:string;focus:string;instruction:string}> 
  entry:{name:"Entry Setup Specialist",focus:"repeatable entry triggers and no-chase rules",instruction:"Define an exact entry trigger from closed candles and a maximum acceptable entry/drift rule. If the trigger has not closed and confirmed, BIAS WAIT. Never chase after a level is missed."},
  exits:{name:"Stop-Loss & Take-Profit Planner",focus:"invalidation, stop placement, targets and risk/reward geometry",instruction:"Propose entry reference, stop and target only when justified by supplied candle levels and ATR. Prefer reward/risk >=2R. If levels cannot be justified, VETO YES and WAIT. Never invent prices."},
  sizing:{name:"Position Sizing & Risk Manager",focus:"fixed cash risk, quantity sizing and account constraints",instruction:"Calculate quantity only if paper equity and risk percentage are supplied. Default risk cap 1%, hard maximum 2%; never invent balance or leverage. If equity, risk percentage, stop distance or required contract inputs are missing, state SIZE UNAVAILABLE, BIAS WAIT and VETO YES. VETO if risk exceeds 2%."},
- discipline:{name:"Execution Discipline Agent",focus:"trigger confirmation, order choice, slippage and anti-chasing rules",instruction:"Create a paper-only execution checklist for a qualified setup. Live spread, depth and fees are unavailable; mark them unavailable. Never send orders. VETO chasing or unconfirmed triggers."},
+ discipline:{name:"Execution Discipline Agent",focus:"trigger confirmation, order choice, slippage and anti-chasing rules",instruction:"Create a paper-only execution checklist for a qualified setup. Use an explicitly supplied fresh order-book snapshot only to describe spread and displayed liquidity. Fees, funding and full venue depth remain unavailable unless explicitly supplied. A single snapshot is not proof of support/resistance and orders can cancel. Never send orders. VETO chasing or unconfirmed triggers."},
  position:{name:"Live Position Manager",focus:"open paper-position monitoring, stop protection and exit discipline",instruction:"Manage only an open paper position included in context. Check side, entry, stop and target against closed candles; recommend HOLD, cautious stop adjustment only after meaningful favorable movement, or EXIT if invalidated. This agent runs only when requested, not continuously in the background. If no position is supplied, state NO OPEN PAPER POSITION and BIAS WAIT."},
  journal:{name:"Trade Journal & Review Analyst",focus:"trade records, outcome review and process adherence",instruction:"Review only supplied completed paper-trade records. Identify evidence-based process patterns; never infer emotion or statistical significance from tiny samples. If no records are supplied, state JOURNAL DATA UNAVAILABLE and recommend recording entry, stop, target, setup, outcome, costs and adherence. This is not a directional vote: BIAS WAIT."},
  supervisor:{name:"Agent Operations Supervisor",focus:"specialist completion states, evidence quality, contradictions and protocol compliance",instruction:"Audit the seven other agent results supplied in your input. Count complete/failed, flag missing fields, unsupported prices, contradictions, invalid risk geometry and fabricated data. VETO YES if any required agent failed or a material safety/data-integrity issue exists; otherwise VETO NO. This is a monitor, not a directional vote: BIAS WAIT. Never claim continuous monitoring between runs."}
@@ -82,6 +83,17 @@ async function fetchVerifiedMarket(symbol:string,interval:Interval,preferred:Ven
   }catch(e){failures.push(venue.toUpperCase()+": "+(e instanceof Error?e.message:String(e)));}
  }
  throw new Error("No exchange could provide fresh main and higher-timeframe data. "+failures.join(" | ").slice(0,1200));
+}
+async function fetchOrderBookSnapshot(symbol:string,venue:Venue) {
+ if(venue!=="binance")return null;
+ try {
+  const url=new URL("https://fapi.binance.com/fapi/v1/depth");url.searchParams.set("symbol",symbol);url.searchParams.set("limit","1000");
+  const response=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(1800),headers:{"User-Agent":"TarotAI-ReadOnly-OrderBook"}});
+  if(!response.ok)return null;
+  const raw:unknown=await response.json();const snapshot=normalizeDepthSnapshot(symbol,raw),now=Date.now(),metrics=summarizeOrderBook(snapshot,now);
+  if(metrics.snapshotAgeMs===null||metrics.snapshotAgeMs>15000)return null;
+  return {source:"Binance USDⓈ-M Futures REST snapshot",fetchedAt:new Date(now).toISOString(),ageMs:metrics.snapshotAgeMs,lastUpdateId:metrics.lastUpdateId,bestBid:metrics.bestBid,bestAsk:metrics.bestAsk,midPrice:metrics.midPrice,spreadBps:Number(metrics.spreadBps?.toFixed(3)),bidDepthQuote0_5Pct:Number(metrics.bidDepthQuote0_5Pct.toFixed(2)),askDepthQuote0_5Pct:Number(metrics.askDepthQuote0_5Pct.toFixed(2)),depthImbalancePct:metrics.depthImbalancePct===null?null:Number(metrics.depthImbalancePct.toFixed(2)),nearestBidLevels:metrics.bidLevels.slice(0,5),nearestAskLevels:metrics.askLevels.slice(0,5),caveat:"Single timestamped snapshot; resting orders can cancel or move. Not spoofing detection, historical liquidity or a calibrated directional signal."};
+ }catch{return null;}
 }
 function ema(values:number[],period:number):number[] {if(!values.length)return [];const k=2/(period+1),out=[values[0]];for(let i=1;i<values.length;i++)out.push(values[i]*k+out[i-1]*(1-k));return out;}
 function trendSummary(candles:Candle[]) {
@@ -169,7 +181,8 @@ function specialistSystem(role:string) {
   "You are "+s.name+", one specialist in TarotAI’s eight-role trade-lifecycle team. Your domain is "+s.focus+".",
   s.instruction,
   "Grounding rules:",
-  "- You receive a server-fetched, timestamped snapshot of real historical exchange OHLCV candles and similar past chart situations with their subsequently observed outcomes. Use only this evidence. Do not invent live prices, candles, indicators, funding, order-book data, or examples.",
+  "- You receive server-fetched, timestamped closed exchange candles and historical analogues. If orderBookSnapshot is present, it is one timestamped resting-depth snapshot only; it can change or cancel and is not spoofing detection, absorption proof, guaranteed support/resistance or a calibrated signal. State when it is missing.",
+  "- Never invent live prices, candles, indicators, account data, funding, order-book data, or examples. Use paperTradeContext only when supplied; missing equity or risk inputs means sizing is unavailable.",
   "- All candles supplied are CLOSED. Examples are nearest historical analogues from earlier candles in the SAME symbol, timeframe and sample. Forward returns are observed outcomes, not guarantees or calibrated probabilities. Small samples are weak evidence.",
   "- Recommend WAIT if evidence conflicts, the sample is weak, or a setup is unconfirmed. Never force a trade.",
   "- Paper-trading research only. Never promise profits or invent prices, account size, leverage, or indicators.",
@@ -203,6 +216,7 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
  send({type:"phase",phase:"market",message:"Fetching fresh closed candles and checking the higher timeframe."});
  let market:any;try{market=await fetchVerifiedMarket(symbol,interval,preferred);}catch(e){return jsonError(e instanceof Error?e.message:"Verified market data unavailable.",502,{readOnly:true,orderPlacement:false});}
  const patternStudy=findSimilarCases(market.candles,interval,{horizon:6,maxExamples:8,maxDistance:0.34}),higherTrend=trendSummary(market.higherCandles),last=market.candles[market.candles.length-1];
+ const orderBookSnapshot=await fetchOrderBookSnapshot(symbol,market.venue);
  send({type:"phase",phase:"agents",symbol,interval,message:"Market snapshot verified. Dispatching selected independent specialists concurrently.",roles:roles.map((role:string)=>({role,name:SPECIALISTS[role].name,focus:SPECIALISTS[role].focus}))});
  const suppliedLedger=Array.isArray(body.paperLedger)?body.paperLedger.slice(-20):[];
  const paperLedger=suppliedLedger.map((t:any)=>({id:String(t?.id||"").slice(0,100),status:String(t?.status||"").slice(0,40),symbol:String(t?.symbol||"").slice(0,20),side:String(t?.side||"").slice(0,10),quantity:Number.isFinite(Number(t?.quantity))?Number(t.quantity):null,fillPrice:Number.isFinite(Number(t?.fillPrice))?Number(t.fillPrice):null,stopPrice:Number.isFinite(Number(t?.stopPrice))?Number(t.stopPrice):null,targetPrice:Number.isFinite(Number(t?.targetPrice))?Number(t.targetPrice):null,pnlNet:Number.isFinite(Number(t?.pnlNet))?Number(t.pnlNet):null,createdAt:String(t?.createdAt||"").slice(0,40),closedAt:String(t?.closedAt||"").slice(0,40),parentTradeId:String(t?.parentTradeId||"").slice(0,100)}));
@@ -210,7 +224,7 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
  const openPaperPositions=paperLedger.filter((t:any)=>t.status==="PAPER_OPEN"&&!closedPaperIds.has(t.id)).map((t:any)=>({id:t.id,symbol:t.symbol,side:t.side,quantity:t.quantity,entry:t.fillPrice,stop:t.stopPrice,target:t.targetPrice,openedAt:t.createdAt}));
  const paperTradeContext={paperEquity:Number.isFinite(Number(body.paperEquity))&&Number(body.paperEquity)>=100&&Number(body.paperEquity)<=10000000?Number(body.paperEquity):null,riskPct:Number.isFinite(Number(body.riskPct))&&Number(body.riskPct)>=0.1&&Number(body.riskPct)<=2?Number(body.riskPct):null,openPositions:openPaperPositions,recentRecords:paperLedger.filter((t:any)=>t.parentTradeId&&["PAPER_CLOSE","PAPER_STOP","PAPER_TARGET"].includes(t.status)).slice(-10)};
  const userContext={
-  source:"server-fetched public exchange data",availableFeeds:{closedOHLCV:true,higherTimeframeCandles:true,historicalAnalogues:true,liveMacroRates:false,centralBankCalendar:false,geopoliticalFeed:false,newsAndSocialSentiment:false,satelliteOrShippingData:false,level2OrderBook:false,tradeLevelVPIN:false,darkPoolData:false,optionsImpliedVolatilitySurface:false,liveSpreadAndVenueDepth:false},committeeGuardrails:{riskOnProxyMaxGrossExposurePct:25,neutralMaxGrossExposurePct:10,riskOffProxyMaxGrossExposurePct:5,description:"Fixed conservative paper-research caps; not optimized or a personalized allocation recommendation."},exchange:market.venue,host:market.host,symbol,interval,higherInterval:market.higherInterval,
+  source:"server-fetched public exchange data",availableFeeds:{closedOHLCV:true,higherTimeframeCandles:true,historicalAnalogues:true,orderBookSnapshot:Boolean(orderBookSnapshot),liveMacroRates:false,centralBankCalendar:false,geopoliticalFeed:false,newsAndSocialSentiment:false,satelliteOrShippingData:false,level2OrderBook:Boolean(orderBookSnapshot),tradeLevelVPIN:false,darkPoolData:false,optionsImpliedVolatilitySurface:false,liveSpreadAndVenueDepth:false},orderBookSnapshot,paperTradeContext:{paperEquity:paperTradeContext.paperEquity,riskPct:paperTradeContext.riskPct,openPositions:paperTradeContext.openPositions,recentRecords:paperTradeContext.recentRecords},committeeGuardrails:{riskOnProxyMaxGrossExposurePct:25,neutralMaxGrossExposurePct:10,riskOffProxyMaxGrossExposurePct:5,description:"Fixed conservative paper-research caps; not optimized or a personalized allocation recommendation."},exchange:market.venue,host:market.host,symbol,interval,higherInterval:market.higherInterval,
   fetchedAt:market.fetchedAt,lastClosedCandleAgeSeconds:Math.max(0,Math.round(market.lastClosedCandleAgeMs/1000)),
   lastClosedCandle:{time:new Date(last.time).toISOString(),open:last.open,high:last.high,low:last.low,close:last.close,volume:last.volume},
   higherTimeframeSummary:higherTrend,
@@ -281,7 +295,7 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
  const ok=results.filter(r=>r.ok).length; const failed=results.filter(r=>!r.ok).length; const specialistOk=results.filter(r=>r.role!=="supervisor"&&r.ok).length; const fallbackCount=results.filter(r=>r.fallback).length;
  if(results.length!==8||failed!==0||specialistOk!==7)return jsonError("The team did not return all eight usable role reports.",502,{results,model,elapsedMs:Date.now()-started,completedAgents:ok,requestedAgents:8});
  const lastClosedCandleAgeSeconds=Math.max(0,Math.round(market.lastClosedCandleAgeMs/1000));
- const decisionGate=evaluateTradeReadiness(results,{lastClosedCandleAgeSeconds},INTERVAL_MS[interval]);
+ const decisionGate=evaluateTradeReadiness(results,{lastClosedCandleAgeSeconds,orderBookSnapshot},INTERVAL_MS[interval]);
  const supervisor=results.find(r=>r.role==="supervisor");
  if(supervisor) supervisor.text=String(supervisor.text||"")+"\n\nDETERMINISTIC TRADE GATE: "+decisionGate.status+"; recommendation "+decisionGate.recommendation+". "+(decisionGate.blockers.length?"Blockers: "+decisionGate.blockers.join(" | "):"All required checks passed; paper setup candidate only.");
  return NextResponse.json({ok:true,mode:fallbackCount?"hybrid-ai-with-deterministic-fallback":"parallel-llm-specialists",model,elapsedMs:Date.now()-started,decisionGate,
