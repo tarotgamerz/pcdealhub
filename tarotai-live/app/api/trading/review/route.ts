@@ -114,9 +114,11 @@ export async function POST(req: Request) {
   if (side !== (gate.direction === "LONG" ? "LONG" : "SHORT")) {
     issues.push("Requested side differs from the signed gate.");
   }
-  if (!closeEnough(entry, Number(gate.entry)) || !closeEnough(stop, Number(gate.stop)) ||
-      !closeEnough(target, Number(gate.target))) {
-    issues.push("Entry, stop and target must match the signed price plan exactly.");
+  if (!Number.isFinite(entry) || entry <= 0 || Math.abs(entry - Number(gate.entry)) / Number(gate.entry) > MAX_DRIFT) {
+    issues.push("Requested live entry has moved more than 0.25% from the signed plan; rerun analysis.");
+  }
+  if (!closeEnough(stop, Number(gate.stop)) || !closeEnough(target, Number(gate.target))) {
+    issues.push("Stop and target must match the signed price plan exactly.");
   }
   if (!closeEnough(balance, Number(gate.paperEquity)) || !closeEnough(riskPct, Number(gate.riskPct))) {
     issues.push("Paper equity and risk must match the signed settings.");
@@ -131,7 +133,7 @@ export async function POST(req: Request) {
   if (!validGeometry) issues.push("Entry, stop and target do not match valid directional geometry.");
   const riskDistance = Math.abs(entry - stop);
   const rewardRisk = riskDistance > 0 ? Math.abs(target - entry) / riskDistance : 0;
-  if (rewardRisk < 2) issues.push("Calculated reward/risk is below 2R.");
+  if (rewardRisk < 1.9) issues.push("Live entry drift lowers calculated reward/risk below 1.9R.");
 
   let book: any = null;
   try { book = await fetchFreshBook(symbol, venue); }
@@ -144,19 +146,27 @@ export async function POST(req: Request) {
     if (!Number.isFinite(spreadBps) || spreadBps < 0 || spreadBps > MAX_SPREAD_BPS) {
       issues.push("Current spread is invalid or exceeds the provisional 10 bps ceiling.");
     }
-    if (!Number.isFinite(drift) || drift > MAX_DRIFT) {
-      issues.push("Current order-book mid-price has moved more than 0.25% from the signed entry; rerun analysis.");
+    if (!Number.isFinite(drift) || drift > MAX_DRIFT || !Number.isFinite(Number(book.midPrice)) || Math.abs(Number(book.midPrice) - entry) / entry > MAX_DRIFT) {
+      issues.push("Current order-book mid-price is more than 0.25% from the signed plan or submitted entry; rerun analysis.");
     }
   }
 
   if (issues.length || !book) return reject(issues.length ? issues : ["Fresh book unavailable."]);
 
   const tokenNow = Date.now();
+  const executionQuantity = Math.min(balance * riskPct / 100 / Math.abs(entry - stop), balance / entry);
+  if (!Number.isFinite(executionQuantity) || executionQuantity <= 0) return reject(["Server-side position sizing failed."], 409);
   let paperExecutionToken: string;
   try {
     paperExecutionToken = createPaperApprovalToken({
       ...gate,
       tokenType: "PAPER_EXECUTION",
+      entry,
+      stop,
+      target,
+      quantity: executionQuantity,
+      paperEquity: balance,
+      riskPct,
       bookAgeMs: book.snapshotAgeMs,
       bookFetchedAtMs: tokenNow,
       bookMid: book.midPrice,
