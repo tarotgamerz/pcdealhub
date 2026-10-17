@@ -75,6 +75,11 @@ test("Trading Desk adds chart series, live order-flow context and transparent sc
   assert.match(desk, /function queueChartLibraryRecovery\(\)/);
   assert.match(desk, /if\(!window\.LightweightCharts\)\{queueChartLibraryRecovery\(\);return;\}/);
   assert.match(desk, /if\(followForecast&&chart\)\{chart\.timeScale\(\)\.scrollToRealTime\(\)/);
+  assert.match(desk, /function scheduleOrderFlowRender\(\)/);
+  assert.match(desk, /const wait=Math\.max\(0,180-\(Date\.now\(\)-lastOrderFlowRenderAt\)\)/);
+  assert.match(desk, /setInterval\(scheduleOrderFlowRender,350\)/);
+  assert.match(desk, /depthWs\.onmessage=event=>\{[\s\S]{0,2600}scheduleOrderFlowRender\(\);/);
+  assert.match(desk, /tradeWs\.onmessage=event=>\{[\s\S]{0,3200}scheduleOrderFlowRender\(\);/);
 });
 
 test("forecast exposes explicit base, conditional upside and conditional downside paths with measured triggers and invalidations", () => {
