@@ -989,7 +989,7 @@ test("Futures Lab restores order-flow bubbles on the existing candlestick chart"
 test("the /virtual route serves the dedicated screenshot-inspired order-flow workspace", () => {
   assert.ok(nextConfig.includes('source: "/virtual"'), "/virtual route is explicitly registered");
   assert.ok(nextConfig.includes('destination: "/virtual.html"'), "/virtual uses its dedicated order-flow workspace");
-  for (const id of ["footprintCanvas", "bubbleChart", "bubbleOverlay", "volumeCanvas", "cvdCanvas", "paperLong", "paperShort", "paperClose"]) {
+  for (const id of ["footprintCanvas", "bubbleChart", "bubbleOverlay", "liquidityProfileCanvas", "volumeCanvas", "cvdCanvas", "paperLong", "paperShort", "paperClose"]) {
     assert.ok(virtualPage.includes('id="' + id + '"'), "virtual workspace includes " + id);
   }
   assert.ok(virtualPage.includes('id="orderflowPanel"') && virtualPage.includes('id="liveSymbol"'), "live order-flow feed support remains mounted");
@@ -998,6 +998,7 @@ test("the /virtual route serves the dedicated screenshot-inspired order-flow wor
   assert.ok(virtualPage.includes('https://fapi.binance.com/fapi/v1/klines'), "virtual candles initialize from exchange history");
   assert.ok(virtualPage.includes("No exchange order was sent"), "paper ticket is explicitly simulated and cannot submit exchange orders");
   assert.ok(virtualPage.includes("Historical candles load first") && virtualPage.includes("unavailable historic bid/ask splits are not invented"), "historical footprint cells are not fabricated");
+  assert.ok(virtualPage.includes("function drawLiquidityProfile()") && virtualPage.includes("const profileBins=new Map()"), "observed tape and synchronized depth have distinct price profiles");
   assert.ok(virtualPage.includes('$("liveSymbol").dispatchEvent(new Event("change"))'), "changing symbol reconnects the depth/trade feed");
   assert.ok(orderflowPanelScript.includes('new CustomEvent("tarotai:orderflow-update"'), "sequence-checked order book publishes to virtual workspace");
 });
