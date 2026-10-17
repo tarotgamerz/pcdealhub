@@ -650,7 +650,7 @@ test("legacy strategy canvas remains quote-aware but does not poll while hidden"
   assert.match(futuresDesk, /quoteFresh\?quote\.toLocaleString/);
   assert.match(futuresDesk, /LIVE '\+liveP\.toLocaleString/);
   assert.match(futuresDesk, /strategyRefreshTimer=setInterval/);
-  assert.match(futuresDesk, /window\\.tarotaiUpdateStrategyLiveQuote=function\\(price,now\\)\\{if\\(\\$\\('visual-strategy-panel'\\)\\?\\.hidden\\)return/);
+  assert.ok(futuresDesk.includes("window.tarotaiUpdateStrategyLiveQuote=function(price,now){if($('visual-strategy-panel')?.hidden)return;"));
     assert.match(futuresDesk, /startStrategyAutoRefresh\(\);if\(document\.visibilityState==='visible'&&!\$\('visual-strategy-panel'\)\?\.hidden\)/);
   assert.match(futuresDesk, /window\.tarotaiStrategyCandles=null/);
 });
