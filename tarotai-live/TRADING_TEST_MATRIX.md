@@ -23,6 +23,9 @@ All tests must run with live trading disabled and must never send production ord
 - Replay identical candles and parameters deterministically.
 - Verify ledger survives a fresh server instance.
 - Fail closed if durable storage is unavailable.
+- Require a signed, short-lived server gate token tied to symbol, venue, timeframe, closed candle, direction, levels, paper size and risk settings.
+- Require a second, shorter-lived execution token after a fresh same-venue order-book check; browser-supplied spread values cannot authorize a paper entry.
+- Consume each execution token once using a durable atomic store operation to block token replay; never store raw tokens in the trade ledger.
 
 ## Strategy and risk review
 - Strategy review and risk review must be separate functions with separate outputs.
