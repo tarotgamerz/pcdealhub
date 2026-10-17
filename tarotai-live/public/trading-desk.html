@@ -336,7 +336,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   const required=["liveMarketChart","liveSymbol","liveInterval","liveRefresh","liveDecision","livePrice","liveEntry","liveHtf","liveStop","liveTarget","liveRR","liveInstruction","liveCheckList","liveMarketStatus","liveFeedPill","liveOverlayDecision","liveOverlayMeta"];
   if(required.some(id=>!byId(id)))return;
   const intervalMs={"1m":60000,"3m":180000,"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"2h":7200000,"4h":14400000,"1d":86400000};
-  const higherMap={"1m":"15m","5m":"1h","15m":"4h","1h":"1d","4h":"1d"};
+  const higherMap={"1m":"15m","3m":"15m","5m":"1h","15m":"4h","30m":"4h","1h":"1d","2h":"1d","4h":"1d","1d":"1d"};
   let chart=null,candleSeries=null,ema9Series=null,ema21Series=null,ema50Series=null,supportSeries=null,resistanceSeries=null,risingTrendSeries=null,fallingTrendSeries=null,bullForecastSeries=null,bearForecastSeries=null,socketReconnectTimer=null;let lastMarketUpdateAt=0,lastLiveCandleSyncAt=0;let followLive=true,chartPointerStart=null;
   let mirrorChart=null,mirrorCandleSeries=null,mirrorEma9Series=null,mirrorEma21Series=null,mirrorEma50Series=null,mirrorSupportSeries=null,mirrorResistanceSeries=null,mirrorRisingTrendSeries=null,mirrorFallingTrendSeries=null,mirrorResizeObserver=null,rangeSyncLock=false,mirrorPriceLines=[],mainLivePriceLine=null,mirrorLivePriceLine=null,lastLiveLineUpdateAt=0;
   let rows=[],marketVenue="binance",feedSocket=null,quoteSocket=null,quoteReconnectTimer=null,quoteSymbol="",lastTradePrice=NaN,lastTradeAt=0,lastQuoteSource="none",lastQuoteSourceTimestamp=0,lastWsTradeAt=0,lastQuoteFallbackErrorAt=0,quoteFallbackTimer=null,quoteFallbackBusy=false,lastQuoteRenderAt=0,pollTimer=null,resizeObserver=null;window.tarotaiMarketVenue=marketVenue;
@@ -617,7 +617,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const replay=byId("scenarioReplay"),stats=scenarioReplayCache;
     if(stats&&stats.ready){
       const rate=Number.isFinite(stats.targetBeforeStopPct)?stats.targetBeforeStopPct.toFixed(1)+"%":"not enough resolved cases";
-      replay.textContent="Walk-forward replay · "+stats.candlesUsed+" recent candles · "+stats.signals+" non-overlapping signals · target before stop "+rate+" across "+stats.resolved+" resolved cases · "+stats.timeouts+" timeouts. No fees/slippage/funding included.";
+      replay.textContent="Main-timeframe rule replay (no higher-timeframe gate) · "+stats.candlesUsed+" recent candles · "+stats.signals+" non-overlapping signals · target before stop "+rate+" across "+stats.resolved+" resolved cases · "+stats.timeouts+" timeouts. No fees/slippage/funding included.";
     }else replay.textContent="Walk-forward replay: "+(stats&&stats.reason||"not enough valid history")+".";
   }
 
