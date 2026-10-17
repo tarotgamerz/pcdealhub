@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 const require = createRequire(import.meta.url);
 const { buildMarketForecast, evaluateForecastWalkForward } = require("../public/market-forecast.js");
 const desk = readFileSync(new URL("../public/trading-desk.html", import.meta.url), "utf8");
+const chartLoader = readFileSync(new URL("../public/chart-library-loader.js", import.meta.url), "utf8");
 
 function makeCandles(direction = 1, count = 120, options = {}) {
   const intervalMs = options.intervalMs || 60_000, start = options.start || 1_750_000_000_000, candles = [];
@@ -68,7 +69,9 @@ test("Trading Desk adds chart series, live order-flow context and transparent sc
   assert.match(desk, /const higherMap=\{"1m":"15m","3m":"15m","5m":"1h","15m":"4h","30m":"4h","1h":"1d","2h":"1d","4h":"1d","1d":"1d"\}/);
   assert.match(desk, /forecastUpperSeries=chart\.addLineSeries/); assert.match(desk, /drawForecastOverlay\(nextMoveForecast\)/);
   assert.match(desk, /window\.tarotaiOrderFlowSummary/); assert.match(desk, /liveForecastInvalidation/); assert.match(desk, /not a calibrated probability/i);
-  assert.match(desk, /cdn\.jsdelivr\.net\/npm\/lightweight-charts@4\.2\.3/);
+  assert.match(desk, /<script src="\/chart-library-loader\.js"><\/script>/);
+  assert.match(chartLoader, /cdn\.jsdelivr\.net\/npm\/lightweight-charts@4\.2\.3/);
+  assert.match(chartLoader, /script\.onerror = loadNext/);
   assert.match(desk, /function queueChartLibraryRecovery\(\)/);
   assert.match(desk, /if\(!window\.LightweightCharts\)\{queueChartLibraryRecovery\(\);return;\}/);
   assert.match(desk, /if\(followForecast&&chart\)\{chart\.timeScale\(\)\.scrollToRealTime\(\)/);
