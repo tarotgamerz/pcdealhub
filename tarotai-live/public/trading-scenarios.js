@@ -46,22 +46,24 @@
     return out;
   }
 
-  function validCandles(input) {
+  function validCandles(input, intervalMs) {
     if (!Array.isArray(input) || input.length === 0) return false;
+    const duration = Number(intervalMs);
     let previousTime = 0;
     for (const c of input) {
-      // Market feed parsers must normalize exchange values before this calculation.
-      // Reject strings, duplicate timestamps and out-of-order candles rather than
-      // letting coercion or future data silently corrupt chart geometry/backtests.
-      if (!c || ![c.time, c.open, c.high, c.low, c.close].every((n) => typeof n === "number" && Number.isFinite(n))) return false;
-      if (c.time <= previousTime || c.time <= 0 || c.open <= 0 || c.high <= 0 || c.low <= 0 || c.close <= 0) return false;
+      // Forecast data must already be normalized by the exchange adapter.
+      // Missing volume cannot be treated as confirmation and broken time order is unsafe.
+      if (!c || ![c.time, c.open, c.high, c.low, c.close, c.volume].every((n) => typeof n === "number" && Number.isFinite(n))) return false;
+      if (c.time <= previousTime || c.time <= 0 || c.open <= 0 || c.high <= 0 || c.low <= 0 || c.close <= 0 || c.volume < 0) return false;
       if (c.high < Math.max(c.open, c.close, c.low) || c.low > Math.min(c.open, c.close, c.high)) return false;
+      // A large hole means the apparent "next N bars" horizon may not represent elapsed time.
+      if (previousTime && Number.isFinite(duration) && duration > 0 && c.time - previousTime > duration * 2.5) return false;
       previousTime = c.time;
     }
     return true;
   }
 
-  function scoreAt(candles, index, indicators) {
+  function scoreAt(candles, index, indicators, higherTimeframeDirection) {
     const last = candles[index], prev = candles[index - 1];
     const prior = candles.slice(index - 20, index);
     if (!last || !prev || prior.length < 20) return null;
@@ -85,25 +87,36 @@
     ];
     const longScore = longChecks.filter(Boolean).length;
     const shortScore = shortChecks.filter(Boolean).length;
-    let signal = "NONE";
-    if (upBreak && longScore >= 4 && longScore > shortScore) signal = "LONG";
-    else if (downBreak && shortScore >= 4 && shortScore > longScore) signal = "SHORT";
-    return { last, priorHigh, priorLow, upBreak, downBreak, longScore, shortScore, signal, atr: av[index] };
+    const candidateSignal = upBreak && longScore >= 4 && longScore > shortScore ? "LONG" :
+      downBreak && shortScore >= 4 && shortScore > longScore ? "SHORT" : "NONE";
+    const direction = String(higherTimeframeDirection || "UNAVAILABLE").toUpperCase();
+    const higherTimeframeAligned = candidateSignal === "LONG" ? direction === "BULLISH" :
+      candidateSignal === "SHORT" ? direction === "BEARISH" : false;
+    const averageVolume = prior.reduce((sum, candle) => sum + candle.volume, 0) / prior.length;
+    const relativeVolume = averageVolume > 0 ? last.volume / averageVolume : NaN;
+    // Require a meaningful pickup in traded activity before labelling a breakout confirmed.
+    const volumeConfirmed = Number.isFinite(relativeVolume) && relativeVolume >= 1.1;
+    const signal = candidateSignal !== "NONE" && higherTimeframeAligned && volumeConfirmed ? candidateSignal : "NONE";
+    return {
+      last, priorHigh, priorLow, upBreak, downBreak, longScore, shortScore,
+      candidateSignal, signal, higherTimeframeDirection: direction, higherTimeframeAligned,
+      averageVolume, relativeVolume, volumeConfirmed, atr: av[index]
+    };
   }
 
   function buildScenarioForecast(input, options) {
     const opts = options || {};
     const intervalMs = Number(opts.intervalMs);
-    if (!validCandles(input) || input.length < 80 || !Number.isFinite(intervalMs) || intervalMs <= 0) {
+    if (!validCandles(input, intervalMs) || input.length < 80 || !Number.isFinite(intervalMs) || intervalMs <= 0) {
       return { ready: false, reason: "At least 80 valid closed candles and a valid timeframe are required." };
     }
     // Bound CPU work regardless of how many historical candles the chart has loaded.
-    const candles = input.slice(-400);
+    const candles = input.slice(-800);
     const closes = candles.map((c) => Number(c.close));
     const indicators = { e9: ema(closes, 9), e21: ema(closes, 21), e50: ema(closes, 50),
       rv: rsi(closes, 14), av: atr(candles, 14) };
     const index = candles.length - 1;
-    const scored = scoreAt(candles, index, indicators);
+    const scored = scoreAt(candles, index, indicators, opts.higherTimeframeDirection);
     if (!scored || !Number.isFinite(scored.atr) || scored.atr <= 0 ||
         !Number.isFinite(indicators.rv[index])) {
       return { ready: false, reason: "Indicator history is incomplete; forecast withheld." };
@@ -113,10 +126,16 @@
     const volatilityPct = scored.atr / last.close * 100;
     const bullBias = longScore >= 4 && longScore >= shortScore + 2;
     const bearBias = shortScore >= 4 && shortScore >= longScore + 2;
-    const bias = signal === "LONG" ? "BULLISH BREAKOUT CONFIRMED" :
-      signal === "SHORT" ? "BEARISH BREAKDOWN CONFIRMED" :
-      bullBias ? "BULLISH LEAN · TRIGGER UNCONFIRMED" :
-      bearBias ? "BEARISH LEAN · TRIGGER UNCONFIRMED" : "RANGE / WAIT";
+    const higherTimeframe = scored.higherTimeframeDirection;
+    let bias;
+    if (signal === "LONG") bias = "BULLISH BREAKOUT CONFIRMED";
+    else if (signal === "SHORT") bias = "BEARISH BREAKDOWN CONFIRMED";
+    else if (scored.candidateSignal !== "NONE" && !["BULLISH", "BEARISH"].includes(higherTimeframe)) bias = "BREAKOUT · HIGHER-TIMEFRAME UNAVAILABLE · WAIT";
+    else if (scored.candidateSignal !== "NONE" && !scored.higherTimeframeAligned) bias = "COUNTER-TREND BREAKOUT · WAIT";
+    else if (scored.candidateSignal !== "NONE" && !scored.volumeConfirmed) bias = "BREAKOUT LACKS VOLUME CONFIRMATION · WAIT";
+    else if (bullBias && higherTimeframe === "BULLISH") bias = "BULLISH LEAN · TRIGGER UNCONFIRMED";
+    else if (bearBias && higherTimeframe === "BEARISH") bias = "BEARISH LEAN · TRIGGER UNCONFIRMED";
+    else bias = "RANGE / WAIT";
     const horizon = 4;
     const makeScenario = (side) => {
       const sign = side === "BULL" ? 1 : -1;
@@ -141,25 +160,58 @@
       bias, longScore, shortScore, signal, close: last.close,
       atr: scored.atr, volatilityPct, horizonBars: horizon,
       support: priorLow, resistance: priorHigh,
-      higherTimeframe: String(opts.higherTimeframeDirection || "UNAVAILABLE"),
+      higherTimeframe,
+      candidateSignal: scored.candidateSignal,
+      higherTimeframeAligned: scored.higherTimeframeAligned,
+      relativeVolume: scored.relativeVolume,
+      volumeConfirmed: scored.volumeConfirmed,
+      volumeThreshold: 1.1,
       scenarios: { bull: makeScenario("BULL"), bear: makeScenario("BEAR") },
-      note: "Conditional paths are scenario drawings, not calibrated probabilities or guaranteed price targets."
+      note: "Conditional paths are scenario drawings, not calibrated probabilities or guaranteed price targets; a directional confirmation requires a matching higher-timeframe trend and at least 1.1x relative volume."
     };
   }
 
   function backtestScenarioForecast(input, options) {
     const opts = options || {}, horizon = Math.max(1, Math.min(8, Math.floor(Number(opts.horizon) || 3)));
-    if (!validCandles(input) || input.length < 100) {
-      return { ready: false, reason: "At least 100 valid candles are needed for walk-forward replay." };
+    const intervalMs = Number(opts.intervalMs);
+    const higherTimeframeIntervalMs = Number(opts.higherTimeframeIntervalMs);
+    const higherTimeframeCandles = opts.higherTimeframeCandles;
+    if (!Number.isFinite(intervalMs) || intervalMs <= 0 || !validCandles(input, intervalMs) || input.length < 100) {
+      return { ready: false, reason: "At least 100 valid main-timeframe candles and a valid timeframe are needed for walk-forward replay." };
     }
-    // Keep this replay bounded and strictly chronological. Signals only use data available at their own close.
-    const candles = input.slice(-400), closes = candles.map((c) => Number(c.close));
+    if (!Number.isFinite(higherTimeframeIntervalMs) || higherTimeframeIntervalMs <= 0 ||
+        !Array.isArray(higherTimeframeCandles) || higherTimeframeCandles.length < 55 ||
+        !validCandles(higherTimeframeCandles, higherTimeframeIntervalMs)) {
+      return { ready: false, reason: "Verified higher-timeframe history is required so replay uses the same trend-confirmation rule as the live forecast." };
+    }
+    // Use more history for a less noisy sample, but keep CPU and memory strictly bounded.
+    const candles = input.slice(-1200), closes = candles.map((c) => Number(c.close));
+    const htfCandles = higherTimeframeCandles.slice(-180);
     const indicators = { e9: ema(closes, 9), e21: ema(closes, 21), e50: ema(closes, 50),
       rv: rsi(closes, 14), av: atr(candles, 14) };
+    const htfCloses = htfCandles.map((c) => c.close);
+    const htfE20 = ema(htfCloses, 20), htfE50 = ema(htfCloses, 50);
+    let htfCursor = -1;
+    function htfDirectionAt(closeTime) {
+      while (htfCursor + 1 < htfCandles.length) {
+        const candidate = htfCandles[htfCursor + 1];
+        const end = Number.isFinite(candidate.closeTime) && candidate.closeTime > candidate.time
+          ? candidate.closeTime : candidate.time + higherTimeframeIntervalMs - 1;
+        if (end > closeTime) break;
+        htfCursor++;
+      }
+      if (htfCursor < 49 || htfCloses[htfCursor] === undefined) return "UNAVAILABLE";
+      if (htfCloses[htfCursor] > htfE50[htfCursor] && htfE20[htfCursor] > htfE50[htfCursor]) return "BULLISH";
+      if (htfCloses[htfCursor] < htfE50[htfCursor] && htfE20[htfCursor] < htfE50[htfCursor]) return "BEARISH";
+      return "MIXED / NEUTRAL";
+    }
     let signals = 0, targetFirst = 0, stopFirst = 0, timeouts = 0;
-    const start = Math.max(80, candles.length - 400);
+    const start = Math.max(80, candles.length - 1200);
     for (let i = start; i < candles.length - horizon - 1 && signals < 120; i++) {
-      const setup = scoreAt(candles, i, indicators);
+      const candleCloseTime = Number.isFinite(candles[i].closeTime) && candles[i].closeTime > candles[i].time
+        ? candles[i].closeTime : candles[i].time + intervalMs - 1;
+      const directionAtSignal = htfDirectionAt(candleCloseTime);
+      const setup = scoreAt(candles, i, indicators, directionAtSignal);
       if (!setup || setup.signal === "NONE" || !Number.isFinite(setup.atr) || setup.atr <= 0) continue;
       signals++;
       const sign = setup.signal === "LONG" ? 1 : -1;
@@ -170,22 +222,23 @@
         const c = candles[j];
         const hitStop = sign > 0 ? c.low <= stop : c.high >= stop;
         const hitTarget = sign > 0 ? c.high >= target : c.low <= target;
-        // Conservative tie-break: if both levels occur in one OHLC bar, count the stop first.
+        // Conservative tie-break: if both levels occur inside one OHLC bar, count the stop first.
         if (hitStop) { outcome = "STOP"; break; }
         if (hitTarget) { outcome = "TARGET"; break; }
       }
       if (outcome === "TARGET") targetFirst++;
       else if (outcome === "STOP") stopFirst++;
       else timeouts++;
-      i += horizon; // Prevent overlapping hypothetical positions from inflating the sample.
+      i += horizon; // Avoid overlapping hypothetical positions inflating the observed sample.
     }
     const resolved = targetFirst + stopFirst;
     return {
-      ready: true, candlesUsed: candles.length, horizonBars: horizon, signals,
+      ready: true, candlesUsed: candles.length, higherTimeframeCandlesUsed: htfCandles.length, horizonBars: horizon, signals,
       targetFirst, stopFirst, timeouts, resolved,
       targetBeforeStopPct: resolved ? targetFirst / resolved * 100 : null,
       targetOfAllSignalsPct: signals ? targetFirst / signals * 100 : null,
-      caveat: "Historical walk-forward replay only; resolved cases exclude timeouts. No fees, slippage, funding, latency or execution errors are modeled."
+      sampleQuality: signals < 10 ? "SMALL SAMPLE · NOT DECISION-GRADE" : resolved < 10 ? "TOO FEW RESOLVED CASES" : "HISTORICAL SAMPLE · NOT A LIVE-PROBABILITY ESTIMATE",
+      caveat: "Chronological replay uses the same volume and higher-timeframe confirmation gates as the live forecast. Resolved cases exclude timeouts; fees, spread, slippage, funding, latency and execution errors are not modeled."
     };
   }
 
