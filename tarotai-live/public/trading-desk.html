@@ -588,12 +588,12 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   }
   let chartLibraryRetryTimer=null,chartLibraryRetryCount=0;
   function queueChartLibraryRecovery(){
-    if(chartLibraryRetryTimer||chart||chartLibraryRetryCount>=32)return;
+    if(chartLibraryRetryTimer||chart||chartLibraryRetryCount>=120)return;
     chartLibraryRetryCount++;
     chartLibraryRetryTimer=setTimeout(()=>{
       chartLibraryRetryTimer=null;
       if(!window.LightweightCharts){
-        if(chartLibraryRetryCount<32)queueChartLibraryRecovery();
+        if(chartLibraryRetryCount<120)queueChartLibraryRecovery();
         else{
           setFeed("CHART LIBRARY UNAVAILABLE","bad");
           status("Interactive chart library failed to load from both CDNs. Market analysis is withheld until chart recovery succeeds; tap Refresh after checking connectivity.");
