@@ -789,7 +789,7 @@ test("live chart preserves user panning/zooming instead of snapping back to the 
 
 test("live chart resumes follow only on explicit Go Live, and symbol/timeframe changes reset safely", () => {
   assert.match(futuresDesk, /function setLiveFollow\(enabled\)\{followLive=Boolean\(enabled\)/);
-  assert.match(futuresDesk, /if\(firstRender\|\|forceFit\).*followLive=true/s);
+  assert.match(futuresDesk, /if\(fitBoth\).*followLive=true/s);
   assert.match(futuresDesk, /followLive=true;byId\("liveGoLive"\)\.hidden=true/);
   assert.match(futuresDesk, /attachChartNavigation\(byId\("liveMarketChart"\)\)/);
   assert.doesNotMatch(futuresDesk, /attachChartNavigation\(byId\("tvSyncedChart"\)\)/);
