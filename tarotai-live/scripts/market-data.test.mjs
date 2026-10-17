@@ -827,7 +827,7 @@ test("live chart forecast and auto discussion remain visible, safe and automatic
   assert.match(futuresDesk, /backtestScenarioForecast\(candles,\{horizon:3\}\)/);
   assert.match(futuresDesk, /id="autoAgentDiscussionLog"/);
   assert.match(futuresDesk, /function updateAutoAgentDiscussion\(context\)/);
-  assert.match(futuresDesk, /No extra model-provider calls/);
+  assert.match(futuresDesk, /no extra model-provider calls/i);
   assert.match(futuresDesk, /textContent=message\.text/);
 });
 
