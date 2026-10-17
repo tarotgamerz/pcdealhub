@@ -13,6 +13,9 @@ for (const page of pages) {
     const monitor = readFileSync(new URL("../public/live-agent-monitor.js", import.meta.url), "utf8");
     new Script(monitor, { filename: "live-agent-monitor.js" });
     console.log("live-agent-monitor.js syntax check passed");
+    const orderflow = readFileSync(new URL("../public/orderflow-panel.js", import.meta.url), "utf8");
+    new Script(orderflow, { filename: "orderflow-panel.js" });
+    console.log("orderflow-panel.js syntax check passed");
   }
   console.log(page + " inline JavaScript syntax check passed");
 }
