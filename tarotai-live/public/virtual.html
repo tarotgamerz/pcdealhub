@@ -29,7 +29,7 @@
   <div class="stat"><label>Last trade</label><strong id="lastPrice">—</strong></div>
   <div class="stat"><label>Bid / ask</label><strong id="bidAsk">Waiting…</strong></div>
   <div class="stat"><label>Displayed depth imbalance</label><strong id="depthImbalance">—</strong></div>
-  <div class="stat"><label>Observed taker delta · session</label><strong id="sessionDelta">—</strong></div>
+  <div class="stat"><label>Observed taker delta · rolling 30m</label><strong id="sessionDelta">—</strong></div>
   <div class="stat"><label>Flow feed age</label><strong id="feedAge">Waiting for data</strong></div>
 </section>
 <main class="workspace">
@@ -61,7 +61,7 @@
 </main>
 <section class="lower-panels">
   <div class="lower"><div class="lower-head"><span>TRADED VOLUME</span><small>Exchange candle data</small></div><canvas id="volumeCanvas"></canvas></div>
-  <div class="lower"><div class="lower-head"><span>CUMULATIVE VOLUME DELTA (CVD)</span><small>Observed aggressor trades since page opened</small></div><canvas id="cvdCanvas"></canvas></div>
+  <div class="lower"><div class="lower-head"><span>CUMULATIVE VOLUME DELTA (CVD)</span><small>Observed flow · max 30m retained</small></div><canvas id="cvdCanvas"></canvas></div>
 </section>
 <div class="hidden-infra" aria-hidden="true">
   <input id="liveSymbol" value="BTCUSDT">
@@ -86,7 +86,7 @@ function resizeCanvas(canvas){const rect=canvas.getBoundingClientRect(),dpr=Math
 function saveTrade(trade){
  const time=Number(trade.time),price=Number(trade.price),qty=Number(trade.qty),quote=Math.abs(Number(trade.quote||trade.price*trade.qty));
  if(!Number.isFinite(time)||!Number.isFinite(price)||price<=0||!Number.isFinite(qty)||qty<=0)return;
- const side=trade.side==="buy"||Number(trade.quote)>0?"buy":"sell",key=[time,price,qty,side].join(":");
+ const side=trade.side==="buy"?"buy":trade.side==="sell"?"sell":Number(trade.quote)>=0?"buy":"sell",key=[time,price,qty,side].join(":");
  if(!tradeStore.has(key)){tradeStore.set(key,{time,price,qty,quote,side});lastTradeAt=Math.max(lastTradeAt,time);lastTradePrice=price;}
 }
 function barsForInterval(){return candles.filter(c=>Number.isFinite(c.time)).slice(-18);}
@@ -192,7 +192,7 @@ document.addEventListener("tarotai:orderflow-update",event=>{
  if(d.bookFresh){const bidN=(d.bids||[]).reduce((s,x)=>s+(Number(x.notional)||0),0),askN=(d.asks||[]).reduce((s,x)=>s+(Number(x.notional)||0),0),tot=bidN+askN,imb=tot?(bidN-askN)/tot*100:0;$("depthImbalance").textContent=(imb>=0?"+":"")+fmt(imb,1)+"%";$("depthImbalance").className=imb>8?"green":imb< -8?"red":"";
  }
  for(const t of d.trades||[])saveTrade(t);
- const sorted=Array.from(tradeStore.values()).sort((a,b)=>a.time-b.time);const cutoff=Date.now()-30*60*1000;while(sorted.length&&sorted[0].time<cutoff)tradeStore.delete([sorted[0].time,sorted[0].price,sorted[0].qty,sorted[0].side].join(":")),sorted.shift();
+ const cutoff=Date.now()-30*60*1000;for(const [key,t] of tradeStore){if(t.time<cutoff)tradeStore.delete(key);}while(tradeStore.size>5000)tradeStore.delete(tradeStore.keys().next().value);const sorted=Array.from(tradeStore.values()).sort((a,b)=>a.time-b.time);
  if(d.tradeFresh&&sorted.length){const latest=sorted[sorted.length-1];lastTradePrice=latest.price;lastTradeAt=latest.time;$("lastPrice").textContent=fmt(lastTradePrice,4);let delta=0;for(const t of sorted)delta+=t.side==="buy"?t.quote:-t.quote;$("sessionDelta").textContent=(delta>=0?"+":"")+compact(delta)+" USDT";$("sessionDelta").className=delta>=0?"green":"red";cvdHistory=sorted.map(t=>({time:t.time,value:0}));let cvd=0;cvdHistory.forEach((r,i)=>{const t=sorted[i];cvd+=t.side==="buy"?t.quote:-t.quote;r.value=cvd;});}
  $("feedAge").textContent=d.asOf?"updated "+Math.max(0,Math.round((Date.now()-d.asOf)/1000))+"s ago":"Waiting for feed";
  if(d.tradeFresh&&d.bookFresh)setStatus("LIVE · "+symbol,false);else setStatus(d.bookFresh?"DEPTH LIVE · TRADES WAIT":d.tradeFresh?"TRADES LIVE · DEPTH WAIT":"WAITING FOR FEEDS",true);
