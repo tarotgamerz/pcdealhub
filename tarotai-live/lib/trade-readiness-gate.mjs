@@ -15,6 +15,19 @@ export function evaluateTradeReadiness(results, market, intervalMs) {
     blockers.push("AI provider degraded or deterministic fallback used; rerun with healthy provider.");
   }
   if (safeResults.some((r) => r?.veto === true)) blockers.push("At least one agent or the supervisor raised a veto.");
+  const book = market?.orderBookSnapshot;
+  if (book) {
+    const bookAgeMs = Number(book.ageMs);
+    const spreadBps = Number(book.spreadBps);
+    if (!Number.isFinite(bookAgeMs) || bookAgeMs < 0 || bookAgeMs > 15_000) {
+      blockers.push("The supplied order-book snapshot is stale or cannot be timestamp-validated.");
+    }
+    if (!Number.isFinite(spreadBps) || spreadBps < 0) {
+      blockers.push("The supplied order-book spread is invalid.");
+    } else if (spreadBps > 10) {
+      blockers.push("Displayed spread exceeds the provisional 10 bps paper-research ceiling.");
+    }
+  }
   if (!Number.isFinite(ageSeconds) || !Number.isFinite(interval) || interval <= 0 || ageSeconds * 1000 > interval * 2 + 60_000) {
     blockers.push("Latest closed candle is stale or its age cannot be verified.");
   }
@@ -44,6 +57,7 @@ export function evaluateTradeReadiness(results, market, intervalMs) {
     approved,
     blockers: [...new Set(blockers)],
     directionalVotes: Object.fromEntries(DIRECTIONAL_ROLES.map((role) => [role, byRole.get(role)?.bias || "MISSING"])),
+    liquiditySnapshot: book ? { available: true, ageMs: Number(book.ageMs), spreadBps: Number(book.spreadBps), provisionalSpreadCeilingBps: 10 } : { available: false, note: "No fresh same-venue order-book snapshot was available; no liquidity claim is made." },
     policy: "Conservative deterministic gate; this is not a calibrated win probability and never authorizes live orders."
   };
 }
