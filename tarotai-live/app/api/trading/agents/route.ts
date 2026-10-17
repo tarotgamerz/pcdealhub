@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isAuthorized } from "@/lib/auth";
 import { findSimilarCases } from "@/lib/market-patterns.mjs";
+import { evaluateTradeReadiness } from "@/lib/trade-readiness-gate.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -279,7 +280,11 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
  }
  const ok=results.filter(r=>r.ok).length; const failed=results.filter(r=>!r.ok).length; const specialistOk=results.filter(r=>r.role!=="supervisor"&&r.ok).length; const fallbackCount=results.filter(r=>r.fallback).length;
  if(results.length!==8||failed!==0||specialistOk!==7)return jsonError("The team did not return all eight usable role reports.",502,{results,model,elapsedMs:Date.now()-started,completedAgents:ok,requestedAgents:8});
- return NextResponse.json({ok:true,mode:fallbackCount?"hybrid-ai-with-deterministic-fallback":"parallel-llm-specialists",model,elapsedMs:Date.now()-started,
+ const lastClosedCandleAgeSeconds=Math.max(0,Math.round(market.lastClosedCandleAgeMs/1000));
+ const decisionGate=evaluateTradeReadiness(results,{lastClosedCandleAgeSeconds},INTERVAL_MS[interval]);
+ const supervisor=results.find(r=>r.role==="supervisor");
+ if(supervisor) supervisor.text=String(supervisor.text||"")+"\\n\\nDETERMINISTIC TRADE GATE: "+decisionGate.status+"; recommendation "+decisionGate.recommendation+". "+(decisionGate.blockers.length?"Blockers: "+decisionGate.blockers.join(" | "):"All required checks passed; paper setup candidate only.");
+ return NextResponse.json({ok:true,mode:fallbackCount?"hybrid-ai-with-deterministic-fallback":"parallel-llm-specialists",model,elapsedMs:Date.now()-started,decisionGate,
   market:{venue:market.venue,host:market.host,symbol,interval,higherInterval:market.higherInterval,fetchedAt:market.fetchedAt,
    lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),lastClosedCandleAgeSeconds:Math.max(0,Math.round(market.lastClosedCandleAgeMs/1000)),higherTimeframeTrend:higherTrend.direction},
   historicalAnalogueStudy:userContext.historicalAnalogueStudy,results,completedAgents:ok,requestedAgents:8,fallbackAgents:fallbackCount,aiProviderStatus:fallbackCount?"degraded":"ok",
