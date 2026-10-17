@@ -106,8 +106,11 @@
       readinessTitle.textContent = "TRADE READINESS · " + String(gateResult.status || "WAIT").replaceAll("_", " ");
       readinessTitle.style.color = gateResult.approved === true ? "#65e6ad" : "#f2c46f";
       const blockers = Array.isArray(gateResult.blockers) ? gateResult.blockers : [];
+      const plan = gateResult.riskGeometry;
+      const liquidity = gateResult.liquiditySnapshot;
+      const metric = (value, digits = 4) => Number.isFinite(Number(value)) ? Number(value).toLocaleString("en-US", { maximumFractionDigits: digits }) : "n/a";
       readinessBody.textContent = gateResult.approved === true
-        ? "Unanimous specialist agreement and deterministic checks passed. This is a paper setup candidate only—not proof of an edge or an order instruction."
+        ? "Entry " + metric(plan.entry) + " · Stop " + metric(plan.stop) + " · Target " + metric(plan.target) + " · " + metric(plan.calculatedRewardRisk, 2) + "R. Quantity " + metric(plan.quantity, 6) + " · modeled cash risk " + metric(plan.cashRisk, 2) + " / budget " + metric(plan.configuredRiskBudget, 2) + " USDT · entry drift " + metric(plan.estimatedEntryDriftPct, 3) + "%. Spread " + metric(liquidity && liquidity.spreadBps, 2) + " bps. Paper candidate only; no profit guarantee or order instruction."
         : (blockers.length ? blockers.join(" · ") : "No setup approved. Stay in WAIT until the required evidence is present.");
       readiness.style.borderColor = gateResult.approved === true ? "#295c49" : "#735b31";
     }
