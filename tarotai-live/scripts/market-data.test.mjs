@@ -31,6 +31,7 @@ const paperRoute = readFileSync(new URL("../app/api/trading/paper/route.ts", imp
 const reviewRoute = readFileSync(new URL("../app/api/trading/review/route.ts", import.meta.url), "utf8");
 const tradingViewSignalsRoute = readFileSync(new URL("../app/api/tradingview/signals/route.ts", import.meta.url), "utf8");
 const tradingDeskPage = readFileSync(new URL("../public/trading-desk.html", import.meta.url), "utf8");
+const virtualPage = readFileSync(new URL("../public/virtual.html", import.meta.url), "utf8");
 const orderflowPanelScript = readFileSync(new URL("../public/orderflow-panel.js", import.meta.url), "utf8");
 const nextConfig = readFileSync(new URL("../next.config.mjs", import.meta.url), "utf8");
 
@@ -985,10 +986,18 @@ test("Futures Lab restores order-flow bubbles on the existing candlestick chart"
 });
 
 
-test("the /virtual route serves the live Futures Lab order-flow chart", () => {
+test("the /virtual route serves the dedicated screenshot-inspired order-flow workspace", () => {
   assert.ok(nextConfig.includes('source: "/virtual"'), "/virtual route is explicitly registered");
-  assert.ok(nextConfig.includes('destination: "/trading-desk.html"'), "/virtual uses the single live chart implementation");
-  assert.equal((tradingDeskPage.match(/id="liveMarketChart"/g) || []).length, 1, "virtual route does not add a duplicate chart");
-  assert.ok(tradingDeskPage.includes('id="orderflowHeatmapCanvas"'), "virtual chart includes order-flow bubbles and depth overlay");
-  assert.ok(orderflowPanelScript.includes('new CustomEvent("tarotai:orderflow-update"'), "virtual chart receives live order-flow events");
+  assert.ok(nextConfig.includes('destination: "/virtual.html"'), "/virtual uses its dedicated order-flow workspace");
+  for (const id of ["footprintCanvas", "bubbleChart", "bubbleOverlay", "volumeCanvas", "cvdCanvas", "paperLong", "paperShort", "paperClose"]) {
+    assert.ok(virtualPage.includes('id="' + id + '"'), "virtual workspace includes " + id);
+  }
+  assert.ok(virtualPage.includes('id="orderflowPanel"') && virtualPage.includes('id="liveSymbol"'), "live order-flow feed support remains mounted");
+  assert.ok(virtualPage.includes('document.addEventListener("tarotai:orderflow-update"'), "virtual workspace consumes verified live trade/depth events");
+  assert.ok(virtualPage.includes('wss://fstream.binance.com/market/stream?streams='), "virtual candles use a live Futures WebSocket");
+  assert.ok(virtualPage.includes('https://fapi.binance.com/fapi/v1/klines'), "virtual candles initialize from exchange history");
+  assert.ok(virtualPage.includes("No exchange order was sent"), "paper ticket is explicitly simulated and cannot submit exchange orders");
+  assert.ok(virtualPage.includes("Historical candles load first") && virtualPage.includes("unavailable historic bid/ask splits are not invented"), "historical footprint cells are not fabricated");
+  assert.ok(virtualPage.includes('$("liveSymbol").dispatchEvent(new Event("change"))'), "changing symbol reconnects the depth/trade feed");
+  assert.ok(orderflowPanelScript.includes('new CustomEvent("tarotai:orderflow-update"'), "sequence-checked order book publishes to virtual workspace");
 });
