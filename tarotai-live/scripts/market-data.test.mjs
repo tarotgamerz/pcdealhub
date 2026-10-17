@@ -512,7 +512,7 @@ test("AI provider failures produce explicit fallback reports and block AI-review
 
 test("all live chart panels share one OKX swap symbol/timeframe and current WebSocket URL", () => {
   assert.match(futuresDesk, /function updateTradingViewChart\(source="tv"\)/);
-  assert.match(futuresDesk, /IN-APP CHARTS SYNCED/);
+  assert.match(futuresDesk, /PRIMARY LIVE CHART SYNCED/);
   assert.match(futuresDesk, /window\.tarotaiReloadLiveChart=/);
   assert.match(futuresDesk, /wss:\/\/ws\.okx\.com\/ws\/v5\/business/);
   assert.match(futuresDesk, /wss:\/\/ws\.okx\.com\/ws\/v5\/public/);
@@ -532,8 +532,12 @@ test("automatic paper trading is opt-in, persistent-ledger gated, and records on
 });
 
 
-test("in-dashboard charts use one candle source plus a shared live OKX swap last-trade quote", () => {
-  assert.match(futuresDesk, /id="tvSyncedChart"/);
+test("the Trading Desk renders one canonical chart and retains external TradingView access", () => {
+  assert.match(futuresDesk, /id="liveMarketChart"/);
+  assert.doesNotMatch(futuresDesk, /<div id="tvSyncedChart"/);
+  assert.match(futuresDesk, /id="tradingview-compat" hidden/);
+  assert.match(futuresDesk, /id="visual-strategy-panel" hidden/);
+  assert.match(futuresDesk, /id="tvOpenExternal"/);
   assert.doesNotMatch(futuresDesk, /<iframe id="tvChart"/);
   assert.match(futuresDesk, /function createMirrorChart\(\)/);
   assert.match(futuresDesk, /mirrorCandleSeries\.setData\(candleData\)/);
@@ -541,7 +545,7 @@ test("in-dashboard charts use one candle source plus a shared live OKX swap last
   assert.match(futuresDesk, /function hasFreshLiveQuote\(now=Date\.now\(\)\)/);
   assert.match(futuresDesk, /function currentMarketPrice\(\)/);
   assert.match(futuresDesk, /function renderSharedQuote\(_price\)/);
-  assert.match(futuresDesk, /Open official TradingView \(external\)/);
+  assert.match(futuresDesk, /Open TradingView/);
 });
 
 test("continuous local rule roles refresh every second and paper entries use the shared verified last trade", () => {
@@ -584,11 +588,11 @@ test("Binance Futures is the canonical live chart source selected by the user", 
   assert.match(paperRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/price/);
   assert.match(liveQuoteRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/price/);
   assert.match(futuresDesk, /channel:"trades",instId/);
-  assert.match(futuresDesk, /Open official TradingView \(external\)/);
+  assert.match(futuresDesk, /Open TradingView/);
 });
 
 
-test("strategy fallback and both in-app charts use the same selected Binance venue", () => {
+test("strategy fallback and the canonical in-app chart use the selected Binance venue", () => {
   assert.match(futuresDesk, /window\.tarotaiMarketVenue=marketVenue/);
   assert.match(futuresDesk, /const sourceVenue=window\.tarotaiMarketVenue\|\|'binance'/);
   assert.match(futuresDesk, /const tvExchange=\(\{binance:'BINANCE',bybit:'BYBIT',okx:'OKX'\}\)\[window\.tarotaiMarketVenue\]\|\|'BINANCE'/);
@@ -638,14 +642,14 @@ test("demo order ticket uses live agent decision and persistent paper execution,
 });
 
 
-test("strategy chart uses the shared live quote and refreshes automatically", () => {
+test("legacy strategy canvas remains quote-aware but does not poll while hidden", () => {
   assert.match(futuresDesk, /<label>Live last trade<\/label><strong id="strategyPrice"/);
   assert.match(futuresDesk, /window\.tarotaiSharedLastPrice=price/);
   assert.match(futuresDesk, /window\.tarotaiUpdateStrategyLiveQuote\(price,now\)/);
   assert.match(futuresDesk, /quoteFresh\?quote\.toLocaleString/);
   assert.match(futuresDesk, /LIVE '\+liveP\.toLocaleString/);
   assert.match(futuresDesk, /strategyRefreshTimer=setInterval/);
-  assert.match(futuresDesk, /startStrategyAutoRefresh\(\);if\(document\.visibilityState==='visible'\)/);
+    assert.match(futuresDesk, /startStrategyAutoRefresh\(\);if\(document\.visibilityState==='visible'&&!\$\('visual-strategy-panel'\)\?\.hidden\)/);
   assert.match(futuresDesk, /window\.tarotaiStrategyCandles=null/);
 });
 
@@ -702,9 +706,10 @@ test("stale last-trade feed is never relabeled as a live quote", () => {
 });
 
 
-test("live last-trade tick updates the in-progress candle on both in-app price charts", () => {
+test("live last-trade tick updates the in-progress candle on the canonical chart", () => {
   assert.match(futuresDesk, /function syncLiveQuoteToCurrentCandle\(price,exchangeTimestamp,now=Date\.now\(\)\)/);
-  assert.match(futuresDesk, /candleSeries\.update\(point\);[\s\S]*?mirrorCandleSeries\.update\(point\)/);
+  assert.match(futuresDesk, /candleSeries\.update\(point\)/);
+  assert.doesNotMatch(futuresDesk, /createChart\(\);createMirrorChart\(\)/);
   assert.match(futuresDesk, /priceLineVisible:false,lastValueVisible:false/);
   assert.match(futuresDesk, /function drawStrategyChart\(candles,symbol,interval,higherCandles=\[\],liveCandle=null\)/);
   assert.match(futuresDesk, /window\.tarotaiStrategyLiveCandle=liveCandle/);
@@ -726,6 +731,7 @@ test("strategy signal calculations remain based on closed candles while displayi
 test("live chart preserves user panning/zooming instead of snapping back to the latest candle", () => {
   assert.match(futuresDesk, /id="liveGoLive"/);
   assert.match(futuresDesk, /let followLive=true,chartPointerStart=null/);
+  assert.doesNotMatch(futuresDesk, /subscribeVisibleLogicalRangeChange\(range=>\{if\(range&&mirrorChart/);
   assert.match(futuresDesk, /function shouldStickToRealtime\(range,total\)\{return followLive&&\(!range\|\|range\.to>=total-8\);\}/);
   assert.match(futuresDesk, /function pauseLiveFollow\(\)\{if\(!followLive\)return;followLive=false;/);
   assert.match(futuresDesk, /host\.addEventListener\("wheel"/);
@@ -738,5 +744,23 @@ test("live chart resumes follow only on explicit Go Live, and symbol/timeframe c
   assert.match(futuresDesk, /function setLiveFollow\(enabled\)\{followLive=Boolean\(enabled\)/);
   assert.match(futuresDesk, /if\(firstRender\|\|forceFit\).*followLive=true/s);
   assert.match(futuresDesk, /followLive=true;byId\("liveGoLive"\)\.hidden=true/);
-  assert.match(futuresDesk, /attachChartNavigation\(byId\("liveMarketChart"\)\);attachChartNavigation\(byId\("tvSyncedChart"\)\)/);
+  assert.match(futuresDesk, /attachChartNavigation\(byId\("liveMarketChart"\)\)/);
+  assert.doesNotMatch(futuresDesk, /attachChartNavigation\(byId\("tvSyncedChart"\)\)/);
+});
+
+
+test("redundant visual strategy chart stays hidden and stops its polling loop", () => {
+  assert.match(futuresDesk, /id="visual-strategy-panel" hidden/);
+  assert.ok(futuresDesk.includes("if($('visual-strategy-panel')?.hidden)return"));
+  assert.ok(futuresDesk.includes("!$('visual-strategy-panel')?.hidden&&!$('drawStrategy').disabled"));
+});
+
+test("all live overlays run on a single interactive chart, with external TradingView as an optional separate tab", () => {
+  assert.match(futuresDesk, /id="liveMarketChart"/);
+  assert.doesNotMatch(futuresDesk, /<div id="tvSyncedChart"/);
+  assert.match(futuresDesk, /id="tvOpenExternal"/);
+  assert.doesNotMatch(futuresDesk, /id="tradingview-panel"/);
+  assert.match(futuresDesk, /id="visual-strategy-panel" hidden/);
+  assert.match(futuresDesk, /attachChartNavigation\(byId\("liveMarketChart"\)\)/);
+  assert.doesNotMatch(futuresDesk, /attachChartNavigation\(byId\("tvSyncedChart"\)\)/);
 });
