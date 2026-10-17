@@ -259,10 +259,18 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
  try {
   const priorReports=results.map(r=>({role:r.role,name:r.name,status:r.ok?"complete":"failed",bias:r.bias,veto:r.veto,model:r.model,fallback:Boolean(r.fallback),providerStatus:r.providerStatus||"ok",elapsedMs:r.elapsedMs,report:String(r.text||"").slice(0,1400)}));
   const monitorPrompt="Audit these seven specialist results against their role responsibilities. Do not treat the supervisor as a directional voter. Flag failures, missing required facts, unsupported certainty, contradictory direction, unverified prices, missing stop/target, missing position-size inputs, missed-entry chasing, and false claims about journal/open-position context. Missing journal history or no open position is a valid N/A, not itself a veto. Return the standard seven-line report. Set VETO: YES if any specialist failed, used local fallback because the AI provider failed, or any material safety/evidence issue exists; otherwise VETO: NO.\n\n"+JSON.stringify({symbol,interval,market:{venue:market.venue,host:market.host,lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),higherTrend:higherTrend.direction},agents:priorReports});
-  let monitorData:any,monitorResponse:any,monitorModel="openrouter/free";
-  monitorResponse=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",cache:"no-store",signal:AbortSignal.timeout(12000),headers:{"Authorization":"Bearer "+process.env.OPENROUTER_API_KEY,"Content-Type":"application/json","HTTP-Referer":"https://tarotai-core.vercel.app","X-Title":"TarotAI Agent Operations Supervisor"},body:JSON.stringify({model:monitorModel,messages:[{role:"system",content:specialistSystem("supervisor")},{role:"user",content:monitorPrompt}],temperature:0.1,max_tokens:1000})});
-  const monitorRaw=await monitorResponse.text();try{monitorData=JSON.parse(monitorRaw);}catch{throw new Error("Supervisor returned non-JSON provider output (HTTP "+monitorResponse.status+").");}
-  if(!monitorResponse.ok||monitorData?.error)throw new Error("Supervisor provider HTTP "+monitorResponse.status+": "+String(monitorData?.error?.message||"unknown provider error").slice(0,220));
+  const monitorCandidates=[...new Set([model,"openrouter/free"])];
+  let monitorData:any,monitorResponse:any,monitorModel=model;
+  for(let attempt=0;attempt<monitorCandidates.length;attempt++){
+   monitorModel=monitorCandidates[attempt];
+   monitorResponse=await fetch("https://openrouter.ai/api/v1/chat/completions",{method:"POST",cache:"no-store",signal:AbortSignal.timeout(12000),headers:{"Authorization":"Bearer "+process.env.OPENROUTER_API_KEY,"Content-Type":"application/json","HTTP-Referer":"https://tarotai-core.vercel.app","X-Title":"TarotAI Agent Operations Supervisor"},body:JSON.stringify({model:monitorModel,messages:[{role:"system",content:specialistSystem("supervisor")},{role:"user",content:monitorPrompt}],temperature:0.1,max_tokens:1000})});
+   const monitorRaw=await monitorResponse.text();try{monitorData=JSON.parse(monitorRaw);}catch{throw new Error("Supervisor returned non-JSON provider output (HTTP "+monitorResponse.status+").");}
+   if(monitorResponse.ok&&!monitorData?.error)break;
+   const providerError=monitorData?.error||{},message=String(providerError.message||monitorData?.message||"unknown provider error").replace(/sk-or-v1-[A-Za-z0-9_-]+/g,"[redacted key]").slice(0,220);
+   const unavailable=Number(monitorResponse.status)===404&&/unavailable for free|model not found|no endpoints found|not available/i.test(message);
+   if(unavailable&&attempt<monitorCandidates.length-1)continue;
+   throw new Error("Supervisor provider HTTP "+monitorResponse.status+": "+message);
+  }
   const monitorText=monitorData?.choices?.[0]?.message?.content;
   if(typeof monitorText!=="string"||!monitorText.trim())throw new Error("Supervisor returned no report.");
   const monitorBias=parseBias(monitorText);
