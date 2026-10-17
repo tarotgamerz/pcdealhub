@@ -51,7 +51,7 @@ function summarizeTrades(trades, equity, maxDrawdown, closedTradeMaxDrawdown, ca
     averageLoserPct: losses.length ? Number((-grossLosses / losses.length).toFixed(4)) : 0,
     maxDrawdownPct: Number((maxDrawdown * 100).toFixed(3)),
     closedTradeMaxDrawdownPct: Number((closedTradeMaxDrawdown * 100).toFixed(3)),
-    drawdownMethod: "Mark-to-market estimate using each candle's adverse high/low, adverse exit slippage, and entry/exit fees; OHLC cannot reveal intrabar order."
+    drawdownMethod: "Mark-to-market estimate using each candle's adverse high/low, adverse exit slippage, and entry/exit fees; OHLC cannot reveal intrabar order.",
     firstCandleTime: first?.time ?? null,
     lastCandleTime: last?.time ?? null,
     recentTrades: trades.slice(-20).map(t => ({
