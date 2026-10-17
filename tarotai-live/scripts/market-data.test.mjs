@@ -636,12 +636,31 @@ test("demo order ticket uses live agent decision and persistent paper execution,
   assert.doesNotMatch(futuresDesk, /id="stop"/);
   assert.doesNotMatch(futuresDesk, /id="target"/);
   assert.match(futuresDesk, /byId\("demoAgentOpen"\)\.addEventListener\("click",paperOpenSignal\)/);
-  assert.match(futuresDesk, /const entry=Number\(currentMarketPrice\(\)\),stop=Number\(d\.stop\)/);
+  assert.match(futuresDesk, /const entry=Number\(currentMarketPrice\(\),planEntry=Number\(gatePlan\.entry\),stop=Number\(gatePlan\.stop\),target=Number\(gatePlan\.target\)/);
   assert.match(futuresDesk, /action:"OPEN",symbol:d\.symbol,venue:marketVenue/);
   assert.match(futuresDesk, /function updateDemoAgentTicket\(\)/);
   assert.match(futuresDesk, /if\(checks\.length\)\{d=await paperRequest/);
 });
 
+
+test("paper-entry approvals require signed short-lived server tokens, fresh books, and single-use execution", () => {
+  const approval = readFileSync(new URL("../lib/paper-approval.mjs", import.meta.url), "utf8");
+  assert.match(parallelAgentsRoute, /createPaperApprovalToken/);
+  assert.match(parallelAgentsRoute, /orderBookSnapshot=await fetchOrderBookSnapshot\(symbol,market\.venue\)/);
+  assert.match(parallelAgentsRoute, /approvalToken/);
+  assert.match(reviewRoute, /verifyPaperApprovalToken/);
+  assert.match(reviewRoute, /fetchFreshBook/);
+  assert.match(reviewRoute, /paperExecutionToken/);
+  assert.match(paperRoute, /verifyPaperApprovalToken/);
+  assert.match(paperRoute, /tokenType!=="PAPER_EXECUTION"/);
+  assert.match(paperRoute, /tarotai:paper:approvals:used:/);
+  assert.match(paperRoute, /nx:true/);
+  assert.match(futuresDesk, /approval\?\.riskGate\?\.approved===true/);
+  assert.match(futuresDesk, /paperExecutionToken/);
+  assert.match(futuresDesk, /local-rule-only approval is not enough/);
+  assert.match(approval, /timingSafeEqual/);
+  assert.match(approval, /PAPER_BOOK_MAX_AGE_MS/);
+});
 
 test("legacy strategy canvas remains quote-aware but does not poll while hidden", () => {
   assert.match(futuresDesk, /<label>Live last trade<\/label><strong id="strategyPrice"/);
