@@ -583,7 +583,8 @@ test("continuous local agents veto missing or stale last-trade ticks", () => {
 
 test("Binance Futures is the canonical live chart source selected by the user", () => {
   assert.match(futuresDesk, /marketVenue="binance"/);
-  assert.match(futuresDesk, /wss:\/\/fstream\.binance\.com\/ws\//);
+  assert.ok(futuresDesk.includes('quoteSocket=new WebSocket("wss://fstream.binance.com/market/ws/"+currentSymbol.toLowerCase()+"@aggTrade")'));
+  assert.equal(futuresDesk.split("wss://fstream.binance.com/ws/").length - 1, 0, "the retired generic Futures WebSocket URL must not return");
   assert.match(source, /https:\/\/fapi\.binance\.com\/fapi\/v1\/klines/);
   assert.match(parallelAgentsRoute, /fapi\/v1\/klines/);
   assert.match(paperRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/price/);
