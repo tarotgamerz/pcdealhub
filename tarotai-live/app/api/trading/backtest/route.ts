@@ -155,6 +155,21 @@ export async function POST(request: Request) {
     const overall = runSmaCrossoverBacktest(candles, { ...common, startIndex: slow } as any);
     const train = runSmaCrossoverBacktest(candles, { ...common, startIndex: slow, endIndex: split } as any);
     const test = runSmaCrossoverBacktest(candles, { ...common, startIndex: split, endIndex: candles.length } as any);
+    const holdoutLength = candles.length - split;
+    const holdoutSlices = Array.from({ length: 3 }, (_, index) => {
+      const startIndex = split + Math.floor(index * holdoutLength / 3);
+      const endIndex = split + Math.floor((index + 1) * holdoutLength / 3);
+      if (endIndex - startIndex < 3) return { slice: index + 1, candles: endIndex - startIndex, results: null, warning: "Too few candles for a meaningful slice." };
+      const results = runSmaCrossoverBacktest(candles, { ...common, startIndex, endIndex } as any);
+      return {
+        slice: index + 1,
+        candles: endIndex - startIndex,
+        from: candles[startIndex]?.time ?? null,
+        to: candles[endIndex - 1]?.time ?? null,
+        results,
+        warning: results.closedTrades < 10 ? "Fewer than 10 closed trades; metrics are highly uncertain." : null
+      };
+    });
     const stepMs = getIntervalMs(interval)!;
     return NextResponse.json({
       mode: "RESEARCH_ONLY_NO_ORDERS",
@@ -167,12 +182,13 @@ export async function POST(request: Request) {
         leverage: 1, positionSizing: "100% of current simulated equity, unlevered; illustrative only",
         costsApplied: "adverse slippage and fees on entry and exit", data: "exchange OHLC candles; closed candles only"
       },
-      results: overall, train, test,
+      results: overall, train, test, holdoutSlices,
       caveats: [
         "Research baseline only. No live or testnet order is placed.",
         "Next-bar-open fills avoid same-candle-close look-ahead, but real spreads, market impact, funding, liquidation, and exchange-specific execution are not fully simulated.",
         "Maximum drawdown uses closed-trade equity; intratrade drawdown can be worse.",
         "The 70/30 split is chronological. Do not tune periods on the test segment; preserve a further untouched period for final confirmation.",
+        "The three sequential slices split the 30% holdout to expose regime sensitivity; do not use slice results to retune parameters. Each slice with fewer than 10 trades is low-confidence.",
         "Treat the holdout as weak evidence when trade count is small; seek many more trades across different market regimes and symbols.",
         "A simple SMA crossover may have no edge after costs. Past simulation results do not guarantee future returns."
       ]
