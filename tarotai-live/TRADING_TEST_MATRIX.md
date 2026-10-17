@@ -6,6 +6,9 @@ All tests must run with live trading disabled and must never send production ord
 - Reject malformed JSON and non-finite OHLCV values.
 - Reject unsupported symbols and intervals.
 - Reject stale candles before generating a new simulated entry.
+- Normalize and validate each order-book side, reject crossed/empty books and invalid sequence IDs.
+- Seed a live local depth book from a REST snapshot, bridge the first WebSocket update by update ID, and rebuild on any sequence gap.
+- Mark order-flow metrics stale after feed silence; do not label an unsynchronized snapshot as live.
 - Normalize exchange candle order to ascending timestamps and reject duplicates.
 
 ## Paper fills
@@ -24,7 +27,11 @@ All tests must run with live trading disabled and must never send production ord
 ## Strategy and risk review
 - Strategy review and risk review must be separate functions with separate outputs.
 - Risk veto wins over strategy approval.
-- Reject stale data, invalid stop geometry, excessive spread, risk above configured limit, and reward/risk below configured minimum.
+- Require explicit numeric trade-plan fields for entry, stop, target, reward/risk and position quantity before declaring a paper setup candidate.
+- Recompute reward/risk from the supplied prices; reject invalid stop geometry, reward/risk below 2R, material mismatch between exit and sizing levels, and position sizing above the configured risk budget.
+- Require a fresh same-venue book snapshot for spread and entry-drift checks; fail closed when unavailable or when the spread exceeds the provisional 10 bps ceiling or entry drift exceeds 0.25%.
+- Treat the 10 bps spread and 0.25% drift thresholds as provisional paper-research guardrails, not backtested edge claims.
+- Reject stale data, risk above configured limit, and excessive spread.
 - Reviews are deterministic guardrails until independent model agents are explicitly integrated and evaluated.
 
 ## Exchange adapters
