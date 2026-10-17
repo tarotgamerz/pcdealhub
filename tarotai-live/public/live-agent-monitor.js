@@ -12,7 +12,7 @@
     supervisor: { name: "Agent Operations Supervisor", focus: "Audits all seven specialist reports and their health." }
   };
   const originalFetch = window.fetch.bind(window);
-  const state = { phase: "idle", roles: [], agents: new Map(), lastSummary: "No team run yet." };
+  const state = { phase: "idle", roles: [], agents: new Map(), lastSummary: "No team run yet.", decisionGate: null };
 
   function node(tag, cls, text) {
     const el = document.createElement(tag);
@@ -34,6 +34,14 @@
   const summary = node("div", "live-multi-hint", "No team run yet. Select all eight agents and run the team.");
   summary.id = "liveAgentMonitorSummary";
   summary.setAttribute("aria-live", "polite");
+  const readiness = node("section", "live-agent-readiness");
+  readiness.hidden = true;
+  readiness.style.cssText = "border:1px solid #735b31;background:#17140e;border-radius:10px;padding:10px 12px;margin:10px 0;";
+  const readinessTitle = node("strong", "", "TRADE READINESS · WAIT");
+  readinessTitle.style.cssText = "display:block;font-size:12px;letter-spacing:.04em;margin-bottom:4px;";
+  const readinessBody = node("div", "", "No readiness check has run yet.");
+  readinessBody.style.cssText = "font-size:12px;line-height:1.5;color:#c4ccd6;";
+  readiness.append(readinessTitle, readinessBody);
   const progress = node("div", "live-agent-progress");
   progress.setAttribute("aria-label", "Agent completion progress");
   const progressFill = node("span", "");
@@ -42,7 +50,7 @@
   activity.id = "liveAgentActivityRows";
   const foot = node("p", "live-agent-footnote", "Live states come from the server's actual specialist requests. Market-data validation happens first; completed reports and failures are shown individually. Paper analysis only — no exchange order is sent.");
   foot.style.marginBottom = "0";
-  panel.append(head, summary, progress, activity, foot);
+  panel.append(head, summary, readiness, progress, activity, foot);
   gate.parentNode.insertBefore(panel, gate);
 
   function counts() {
@@ -92,6 +100,18 @@
       summary.textContent = state.lastSummary;
     }
 
+    readiness.hidden = !state.decisionGate;
+    if (state.decisionGate) {
+      const gateResult = state.decisionGate;
+      readinessTitle.textContent = "TRADE READINESS · " + String(gateResult.status || "WAIT").replaceAll("_", " ");
+      readinessTitle.style.color = gateResult.approved === true ? "#65e6ad" : "#f2c46f";
+      const blockers = Array.isArray(gateResult.blockers) ? gateResult.blockers : [];
+      readinessBody.textContent = gateResult.approved === true
+        ? "Unanimous specialist agreement and deterministic checks passed. This is a paper setup candidate only—not proof of an edge or an order instruction."
+        : (blockers.length ? blockers.join(" · ") : "No setup approved. Stay in WAIT until the required evidence is present.");
+      readiness.style.borderColor = gateResult.approved === true ? "#295c49" : "#735b31";
+    }
+
     activity.replaceChildren();
     for (const agent of state.agents.values()) {
       const row = node("div", "live-agent-activity-row" + (agent.status === "running" ? " running" : agent.status === "complete" ? " done" : agent.status === "error" ? " error" : ""));
@@ -117,6 +137,7 @@
     state.roles = roles.slice();
     state.agents = new Map();
     state.lastSummary = "Starting a new team run.";
+    state.decisionGate = null;
     for (const role of roles) {
       const info = roleInfo[role] || { name: role, focus: "Specialist analysis." };
       state.agents.set(role, { role, name: info.name, focus: info.focus, status: "queued" });
@@ -162,6 +183,7 @@
     }
     if (event.type === "complete" || event.type === "failure") {
       const data = event.data && typeof event.data === "object" ? event.data : {};
+      state.decisionGate = data.decisionGate && typeof data.decisionGate === "object" ? data.decisionGate : null;
       const results = Array.isArray(data.results) ? data.results : [];
       for (const result of results) {
         const prev = state.agents.get(result.role) || {
