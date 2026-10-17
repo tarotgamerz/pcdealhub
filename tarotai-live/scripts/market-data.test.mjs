@@ -30,6 +30,8 @@ const backtestRoute = readFileSync(new URL("../app/api/trading/backtest/route.ts
 const paperRoute = readFileSync(new URL("../app/api/trading/paper/route.ts", import.meta.url), "utf8");
 const reviewRoute = readFileSync(new URL("../app/api/trading/review/route.ts", import.meta.url), "utf8");
 const tradingViewSignalsRoute = readFileSync(new URL("../app/api/tradingview/signals/route.ts", import.meta.url), "utf8");
+const tradingDeskPage = readFileSync(new URL("../public/trading-desk.html", import.meta.url), "utf8");
+const orderflowPanelScript = readFileSync(new URL("../public/orderflow-panel.js", import.meta.url), "utf8");
 
 test("market feeds use production public endpoints, never demo or testnet prices", () => {
   assert.match(source, /https:\/\/fapi\.binance\.com\/fapi\/v1\/klines/);
@@ -963,4 +965,20 @@ test("user chart viewport is restored after candle and forecast data updates", (
   assert.match(futuresDesk, /Math\.abs\(event\.clientX-start\.x\)>2\|\|Math\.abs\(event\.clientY-start\.y\)>2/);
   assert.match(futuresDesk, /byId\("liveGoLive"\)\.addEventListener\("click",\(\)=>setLiveFollow\(true\)\)/);
   assert.match(futuresDesk, /One synchronized interactive chart is shown in this desk/);
+});
+
+
+test("Futures Lab restores order-flow bubbles on the existing candlestick chart", () => {
+  assert.equal((tradingDeskPage.match(/id="liveMarketChart"/g) || []).length, 1, "there is one primary candlestick chart");
+  assert.equal((tradingDeskPage.match(/id="orderflowHeatmapCanvas"/g) || []).length, 1, "flow is an overlay, not a second chart");
+  assert.ok(tradingDeskPage.includes('id="toggleOrderflowOverlay"'), "overlay can be toggled by the user");
+  assert.ok(tradingDeskPage.includes("function drawOrderflowOverlay()"), "live order-flow renderer exists");
+  assert.ok(tradingDeskPage.includes("candleSeries.priceToCoordinate"), "depth levels and executed trades map to chart price coordinates");
+  assert.ok(tradingDeskPage.includes("chart.timeScale().timeToCoordinate"), "executed trades map to candle time coordinates");
+  assert.ok(tradingDeskPage.includes('document.addEventListener("tarotai:orderflow-update"'), "chart consumes the live depth/trade feed");
+  assert.ok(orderflowPanelScript.includes("function scheduleRender()"), "websocket updates call a defined throttled renderer");
+  assert.ok(orderflowPanelScript.includes('new CustomEvent("tarotai:orderflow-update"'), "panel publishes flow data to the chart");
+  assert.ok(orderflowPanelScript.includes("price, qty, quote:"), "executed trades preserve actual price and quantity");
+  assert.ok(orderflowPanelScript.includes("wss://fstream.binance.com/public/stream?streams="), "book uses the Futures public depth stream");
+  assert.ok(orderflowPanelScript.includes("wss://fstream.binance.com/market/stream?streams="), "trades use the Futures market aggregate-trade stream");
 });

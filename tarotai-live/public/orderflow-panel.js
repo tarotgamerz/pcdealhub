@@ -13,7 +13,7 @@
   };
   const book = { bids: new Map(), asks: new Map(), lastUpdateId: null, synced: false, lastMessageAt: 0 };
   let depthSocket = null, tradeSocket = null, generation = 0, reconnectTimer = null, renderTimer = null;
-  let snapshotRetryTimer = null, tradeReconnectTimer = null, snapshotInFlight = false, resyncAttempts = 0, reconnectAttempts = 0;
+  let snapshotRetryTimer = null, tradeReconnectTimer = null, snapshotInFlight = false, resyncAttempts = 0, reconnectAttempts = 0, quickRenderTimer = null;
   let bufferedDepth = [], lastTakerMessageAt = 0, trades = [], activeSymbol = "";
 
   const setStatus = (text, tone) => {
@@ -36,8 +36,12 @@
     depthSocket = tradeSocket = null;
   }
   function clearTimers() {
-    for (const timer of [reconnectTimer, renderTimer, snapshotRetryTimer, tradeReconnectTimer]) if (timer) clearTimeout(timer);
-    reconnectTimer = renderTimer = snapshotRetryTimer = tradeReconnectTimer = null;
+    for (const timer of [reconnectTimer, renderTimer, snapshotRetryTimer, tradeReconnectTimer, quickRenderTimer]) if (timer) clearTimeout(timer);
+    reconnectTimer = renderTimer = snapshotRetryTimer = tradeReconnectTimer = quickRenderTimer = null;
+  }
+  function scheduleRender() {
+    if (quickRenderTimer) return;
+    quickRenderTimer = setTimeout(() => { quickRenderTimer = null; render(); }, 120);
   }
   function resetState() {
     book.bids.clear(); book.asks.clear(); book.lastUpdateId = null;
@@ -189,7 +193,7 @@
         if (e.e !== "aggTrade" || !Number.isFinite(price) || price <= 0 || !Number.isFinite(qty) || qty <= 0) return;
         const ts = Number(e.T) || Date.now();
         // m=true means the buyer was maker, so the active taker was selling.
-        trades.push({ time: ts, quote: price * qty * (e.m === true ? -1 : 1) });
+        trades.push({ time: ts, price, qty, quote: price * qty * (e.m === true ? -1 : 1) });
         if (trades.length > 12000) trades = trades.slice(-8000);
         lastTakerMessageAt = Date.now();
         scheduleRender();
@@ -286,6 +290,31 @@
     const maxNotional = Math.max(...levels.map(([price, qty]) => price * qty), 1);
     for (const [price, qty] of levels) container.append(createLevelRow(side, price, qty, price * qty, maxNotional));
   }
+  function publishChartFlow(now, liveTrades) {
+    let bookFresh = Boolean(book.synced && book.lastMessageAt && now - book.lastMessageAt <= 15000);
+    let mid = null, bids = [], asks = [];
+    if (bookFresh) {
+      const bestBid = bestLevel(book.bids, true), bestAsk = bestLevel(book.asks, false);
+      if (!bestBid || !bestAsk || bestBid[0] >= bestAsk[0]) {
+        bookFresh = false;
+      } else {
+        mid = (bestBid[0] + bestAsk[0]) / 2;
+        const compact = (map, isBid) => Array.from(map, ([price, qty]) => ({price, qty, notional: price * qty}))
+          .filter(level => isBid ? level.price < mid && level.price >= mid * 0.995 : level.price > mid && level.price <= mid * 1.005)
+          .sort((a, b) => b.notional - a.notional)
+          .slice(0, 45);
+        bids = compact(book.bids, true);
+        asks = compact(book.asks, false);
+      }
+    }
+    const tradeFresh = Boolean(lastTakerMessageAt && now - lastTakerMessageAt <= 15000);
+    const recentTrades = tradeFresh ? liveTrades.filter(trade => Number.isFinite(trade.price) && Number.isFinite(trade.qty) && trade.price > 0 && trade.qty > 0)
+      .slice(-500).map(trade => ({time: trade.time, price: trade.price, qty: trade.qty, quote: Math.abs(trade.quote), side: trade.quote >= 0 ? "buy" : "sell"})) : [];
+    document.dispatchEvent(new CustomEvent("tarotai:orderflow-update", {
+      detail: {symbol: activeSymbol, asOf: now, bookFresh, tradeFresh, mid, bids, asks, trades: recentTrades}
+    }));
+  }
+
   function render() {
     const now = Date.now();
     const liveTrades = trades.filter((trade) => now - trade.time <= 60_000 && now >= trade.time - 5000);
@@ -293,6 +322,7 @@
     for (const trade of liveTrades) {
       if (trade.quote > 0) buy += trade.quote; else sell += -trade.quote;
     }
+    publishChartFlow(now, liveTrades);
     if (lastTakerMessageAt && now - lastTakerMessageAt <= 15000) {
       els.takerSplit.textContent = fmtMoney(buy) + " / " + fmtMoney(sell);
       const total = buy + sell;
