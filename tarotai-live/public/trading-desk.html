@@ -152,7 +152,7 @@
     <div class="field" style="margin:0"><label for="liveInterval">Chart timeframe</label><select id="liveInterval"><option value="1m">1 minute</option><option value="5m">5 minutes</option><option value="15m" selected>15 minutes</option><option value="1h">1 hour</option><option value="4h">4 hours</option></select></div>
     <button class="btn primary" id="liveRefresh" type="button">Analyze live market</button>
   </div>
-  <div class="live-history-bar"><button class="btn" id="liveLoadOlder" type="button">Load older candles</button><span id="liveHistoryStatus" aria-live="polite">The chart will load older candles when you pan to the left.</span></div>
+  <div class="live-history-bar"><button class="btn" id="liveLoadOlder" type="button">Load older candles</button><button class="btn" id="liveGoLive" type="button" hidden>Resume live follow</button><span id="liveHistoryStatus" aria-live="polite">Drag or zoom to inspect history; live follow pauses automatically. Resume live follow to return to the newest candle.</span></div>
   <div class="live-multi-actions"><button class="btn" id="toggleLiveAgentTeam" type="button" aria-expanded="true" aria-controls="liveAgentPanel">Hide 8-agent trading team</button><span class="live-multi-hint">Run seven trade-lifecycle agents plus one operations supervisor against the same verified closed-candle snapshot.</span></div>
   <section class="live-agent-panel" id="liveAgentPanel" aria-label="Multi-agent market analysis team">
     <div class="live-agent-panel-head"><div><h3>Live specialist team</h3><div class="sub">All eight roles are preloaded: seven trade-lifecycle specialists and one supervisor. Keep each role unique.</div></div><span class="tag">CONTINUOUS RULE AGENTS + ON-DEMAND AI REVIEW</span></div>
@@ -291,7 +291,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   if(required.some(id=>!byId(id)))return;
   const intervalMs={"1m":60000,"3m":180000,"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"2h":7200000,"4h":14400000,"1d":86400000};
   const higherMap={"1m":"15m","5m":"1h","15m":"4h","1h":"1d","4h":"1d"};
-  let chart=null,candleSeries=null,ema9Series=null,ema21Series=null,ema50Series=null,supportSeries=null,resistanceSeries=null,risingTrendSeries=null,fallingTrendSeries=null,socketReconnectTimer=null;let lastMarketUpdateAt=0,lastLiveCandleSyncAt=0;
+  let chart=null,candleSeries=null,ema9Series=null,ema21Series=null,ema50Series=null,supportSeries=null,resistanceSeries=null,risingTrendSeries=null,fallingTrendSeries=null,socketReconnectTimer=null;let lastMarketUpdateAt=0,lastLiveCandleSyncAt=0;let followLive=true,chartPointerStart=null;
   let mirrorChart=null,mirrorCandleSeries=null,mirrorEma9Series=null,mirrorEma21Series=null,mirrorEma50Series=null,mirrorSupportSeries=null,mirrorResistanceSeries=null,mirrorRisingTrendSeries=null,mirrorFallingTrendSeries=null,mirrorResizeObserver=null,rangeSyncLock=false,mirrorPriceLines=[],mainLivePriceLine=null,mirrorLivePriceLine=null,lastLiveLineUpdateAt=0;
   let rows=[],marketVenue="binance",feedSocket=null,quoteSocket=null,quoteReconnectTimer=null,quoteSymbol="",lastTradePrice=NaN,lastTradeAt=0,lastQuoteSource="none",lastQuoteSourceTimestamp=0,lastWsTradeAt=0,lastQuoteFallbackErrorAt=0,quoteFallbackTimer=null,quoteFallbackBusy=false,lastQuoteRenderAt=0,pollTimer=null,resizeObserver=null;window.tarotaiMarketVenue=marketVenue;
   let currentSymbol="",currentInterval="",higherCache=[],higherCacheKey="",higherCacheAt=0,priceLines=[],busy=false,firstRender=true,lastWsCandleTime=0,historyBusy=false,historyExhausted=false,historyPages=0,historyLoadAllowedAt=0;
@@ -893,14 +893,26 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const data=await fetchJSON("/api/exchanges/market?"+new URLSearchParams({venue:marketVenue,symbol:currentSymbol,interval:ht,limit:"180",public:"1"}));
     higherCache=orderedCandles(data.candles);higherCacheKey=key;higherCacheAt=Date.now();
   }
+  function shouldStickToRealtime(range,total){return followLive&&(!range||range.to>=total-8);}
+  function pauseLiveFollow(){if(!followLive)return;followLive=false;const button=byId("liveGoLive");if(button)button.hidden=false;}
+  function setLiveFollow(enabled){followLive=Boolean(enabled);const button=byId("liveGoLive");if(button)button.hidden=followLive;if(followLive){if(chart)chart.timeScale().scrollToRealTime();if(mirrorChart)mirrorChart.timeScale().scrollToRealTime();}}
+  function attachChartNavigation(host){
+    if(!host)return;
+    host.addEventListener("pointerdown",event=>{if(event.pointerType==="mouse"&&event.button!==0)return;chartPointerStart={id:event.pointerId,x:event.clientX,y:event.clientY};},{capture:true,passive:true});
+    host.addEventListener("wheel",event=>{if(event.deltaX!==0||event.deltaY!==0)pauseLiveFollow();},{capture:true,passive:true});
+  }
+  window.addEventListener("pointermove",event=>{const start=chartPointerStart;if(!start||event.pointerId!==start.id)return;if(Math.abs(event.clientX-start.x)>4||Math.abs(event.clientY-start.y)>4)pauseLiveFollow();},{capture:true,passive:true});
+  const clearChartPointer=event=>{if(chartPointerStart&&event.pointerId===chartPointerStart.id)chartPointerStart=null;};
+  window.addEventListener("pointerup",clearChartPointer,{capture:true,passive:true});
+  window.addEventListener("pointercancel",clearChartPointer,{capture:true,passive:true});
   function renderRows(forceFit){
     if(!candleSeries||!rows.length)return;
-    const rangeBefore=chart.timeScale().getVisibleLogicalRange(),stayAtRealtime=!rangeBefore||rangeBefore.to>=rows.length-8;
+    const rangeBefore=chart.timeScale().getVisibleLogicalRange(),stayAtRealtime=shouldStickToRealtime(rangeBefore,rows.length);
     const candleData=rows.map(plotCandle),closes=rows.map(c=>c.close),ts=rows;
     const e9Data=lineData(ema(closes,9),ts),e21Data=lineData(ema(closes,21),ts),e50Data=lineData(ema(closes,50),ts);
     candleSeries.setData(candleData);ema9Series.setData(e9Data);ema21Series.setData(e21Data);ema50Series.setData(e50Data);
     if(mirrorCandleSeries){mirrorCandleSeries.setData(candleData);mirrorEma9Series.setData(e9Data);mirrorEma21Series.setData(e21Data);mirrorEma50Series.setData(e50Data);}
-    if(firstRender||forceFit){historyLoadAllowedAt=Date.now()+1200;chart.timeScale().fitContent();if(mirrorChart)mirrorChart.timeScale().fitContent();firstRender=false;}else if(stayAtRealtime){chart.timeScale().scrollToRealTime();if(mirrorChart)mirrorChart.timeScale().scrollToRealTime();}
+    if(firstRender||forceFit){historyLoadAllowedAt=Date.now()+1200;chart.timeScale().fitContent();if(mirrorChart)mirrorChart.timeScale().fitContent();firstRender=false;followLive=true;const goLiveButton=byId("liveGoLive");if(goLiveButton)goLiveButton.hidden=true;}else if(stayAtRealtime){chart.timeScale().scrollToRealTime();if(mirrorChart)mirrorChart.timeScale().scrollToRealTime();}
     renderSharedQuote(currentMarketPrice());analyze();
   }
   async function refresh(force){
@@ -908,7 +920,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     if(!force)status("Refreshing fresh perpetual-futures candles…");
     try{
       const sym=byId("liveSymbol").value,interval=byId("liveInterval").value,changed=sym!==currentSymbol||interval!==currentInterval,streamWasStale=Date.now()-lastMarketUpdateAt>5000;
-      if(changed){currentSymbol=sym;currentInterval=interval;higherCache=[];higherCacheKey="";higherCacheAt=0;firstRender=true;rows=[];historyExhausted=false;historyPages=0;lastWsCandleTime=0;}
+      if(changed){currentSymbol=sym;currentInterval=interval;higherCache=[];higherCacheKey="";higherCacheAt=0;firstRender=true;rows=[];historyExhausted=false;historyPages=0;lastWsCandleTime=0;followLive=true;byId("liveGoLive").hidden=true;}
       const data=await fetchMarketWithFallback(currentSymbol,currentInterval,250);
       const nextVenue=data.venue||"binance",venueChanged=marketVenue!==nextVenue;
       marketVenue=nextVenue;window.tarotaiMarketVenue=marketVenue;
@@ -945,7 +957,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
         if(msg?.event==="error"){setFeed("OKX CANDLE STREAM ERROR","bad");status("OKX candle subscription failed ("+String(msg.code||"unknown")+"): "+String(msg.msg||"unavailable")+". Reconnecting; paper entries stay blocked without fresh candles.");return;}
         if(msg.arg?.channel!==candleChannel||msg.arg?.instId!==instId||!Array.isArray(msg.data)||!msg.data.length)return;
         const k=msg.data[msg.data.length-1],bar={time:Number(k[0]),open:Number(k[1]),high:Number(k[2]),low:Number(k[3]),close:Number(k[4]),volume:Number(k[5]),closeTime:Number(k[0])+msFor(currentInterval)-1};
-        if(!validateCandle(bar))return;const visibleBefore=chart.timeScale().getVisibleLogicalRange(),stickAtRealtime=!visibleBefore||visibleBefore.to>=rows.length-8;lastMarketUpdateAt=Date.now();
+        if(!validateCandle(bar))return;const visibleBefore=chart.timeScale().getVisibleLogicalRange(),stickAtRealtime=shouldStickToRealtime(visibleBefore,rows.length);lastMarketUpdateAt=Date.now();
         if(!rows.length||bar.time>rows[rows.length-1].time)rows.push(bar);else{const idx=rows.findIndex(x=>x.time===bar.time);if(idx>=0)rows[idx]=bar;}
         if(rows.length>5000)rows=rows.slice(-5000);
         try{const point=plotCandle(bar);candleSeries.update(point);if(mirrorCandleSeries)mirrorCandleSeries.update(point);const cls=rows.map(c=>c.close),e9Data=lineData(ema(cls,9),rows),e21Data=lineData(ema(cls,21),rows),e50Data=lineData(ema(cls,50),rows);ema9Series.setData(e9Data);ema21Series.setData(e21Data);ema50Series.setData(e50Data);if(mirrorEma9Series){mirrorEma9Series.setData(e9Data);mirrorEma21Series.setData(e21Data);mirrorEma50Series.setData(e50Data);}renderSharedQuote(currentMarketPrice());if(stickAtRealtime){chart.timeScale().scrollToRealTime();if(mirrorChart)mirrorChart.timeScale().scrollToRealTime();}if(k[8]==="1"){analyze();runContinuousAgentCycle();}else analyze();
@@ -959,6 +971,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   if(chart)chart.timeScale().subscribeVisibleLogicalRangeChange(range=>{if(range&&mirrorChart&&!rangeSyncLock){rangeSyncLock=true;try{mirrorChart.timeScale().setVisibleLogicalRange(range);}catch(e){}finally{rangeSyncLock=false;}}if(!range||historyBusy||Date.now()<historyLoadAllowedAt)return;if(range.from<18)void loadOlderHistory();});
   if(!chart){setFeed("CHART LIBRARY UNAVAILABLE","bad");status("The interactive chart library did not load. Price/agent controls remain available, but chart drawing is unavailable until the library can be reached and the page is refreshed.");}
   byId("liveLoadOlder").addEventListener("click",()=>loadOlderHistory());
+  byId("liveGoLive").addEventListener("click",()=>setLiveFollow(true));
+  attachChartNavigation(byId("liveMarketChart"));attachChartNavigation(byId("tvSyncedChart"));
   byId("liveRefresh").addEventListener("click",()=>refresh(true));
   const liveAgentPanel=byId("liveAgentPanel"),toggleLiveAgentTeam=byId("toggleLiveAgentTeam");
   toggleLiveAgentTeam.addEventListener("click",()=>{
