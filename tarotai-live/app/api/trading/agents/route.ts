@@ -85,14 +85,28 @@ async function fetchVerifiedMarket(symbol:string,interval:Interval,preferred:Ven
  throw new Error("No exchange could provide fresh main and higher-timeframe data. "+failures.join(" | ").slice(0,1200));
 }
 async function fetchOrderBookSnapshot(symbol:string,venue:Venue) {
- if(venue!=="binance")return null;
  try {
-  const url=new URL("https://fapi.binance.com/fapi/v1/depth");url.searchParams.set("symbol",symbol);url.searchParams.set("limit","1000");
-  const response=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(1800),headers:{"User-Agent":"TarotAI-ReadOnly-OrderBook"}});
+  let endpoint:URL,normalizer:(raw:any)=>unknown,source:string;
+  if(venue==="binance") {
+   endpoint=new URL("https://fapi.binance.com/fapi/v1/depth");endpoint.searchParams.set("symbol",symbol);endpoint.searchParams.set("limit","1000");
+   normalizer=(raw:any)=>raw;source="Binance USDⓈ-M Futures REST snapshot";
+  } else if(venue==="bybit") {
+   endpoint=new URL("https://api.bybit.com/v5/market/orderbook");endpoint.searchParams.set("category","linear");endpoint.searchParams.set("symbol",symbol);endpoint.searchParams.set("limit","200");
+   normalizer=(raw:any)=>({lastUpdateId:Number(raw?.result?.u??raw?.result?.seq??Date.now()),E:Number(raw?.time??raw?.result?.ts),T:Number(raw?.time??raw?.result?.ts),bids:raw?.result?.b??raw?.result?.bids,asks:raw?.result?.a??raw?.result?.asks});
+   source="Bybit linear futures REST snapshot";
+  } else {
+   const instId=symbol.endsWith("USDT")?symbol.slice(0,-4)+"-USDT-SWAP":symbol;
+   endpoint=new URL("https://www.okx.com/api/v5/market/books");endpoint.searchParams.set("instId",instId);endpoint.searchParams.set("sz","400");
+   normalizer=(raw:any)=>({lastUpdateId:Number(raw?.data?.[0]?.seqId??Date.now()),E:Number(raw?.data?.[0]?.ts),T:Number(raw?.data?.[0]?.ts),bids:raw?.data?.[0]?.bids,asks:raw?.data?.[0]?.asks});
+   source="OKX USDT-margined swap REST snapshot";
+  }
+  const response=await fetch(endpoint,{cache:"no-store",signal:AbortSignal.timeout(2200),headers:{"User-Agent":"TarotAI-ReadOnly-OrderBook"}});
   if(!response.ok)return null;
-  const raw:unknown=await response.json();const snapshot=normalizeDepthSnapshot(symbol,raw),now=Date.now(),metrics=summarizeOrderBook(snapshot,now);
+  const raw:any=await response.json();
+  if(venue==="bybit"&&raw?.retCode!==0||venue==="okx"&&raw?.code!=="0")return null;
+  const snapshot=normalizeDepthSnapshot(symbol,normalizer(raw)),now=Date.now(),metrics=summarizeOrderBook(snapshot,now);
   if(metrics.snapshotAgeMs===null||metrics.snapshotAgeMs>15000)return null;
-  return {source:"Binance USDⓈ-M Futures REST snapshot",fetchedAt:new Date(now).toISOString(),ageMs:metrics.snapshotAgeMs,lastUpdateId:metrics.lastUpdateId,bestBid:metrics.bestBid,bestAsk:metrics.bestAsk,midPrice:metrics.midPrice,spreadBps:Number(metrics.spreadBps?.toFixed(3)),bidDepthQuote0_5Pct:Number(metrics.bidDepthQuote0_5Pct.toFixed(2)),askDepthQuote0_5Pct:Number(metrics.askDepthQuote0_5Pct.toFixed(2)),depthImbalancePct:metrics.depthImbalancePct===null?null:Number(metrics.depthImbalancePct.toFixed(2)),nearestBidLevels:metrics.bidLevels.slice(0,5),nearestAskLevels:metrics.askLevels.slice(0,5),caveat:"Single timestamped snapshot; resting orders can cancel or move. Not spoofing detection, historical liquidity or a calibrated directional signal."};
+  return {source,venue,fetchedAt:new Date(now).toISOString(),ageMs:metrics.snapshotAgeMs,lastUpdateId:metrics.lastUpdateId,bestBid:metrics.bestBid,bestAsk:metrics.bestAsk,midPrice:metrics.midPrice,spreadBps:Number(metrics.spreadBps?.toFixed(3)),bidDepthQuote0_5Pct:Number(metrics.bidDepthQuote0_5Pct.toFixed(2)),askDepthQuote0_5Pct:Number(metrics.askDepthQuote0_5Pct.toFixed(2)),depthImbalancePct:metrics.depthImbalancePct===null?null:Number(metrics.depthImbalancePct.toFixed(2)),nearestBidLevels:metrics.bidLevels.slice(0,5),nearestAskLevels:metrics.askLevels.slice(0,5),caveat:"Single timestamped REST snapshot; resting orders can cancel or move. Not spoofing detection, historical liquidity or a calibrated directional signal."};
  }catch{return null;}
 }
 function ema(values:number[],period:number):number[] {if(!values.length)return [];const k=2/(period+1),out=[values[0]];for(let i=1;i<values.length;i++)out.push(values[i]*k+out[i-1]*(1-k));return out;}
