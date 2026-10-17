@@ -47,12 +47,18 @@
   }
 
   function validCandles(input) {
-    return Array.isArray(input) && input.every((c) => c &&
-      [c.time, c.open, c.high, c.low, c.close].every((n) => Number.isFinite(Number(n))) &&
-      Number(c.time) > 0 && Number(c.open) > 0 && Number(c.high) > 0 &&
-      Number(c.low) > 0 && Number(c.close) > 0 &&
-      Number(c.high) >= Math.max(Number(c.open), Number(c.close), Number(c.low)) &&
-      Number(c.low) <= Math.min(Number(c.open), Number(c.close), Number(c.high)));
+    if (!Array.isArray(input) || input.length === 0) return false;
+    let previousTime = 0;
+    for (const c of input) {
+      // Market feed parsers must normalize exchange values before this calculation.
+      // Reject strings, duplicate timestamps and out-of-order candles rather than
+      // letting coercion or future data silently corrupt chart geometry/backtests.
+      if (!c || ![c.time, c.open, c.high, c.low, c.close].every((n) => typeof n === "number" && Number.isFinite(n))) return false;
+      if (c.time <= previousTime || c.time <= 0 || c.open <= 0 || c.high <= 0 || c.low <= 0 || c.close <= 0) return false;
+      if (c.high < Math.max(c.open, c.close, c.low) || c.low > Math.min(c.open, c.close, c.high)) return false;
+      previousTime = c.time;
+    }
+    return true;
   }
 
   function scoreAt(candles, index, indicators) {
