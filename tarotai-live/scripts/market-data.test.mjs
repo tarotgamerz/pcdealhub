@@ -363,7 +363,7 @@ test("live chart offers eight trade-lifecycle agents including a supervisor", ()
   assert.match(futuresDesk, /Team consensus: WAIT/);
   assert.match(futuresDesk, /const baseLong=decision\.action/);
   assert.match(futuresDesk, /window\.tarotaiAgentCommitteeApproval=committeeApproved\?/);
-  assert.match(futuresDesk, /Paper entry blocked: wait for the continuous eight-role team/);
+  assert.match(futuresDesk, /Paper entry blocked: the exact candle needs fresh signed model-backed server risk approval/);
   assert.match(futuresDesk, /Select all eight trading agents before running analysis/);
   assert.match(futuresDesk, /No real exchange orders are sent/);
 });
@@ -636,7 +636,7 @@ test("demo order ticket uses live agent decision and persistent paper execution,
   assert.doesNotMatch(futuresDesk, /id="stop"/);
   assert.doesNotMatch(futuresDesk, /id="target"/);
   assert.match(futuresDesk, /byId\("demoAgentOpen"\)\.addEventListener\("click",paperOpenSignal\)/);
-  assert.match(futuresDesk, /const entry=Number\(currentMarketPrice\(\),planEntry=Number\(gatePlan\.entry\),stop=Number\(gatePlan\.stop\),target=Number\(gatePlan\.target\)/);
+  assert.match(futuresDesk, /const entry=Number\(currentMarketPrice\(\)\),planEntry=Number\(gatePlan\.entry\),stop=Number\(gatePlan\.stop\),target=Number\(gatePlan\.target\)/);
   assert.match(futuresDesk, /action:"OPEN",symbol:d\.symbol,venue:marketVenue/);
   assert.match(futuresDesk, /function updateDemoAgentTicket\(\)/);
   assert.match(futuresDesk, /if\(checks\.length\)\{d=await paperRequest/);
@@ -657,7 +657,7 @@ test("paper-entry approvals require signed short-lived server tokens, fresh book
   assert.match(paperRoute, /nx:true/);
   assert.match(futuresDesk, /approval\.riskGate\?\.approved===true/);
   assert.match(futuresDesk, /paperExecutionToken/);
-  assert.match(futuresDesk, /local-rule-only approval is not enough/);
+  assert.match(futuresDesk, /Local-rule-only approval is not enough/);
   assert.match(approval, /timingSafeEqual/);
   assert.match(approval, /PAPER_BOOK_MAX_AGE_MS/);
 });
