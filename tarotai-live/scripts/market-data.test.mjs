@@ -970,18 +970,25 @@ test("user chart viewport is restored after candle and forecast data updates", (
 });
 
 
-test("Futures Lab restores order-flow bubbles on the existing candlestick chart", () => {
-  assert.equal((tradingDeskPage.match(/id="liveMarketChart"/g) || []).length, 1, "there is one primary candlestick chart");
-  assert.equal((tradingDeskPage.match(/id="orderflowHeatmapCanvas"/g) || []).length, 1, "flow is an overlay, not a second chart");
-  assert.ok(tradingDeskPage.includes('id="toggleOrderflowOverlay"'), "overlay can be toggled by the user");
-  assert.ok(tradingDeskPage.includes("function drawOrderflowOverlay()"), "live order-flow renderer exists");
-  assert.ok(tradingDeskPage.includes("candleSeries.priceToCoordinate"), "depth levels and executed trades map to chart price coordinates");
-  assert.ok(tradingDeskPage.includes("chart.timeScale().timeToCoordinate"), "executed trades map to candle time coordinates");
-  assert.ok(tradingDeskPage.includes('document.addEventListener("tarotai:orderflow-update"'), "chart consumes the live depth/trade feed");
+test("Futures Lab keeps the primary chart and adds a separate live order-flow bubble chart", () => {
+  assert.equal((tradingDeskPage.match(/id="liveMarketChart"/g) || []).length, 1, "the primary price chart remains singular");
+  assert.equal((tradingDeskPage.match(/id="orderflowBubbleChart"/g) || []).length, 1, "a distinct order-flow chart exists");
+  assert.equal((tradingDeskPage.match(/id="orderflowBubbleCanvas"/g) || []).length, 1, "bubble marks have a dedicated transparent overlay");
+  assert.doesNotMatch(tradingDeskPage, /id="orderflowHeatmapCanvas"/, "order-flow bubbles are no longer painted over the primary chart");
+  assert.ok(tradingDeskPage.includes('id="toggleOrderflowBubbles"'), "bubble visibility can be toggled independently");
+  assert.ok(tradingDeskPage.includes("orderflowChart=window.LightweightCharts.createChart(host"), "the order-flow visualization owns a second chart instance");
+  assert.ok(tradingDeskPage.includes("orderflowCandleSeries=orderflowChart.addCandlestickSeries"), "the bubble view has its own candle coordinate system");
+  assert.ok(tradingDeskPage.includes("orderflowCandleSeries.setData(candleData)"), "the second chart receives the same verified candle history");
+  assert.ok(tradingDeskPage.includes("orderflowCandleSeries.update(plotCandle(bar))"), "live forming candles update the second chart");
+  assert.ok(tradingDeskPage.includes("orderflowChart.timeScale().timeToCoordinate"), "bubble timestamps map to the second chart's time scale");
+  assert.ok(tradingDeskPage.includes("orderflowCandleSeries.priceToCoordinate"), "trade prices and book levels map to the second chart's price scale");
+  assert.ok(tradingDeskPage.includes("orderflowTape=new Map()"), "real trades are deduplicated and retained for the rolling chart tape");
+  assert.ok(tradingDeskPage.includes("function syncOrderflowRange(source)"), "the separate chart can synchronize its time viewport with the primary chart");
+  assert.ok(tradingDeskPage.includes('document.addEventListener("tarotai:orderflow-update"'), "the chart consumes live order-book/trade events");
   assert.ok(orderflowPanelScript.includes("function scheduleRender()"), "websocket updates call a defined throttled renderer");
-  assert.ok(orderflowPanelScript.includes('new CustomEvent("tarotai:orderflow-update"'), "panel publishes flow data to the chart");
-  assert.ok(orderflowPanelScript.includes("price, qty, quote:"), "executed trades preserve actual price and quantity");
-  assert.ok(orderflowPanelScript.includes("wss://fstream.binance.com/public/stream?streams="), "book uses the Futures public depth stream");
+  assert.ok(orderflowPanelScript.includes('new CustomEvent("tarotai:orderflow-update"'), "the market-data panel publishes live flow data");
+  assert.ok(orderflowPanelScript.includes("price, qty, quote:"), "trades preserve real exchange price and quantity");
+  assert.ok(orderflowPanelScript.includes("wss://fstream.binance.com/public/stream?streams="), "the book uses the Futures public depth stream");
   assert.ok(orderflowPanelScript.includes("wss://fstream.binance.com/market/stream?streams="), "trades use the Futures market aggregate-trade stream");
 });
 
