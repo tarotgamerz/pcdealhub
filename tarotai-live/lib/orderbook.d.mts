@@ -1,0 +1,28 @@
+export type DepthLevel = [number, number];
+export type DepthSnapshot = {
+  symbol: string;
+  lastUpdateId: number;
+  eventTime: number | null;
+  transactionTime: number | null;
+  bids: DepthLevel[];
+  asks: DepthLevel[];
+};
+export function normalizeDepthSnapshot(symbol: string, payload: unknown): DepthSnapshot;
+export function summarizeOrderBook(snapshot: DepthSnapshot, now?: number): {
+  symbol: string;
+  fetchedAt: number;
+  exchangeEventTime: number | null;
+  snapshotAgeMs: number | null;
+  lastUpdateId: number;
+  bestBid: number;
+  bestAsk: number;
+  midPrice: number;
+  spread: number;
+  spreadBps: number | null;
+  bidDepthQuote0_5Pct: number;
+  askDepthQuote0_5Pct: number;
+  depthImbalancePct: number | null;
+  bidLevels: Array<{price:number;quantity:number;quoteNotional:number}>;
+  askLevels: Array<{price:number;quantity:number;quoteNotional:number}>;
+  semantics: string;
+};
