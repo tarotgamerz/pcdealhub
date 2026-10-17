@@ -30,8 +30,9 @@ export function normalizeDepthSnapshot(symbol, payload) {
   return {
     symbol,
     lastUpdateId: updateId,
-    eventTime: Number.isFinite(Number(payload?.E)) ? Number(payload.E) : null,
-    transactionTime: Number.isFinite(Number(payload?.T)) ? Number(payload.T) : null,
+    eventTime: payload?.E != null && Number.isFinite(Number(payload.E)) ? Number(payload.E) : null,
+    transactionTime: payload?.T != null && Number.isFinite(Number(payload.T)) ? Number(payload.T) : null,
+    receivedAt: payload?.receivedAt != null && Number.isFinite(Number(payload.receivedAt)) ? Number(payload.receivedAt) : null,
     bids,
     asks
   };
@@ -49,12 +50,15 @@ export function summarizeOrderBook(snapshot, now = Date.now()) {
   const bidDepth = quoteDepth(inBand(bids, mid * 0.995, mid));
   const askDepth = quoteDepth(inBand(asks, mid, mid * 1.005));
   const total = bidDepth + askDepth;
-  const ageMs = snapshot.eventTime == null ? null : Math.max(0, now - snapshot.eventTime);
+  const timestampSource = snapshot.eventTime != null ? "exchange-event-time" : snapshot.receivedAt != null ? "local-receipt-time" : "unavailable";
+  const timestamp = snapshot.eventTime != null ? snapshot.eventTime : snapshot.receivedAt;
+  const ageMs = timestamp == null ? null : Math.max(0, now - timestamp);
   return {
     symbol: snapshot.symbol,
     fetchedAt: now,
     exchangeEventTime: snapshot.eventTime,
     snapshotAgeMs: ageMs,
+    timestampSource,
     lastUpdateId: snapshot.lastUpdateId,
     bestBid,
     bestAsk,
