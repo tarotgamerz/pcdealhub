@@ -4,6 +4,7 @@ export type DepthSnapshot = {
   lastUpdateId: number;
   eventTime: number | null;
   transactionTime: number | null;
+  receivedAt: number | null;
   bids: DepthLevel[];
   asks: DepthLevel[];
 };
@@ -13,6 +14,7 @@ export function summarizeOrderBook(snapshot: DepthSnapshot, now?: number): {
   fetchedAt: number;
   exchangeEventTime: number | null;
   snapshotAgeMs: number | null;
+  timestampSource: "exchange-event-time" | "local-receipt-time" | "unavailable";
   lastUpdateId: number;
   bestBid: number;
   bestAsk: number;
