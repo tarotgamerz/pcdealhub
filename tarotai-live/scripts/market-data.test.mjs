@@ -896,7 +896,11 @@ test("live chart forecast and auto discussion remain visible, safe and automatic
   assert.match(futuresDesk, /backtestScenarioForecast\(candles,\{horizon:3,intervalMs:msFor\(currentInterval\),higherTimeframeCandles:higherCache,higherTimeframeIntervalMs:msFor\(higherMap\[currentInterval\]\|\|"1d"\)\}\)/);
   assert.match(futuresDesk, /id="autoAgentDiscussionLog"/);
   assert.match(futuresDesk, /function updateAutoAgentDiscussion\(context\)/);
-  assert.match(futuresDesk, /no extra model-provider calls/i);
+  assert.match(futuresDesk, /function maybeRunAutomaticAiReview\(context\)/);
+  assert.match(futuresDesk, /key===lastAutomaticAiReviewKey/);
+  assert.match(futuresDesk, /runLiveAgentTeam\(\{automatic:true\}\)/);
+  assert.match(futuresDesk, /appendAiReviewToDiscussion\(data\.results/);
+  assert.match(futuresDesk, /Supervisor vetoes and provider fallbacks block AI approval/);
   assert.match(futuresDesk, /textContent=message\.text/);
 });
 
