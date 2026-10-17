@@ -1953,14 +1953,20 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
 
   /* Order-flow observer: shadow signal only; no entry authority. */
   const OF_WINDOW_MS=60000;
-  let orderFlowDepthSocket=null,orderFlowTradeSocket=null,orderFlowReconnectTimer=null,orderFlowSymbol="",orderFlowLastDepthAt=0,orderFlowLastTradeAt=0,orderFlowLastDepthStoreAt=0,orderFlowDrawTimer=null;
+  let orderFlowDepthSocket=null,orderFlowTradeSocket=null,orderFlowReconnectTimer=null,orderFlowSymbol="",orderFlowLastDepthAt=0,orderFlowLastTradeAt=0,orderFlowLastDepthStoreAt=0,orderFlowDrawTimer=null,orderFlowRenderTimer=null,lastOrderFlowRenderAt=0;
   const orderFlowDepthHistory=[],orderFlowTrades=[],orderFlowTradeIds=new Set();
   const ofMoney=n=>Number.isFinite(n)?(Math.abs(n)>=1e6?"$"+(Math.abs(n)/1e6).toFixed(2)+"M":Math.abs(n)>=1e3?"$"+(Math.abs(n)/1e3).toFixed(1)+"K":"$"+Math.abs(n).toFixed(0)):"—";
   function ofStatus(text,mode=""){const el=byId("orderflowStatus");if(el){el.textContent=text;el.className="orderflow-status"+(mode?" "+mode:"");}}
+  /* Coalesce high-frequency depth/trade WebSocket bursts. Canvas redraws are capped at ~5.5 Hz; incoming trades are still recorded individually. */
+  function scheduleOrderFlowRender(){
+    if(orderFlowRenderTimer||document.visibilityState!=="visible")return;
+    const wait=Math.max(0,180-(Date.now()-lastOrderFlowRenderAt));
+    orderFlowRenderTimer=setTimeout(()=>{orderFlowRenderTimer=null;if(document.visibilityState==="visible")renderOrderFlow();},wait);
+  }
   function stopOrderFlowSockets(clearData=false){
     if(orderFlowReconnectTimer){clearTimeout(orderFlowReconnectTimer);orderFlowReconnectTimer=null;}
     for(const key of ["orderFlowDepthSocket","orderFlowTradeSocket"]){const ws=key==="orderFlowDepthSocket"?orderFlowDepthSocket:orderFlowTradeSocket;if(ws){ws.onopen=ws.onmessage=ws.onerror=ws.onclose=null;try{ws.close();}catch(e){}if(key==="orderFlowDepthSocket")orderFlowDepthSocket=null;else orderFlowTradeSocket=null;}}
-    if(clearData){orderFlowDepthHistory.length=0;orderFlowTrades.length=0;orderFlowTradeIds.clear();orderFlowLastDepthAt=0;orderFlowLastTradeAt=0;orderFlowLastDepthStoreAt=0;window.tarotaiOrderFlowSummary=null;}
+    if(clearData){if(orderFlowRenderTimer){clearTimeout(orderFlowRenderTimer);orderFlowRenderTimer=null;}orderFlowDepthHistory.length=0;orderFlowTrades.length=0;orderFlowTradeIds.clear();orderFlowLastDepthAt=0;orderFlowLastTradeAt=0;orderFlowLastDepthStoreAt=0;window.tarotaiOrderFlowSummary=null;}
   }
   function scheduleOrderFlowReconnect(){if(orderFlowReconnectTimer||document.visibilityState!=="visible"||marketVenue!=="binance"||!currentSymbol)return;orderFlowReconnectTimer=setTimeout(()=>{orderFlowReconnectTimer=null;connectOrderFlow();},1500);}
   function connectOrderFlow(){
@@ -1991,7 +1997,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
           orderFlowDepthHistory.push({time:eventTime,receivedAt:now,bids,asks,mid:(bids[0].price+asks[0].price)/2});orderFlowLastDepthStoreAt=now;
           const cutoff=now-OF_WINDOW_MS;if(orderFlowDepthHistory.length>300)orderFlowDepthHistory.splice(0,orderFlowDepthHistory.length-300);
           while(orderFlowDepthHistory.length&&orderFlowDepthHistory[0].receivedAt<cutoff)orderFlowDepthHistory.shift();
-        }renderOrderFlow();
+        }scheduleOrderFlowRender();
       };
       depthWs.onerror=()=>{if(orderFlowDepthSocket===depthWs)ofStatus("DEPTH RECONNECTING","bad");};
       depthWs.onclose=()=>{if(orderFlowDepthSocket===depthWs)orderFlowDepthSocket=null;scheduleOrderFlowReconnect();};
@@ -2010,16 +2016,16 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
         while(orderFlowTrades.length&&orderFlowTrades[0].receivedAt<cutoff){const old=orderFlowTrades.shift();if(old?.id)orderFlowTradeIds.delete(old.id);}
         if(orderFlowTrades.length>3000){const removed=orderFlowTrades.splice(0,orderFlowTrades.length-3000);for(const old of removed)if(old?.id)orderFlowTradeIds.delete(old.id);}
         if(orderFlowTradeIds.size>5000){const oldestId=orderFlowTradeIds.values().next().value;if(oldestId!==undefined)orderFlowTradeIds.delete(oldestId);}
-        renderOrderFlow();
+        scheduleOrderFlowRender();
       };
       tradeWs.onerror=()=>{if(orderFlowTradeSocket===tradeWs)ofStatus("TRADE STREAM RECONNECTING","bad");};
       tradeWs.onclose=()=>{if(orderFlowTradeSocket===tradeWs)orderFlowTradeSocket=null;scheduleOrderFlowReconnect();};
-      if(orderFlowDrawTimer)clearInterval(orderFlowDrawTimer);orderFlowDrawTimer=setInterval(renderOrderFlow,350);renderOrderFlow();
+      if(orderFlowDrawTimer)clearInterval(orderFlowDrawTimer);orderFlowDrawTimer=setInterval(scheduleOrderFlowRender,350);renderOrderFlow();
     }catch(e){stopOrderFlowSockets(false);ofStatus("ORDER FLOW UNAVAILABLE","bad");scheduleOrderFlowReconnect();}
   }
   function renderOrderFlow(){
     const canvas=byId("orderflowCanvas");if(!canvas)return;
-    const now=Date.now(),cutoff=now-OF_WINDOW_MS;
+    const now=Date.now(),cutoff=now-OF_WINDOW_MS;lastOrderFlowRenderAt=now;
     while(orderFlowDepthHistory.length&&orderFlowDepthHistory[0].receivedAt<cutoff)orderFlowDepthHistory.shift();
     while(orderFlowTrades.length&&orderFlowTrades[0].receivedAt<cutoff){const old=orderFlowTrades.shift();if(old?.id)orderFlowTradeIds.delete(old.id);}
     const snapshots=orderFlowDepthHistory,trades=orderFlowTrades,buy=trades.filter(t=>t.side==="BUY").reduce((s,t)=>s+t.notional,0),sell=trades.filter(t=>t.side==="SELL").reduce((s,t)=>s+t.notional,0),delta=buy-sell,total=buy+sell,deltaRatio=total?delta/total:0;
