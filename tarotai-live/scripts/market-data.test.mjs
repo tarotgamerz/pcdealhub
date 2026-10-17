@@ -802,13 +802,18 @@ test("redundant visual strategy chart stays hidden and stops its polling loop", 
   assert.ok(futuresDesk.includes("!$('visual-strategy-panel')?.hidden&&!$('drawStrategy').disabled"));
 });
 
-test("all live overlays run on a single interactive chart, with external TradingView as an optional separate tab", () => {
+test("primary chart remains intact and the order-flow bubble chart is separate, with external TradingView optional", () => {
   assert.match(futuresDesk, /id="liveMarketChart"/);
-  assert.doesNotMatch(futuresDesk, /<div id="tvSyncedChart"/);
+  assert.match(futuresDesk, /id="orderflowBubbleChart"/);
+  assert.match(futuresDesk, /id="orderflowBubbleCanvas"/);
+  assert.match(futuresDesk, /orderflowChart=window\.LightweightCharts\.createChart\(host/);
+  assert.match(futuresDesk, /orderflowCandleSeries=orderflowChart\.addCandlestickSeries/);
+  assert.match(futuresDesk, /document\.addEventListener\("tarotai:orderflow-update"/);
   assert.match(futuresDesk, /id="tvOpenExternal"/);
   assert.doesNotMatch(futuresDesk, /id="tradingview-panel"/);
   assert.match(futuresDesk, /id="visual-strategy-panel" hidden/);
   assert.match(futuresDesk, /attachChartNavigation\(byId\("liveMarketChart"\)\)/);
+  assert.match(futuresDesk, /attachChartNavigation\(byId\("orderflowBubbleChart"\)\)/);
   assert.doesNotMatch(futuresDesk, /attachChartNavigation\(byId\("tvSyncedChart"\)\)/);
 });
 
