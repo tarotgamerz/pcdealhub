@@ -831,7 +831,7 @@ test("live chart forecast and auto discussion remain visible, safe and automatic
   assert.match(futuresDesk, /bearForecastSeries=chart\.addLineSeries/);
   assert.match(futuresDesk, /renderScenarioForecast\(closed,htf,staleness\)/);
   assert.ok(futuresDesk.includes('const higherMap={"1m":"15m","3m":"15m","5m":"1h","15m":"4h","30m":"4h","1h":"1d","2h":"1d","4h":"1d","1d":"1d"}'));
-  assert.match(futuresDesk, /Main-timeframe rule replay \\(no higher-timeframe gate\\)/);
+  assert.ok(futuresDesk.includes("Main-timeframe rule replay (no higher-timeframe gate)"));
   assert.match(futuresDesk, /backtestScenarioForecast\(candles,\{horizon:3\}\)/);
   assert.match(futuresDesk, /id="autoAgentDiscussionLog"/);
   assert.match(futuresDesk, /function updateAutoAgentDiscussion\(context\)/);
