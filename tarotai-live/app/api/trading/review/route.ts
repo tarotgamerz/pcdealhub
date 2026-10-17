@@ -61,10 +61,12 @@ async function fetchFreshBook(symbol: string, venue: string) {
   if ((venue === "bybit" && raw?.retCode !== 0) || (venue === "okx" && raw?.code !== "0")) {
     throw new Error("Exchange order book response was not successful.");
   }
-  const snapshot = normalizeDepthSnapshot(symbol, normalize(raw));
-  const metrics = summarizeOrderBook(snapshot, Date.now());
+  const receivedAt = Date.now();
+  const normalizedPayload = normalize(venue === "binance" ? { ...raw, receivedAt } : raw);
+  const snapshot = normalizeDepthSnapshot(symbol, normalizedPayload);
+  const metrics = summarizeOrderBook(snapshot, receivedAt);
   if (metrics.snapshotAgeMs === null || metrics.snapshotAgeMs < 0 || metrics.snapshotAgeMs > MAX_BOOK_AGE_MS) {
-    throw new Error("Exchange order-book snapshot is stale or has no valid exchange timestamp.");
+    throw new Error("Exchange order-book snapshot is stale or has no usable timestamp.");
   }
   return metrics;
 }
@@ -189,6 +191,7 @@ export async function POST(req: Request) {
       midPrice: book.midPrice,
       spreadBps: book.spreadBps,
       snapshotAgeMs: book.snapshotAgeMs,
+      timestampSource: book.timestampSource,
       depthImbalancePct: book.depthImbalancePct
     },
     paperExecutionToken,
