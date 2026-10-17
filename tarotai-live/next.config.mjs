@@ -2,7 +2,7 @@
 const nextConfig = {
   serverExternalPackages: ["office-text-extractor", "pdf-parse", "@napi-rs/canvas", "@composio/core"],
   async rewrites() {
-    return [{ source: "/virtual", destination: "/trading-desk.html" }];
+    return [{ source: "/virtual", destination: "/virtual.html" }];
   },
   async headers() {
     return [
