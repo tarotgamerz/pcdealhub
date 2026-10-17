@@ -588,7 +588,7 @@ test("Binance Futures is the canonical live chart source selected by the user", 
   assert.match(paperRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/price/);
   assert.match(liveQuoteRoute, /https:\/\/fapi\.binance\.com\/fapi\/v1\/ticker\/price/);
   assert.match(futuresDesk, /channel:"trades",instId/);
-  assert.match(futuresDesk, /Open official TradingView \(external\)/);
+  assert.match(futuresDesk, /Open TradingView/);
 });
 
 
