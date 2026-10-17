@@ -28,6 +28,18 @@ test("calculates spread and bounded quote-depth imbalance", () => {
   assert.equal(metrics.bidLevels[0].quoteNotional, 101);
 });
 
+test("labels local REST receipt freshness when the exchange provides no event timestamp", () => {
+  const receivedAt = 1_800_000_000_000;
+  const snapshot = normalizeDepthSnapshot("BTCUSDT", {
+    lastUpdateId: 9, receivedAt,
+    bids: [["100", "2"]], asks: [["101", "2"]]
+  });
+  const metrics = summarizeOrderBook(snapshot, receivedAt + 25);
+  assert.equal(metrics.snapshotAgeMs, 25);
+  assert.equal(metrics.timestampSource, "local-receipt-time");
+  assert.equal(metrics.exchangeEventTime, null);
+});
+
 test("rejects crossed and malformed snapshots", () => {
   assert.throws(() => normalizeDepthSnapshot("BTCUSDT", {
     lastUpdateId: 1, bids: [["102", "1"]], asks: [["101", "1"]]
