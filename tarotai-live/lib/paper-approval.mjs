@@ -59,8 +59,9 @@ export function verifyPaperApprovalToken(token, secret, now = Date.now()) {
     const geometryValid = payload.direction === "LONG" ? stop < entry && target > entry : target < entry && entry < stop;
     const riskDistance = Math.abs(entry - stop);
     const rewardRisk = riskDistance > 0 ? Math.abs(target - entry) / riskDistance : 0;
+    const minimumRR = payload.tokenType === "PAPER_EXECUTION" ? 1.9 : 2;
     const maxQuantity = riskDistance > 0 ? Math.min(equity * riskPct / 100 / riskDistance, equity / entry) : 0;
-    if (!geometryValid || rewardRisk < 2 || quantity > maxQuantity * 1.001 ||
+    if (!geometryValid || rewardRisk < minimumRR || quantity > maxQuantity * 1.001 ||
         Math.abs(mid - entry) / entry > PAPER_MAX_ENTRY_DRIFT) return null;
     if (!["PAPER_GATE", "PAPER_EXECUTION"].includes(payload.tokenType)) return null;
     return payload;
