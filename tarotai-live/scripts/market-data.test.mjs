@@ -642,14 +642,14 @@ test("demo order ticket uses live agent decision and persistent paper execution,
 });
 
 
-test("strategy chart uses the shared live quote and refreshes automatically", () => {
+test("legacy strategy canvas remains quote-aware but does not poll while hidden", () => {
   assert.match(futuresDesk, /<label>Live last trade<\/label><strong id="strategyPrice"/);
   assert.match(futuresDesk, /window\.tarotaiSharedLastPrice=price/);
   assert.match(futuresDesk, /window\.tarotaiUpdateStrategyLiveQuote\(price,now\)/);
   assert.match(futuresDesk, /quoteFresh\?quote\.toLocaleString/);
   assert.match(futuresDesk, /LIVE '\+liveP\.toLocaleString/);
   assert.match(futuresDesk, /strategyRefreshTimer=setInterval/);
-  assert.match(futuresDesk, /startStrategyAutoRefresh\(\);if\(document\.visibilityState==='visible'\)/);
+    assert.match(futuresDesk, /startStrategyAutoRefresh\(\);if\(document\.visibilityState==='visible'&&!\$\('visual-strategy-panel'\)\?\.hidden\)/);
   assert.match(futuresDesk, /window\.tarotaiStrategyCandles=null/);
 });
 
