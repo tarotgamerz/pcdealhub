@@ -648,7 +648,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const replay=byId("scenarioReplay"),stats=scenarioReplayCache;
     if(stats&&stats.ready){
       const rate=Number.isFinite(stats.targetBeforeStopPct)?stats.targetBeforeStopPct.toFixed(1)+"%":"not enough resolved cases";
-      replay.textContent="Main-timeframe rule replay (no higher-timeframe gate) · "+stats.candlesUsed+" recent candles · "+stats.signals+" non-overlapping signals · target before stop "+rate+" across "+stats.resolved+" resolved cases · "+stats.timeouts+" timeouts. No fees/slippage/funding included.";
+      replay.textContent="Walk-forward replay (HTF trend + relative-volume gates) · "+stats.candlesUsed+" recent candles · "+stats.signals+" non-overlapping signals · target before stop "+rate+" across "+stats.resolved+" resolved cases · "+stats.timeouts+" timeouts · "+stats.sampleQuality+". Costs and execution effects are excluded.";
     }else replay.textContent="Walk-forward replay: "+(stats&&stats.reason||"not enough valid history")+".";
   }
 
