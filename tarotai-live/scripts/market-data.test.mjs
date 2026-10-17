@@ -32,6 +32,7 @@ const reviewRoute = readFileSync(new URL("../app/api/trading/review/route.ts", i
 const tradingViewSignalsRoute = readFileSync(new URL("../app/api/tradingview/signals/route.ts", import.meta.url), "utf8");
 const tradingDeskPage = readFileSync(new URL("../public/trading-desk.html", import.meta.url), "utf8");
 const orderflowPanelScript = readFileSync(new URL("../public/orderflow-panel.js", import.meta.url), "utf8");
+const nextConfig = readFileSync(new URL("../next.config.mjs", import.meta.url), "utf8");
 
 test("market feeds use production public endpoints, never demo or testnet prices", () => {
   assert.match(source, /https:\/\/fapi\.binance\.com\/fapi\/v1\/klines/);
@@ -981,4 +982,13 @@ test("Futures Lab restores order-flow bubbles on the existing candlestick chart"
   assert.ok(orderflowPanelScript.includes("price, qty, quote:"), "executed trades preserve actual price and quantity");
   assert.ok(orderflowPanelScript.includes("wss://fstream.binance.com/public/stream?streams="), "book uses the Futures public depth stream");
   assert.ok(orderflowPanelScript.includes("wss://fstream.binance.com/market/stream?streams="), "trades use the Futures market aggregate-trade stream");
+});
+
+
+test("the /virtual route serves the live Futures Lab order-flow chart", () => {
+  assert.ok(nextConfig.includes('source: "/virtual"'), "/virtual route is explicitly registered");
+  assert.ok(nextConfig.includes('destination: "/trading-desk.html"'), "/virtual uses the single live chart implementation");
+  assert.equal((tradingDeskPage.match(/id="liveMarketChart"/g) || []).length, 1, "virtual route does not add a duplicate chart");
+  assert.ok(tradingDeskPage.includes('id="orderflowHeatmapCanvas"'), "virtual chart includes order-flow bubbles and depth overlay");
+  assert.ok(orderflowPanelScript.includes('new CustomEvent("tarotai:orderflow-update"'), "virtual chart receives live order-flow events");
 });
