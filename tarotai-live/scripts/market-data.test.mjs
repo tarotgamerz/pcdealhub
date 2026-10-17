@@ -721,3 +721,22 @@ test("strategy signal calculations remain based on closed candles while displayi
   assert.match(futuresDesk, /const last=candles\.length-1,prev=candles\[last-1\]/);
   assert.match(futuresDesk, /closedOnly\(rows,currentInterval\)/);
 });
+
+
+test("live chart preserves user panning/zooming instead of snapping back to the latest candle", () => {
+  assert.match(futuresDesk, /id="liveGoLive"/);
+  assert.match(futuresDesk, /let followLive=true,chartPointerStart=null/);
+  assert.match(futuresDesk, /function shouldStickToRealtime\(range,total\)\{return followLive&&\(!range\|\|range\.to>=total-8\);\}/);
+  assert.match(futuresDesk, /function pauseLiveFollow\(\)\{if\(!followLive\)return;followLive=false;/);
+  assert.match(futuresDesk, /host\.addEventListener\("wheel"/);
+  assert.match(futuresDesk, /window\.addEventListener\("pointermove"/);
+  assert.match(futuresDesk, /byId\("liveGoLive"\)\.addEventListener\("click",\(\)=>setLiveFollow\(true\)\)/);
+  assert.doesNotMatch(futuresDesk, /stickAtRealtime=!visibleBefore\|\|visibleBefore\.to>=rows\.length-8/);
+});
+
+test("live chart resumes follow only on explicit Go Live, and symbol/timeframe changes reset safely", () => {
+  assert.match(futuresDesk, /function setLiveFollow\(enabled\)\{followLive=Boolean\(enabled\)/);
+  assert.match(futuresDesk, /if\(firstRender\|\|forceFit\).*followLive=true/s);
+  assert.match(futuresDesk, /followLive=true;byId\("liveGoLive"\)\.hidden=true/);
+  assert.match(futuresDesk, /attachChartNavigation\(byId\("liveMarketChart"\)\);attachChartNavigation\(byId\("tvSyncedChart"\)\)/);
+});
