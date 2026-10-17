@@ -42,7 +42,8 @@ export function verifyPaperApprovalToken(token, secret, now = Date.now()) {
         typeof payload.nonce !== "string" || payload.nonce.length < 20 ||
         !Number.isFinite(bookAgeMs) || bookAgeMs < 0 || bookAgeMs > PAPER_BOOK_MAX_AGE_MS ||
         !Number.isFinite(bookFetchedAtMs) || bookFetchedAtMs > issuedAt + 1000 ||
-        bookFetchedAtMs < issuedAt - 10_000) return null;
+        bookFetchedAtMs < issuedAt - 10_000 ||
+        payload.tokenType === "PAPER_EXECUTION" && bookAgeMs + (now - bookFetchedAtMs) > PAPER_BOOK_MAX_AGE_MS) return null;
 
     if (typeof payload.symbol !== "string" || !/^[A-Z0-9]{4,20}$/.test(payload.symbol) ||
         !ALLOWED_VENUES.has(payload.venue) || !ALLOWED_INTERVALS.has(payload.interval) ||
