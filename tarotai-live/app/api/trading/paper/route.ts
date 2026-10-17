@@ -84,7 +84,12 @@ export async function POST(req:Request){
      const closeSide=trade.side==="BUY"?"SELL":"BUY",fill=applySlippage(closeSide,Number(result.price),Number(trade.slippageBps)),fee=calculateFee(fill,Number(trade.quantity),Number(trade.feeBps));
      const gross=trade.side==="BUY"?(fill-Number(trade.fillPrice))*Number(trade.quantity):(Number(trade.fillPrice)-fill)*Number(trade.quantity);
      const closedTrade={id:crypto.randomUUID(),parentTradeId:trade.id,createdAt:new Date().toISOString(),symbol,side:closeSide,quantity:trade.quantity,requestedPrice:result.price,fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),pnlGross:Number(gross.toFixed(8)),pnlNet:Number((gross-fee-Number(trade.fee||0)).toFixed(8)),feeBps:trade.feeBps,slippageBps:trade.slippageBps,status:result.exit==="STOP"?"PAPER_STOP":"PAPER_TARGET",ambiguousCandle:result.ambiguous,sourceCandleTime:bar.time,sourceCandleCloseTime:bar.closeTime,mode:"PAPER_ONLY",sourceVenue:venue};
-     await d.lpush("tarotai:paper:ledger",JSON.stringify(closedTrade));triggered.push(closedTrade);closed.add(trade.id);break;
+     const closeClaimKey="tarotai:paper:close-claims:"+trade.id;
+     const closeClaim=await d.set(closeClaimKey,"1",{ex:120,nx:true});
+     if(!closeClaim){closed.add(trade.id);break;}
+     try{await d.lpush("tarotai:paper:ledger",JSON.stringify(closedTrade));}
+     catch(error){await d.del(closeClaimKey);throw error;}
+     triggered.push(closedTrade);closed.add(trade.id);break;
     }
    }
    await d.ltrim("tarotai:paper:ledger",0,999);
@@ -178,7 +183,14 @@ export async function POST(req:Request){
    const consumed=nonce?await d.set("tarotai:paper:approvals:used:"+nonce,"1",{ex:120,nx:true}):null;
    if(!consumed)return NextResponse.json({error:"This signed paper execution approval was already used or expired. Rerun the AI team before another entry.",liveTradingEnabled:false},{status:409});
   }
-  await d.lpush("tarotai:paper:ledger",JSON.stringify(trade));await d.ltrim("tarotai:paper:ledger",0,999);
+  let closeClaimKey:string|null=null;
+  if(action==="CLOSE"&&parentTrade){
+   closeClaimKey="tarotai:paper:close-claims:"+parentTrade.id;
+   const closeClaim=await d.set(closeClaimKey,"1",{ex:120,nx:true});
+   if(!closeClaim)return NextResponse.json({error:"A close or stop/target event is already being recorded for this paper position. Refresh the ledger before retrying.",liveTradingEnabled:false},{status:409});
+  }
+  try{await d.lpush("tarotai:paper:ledger",JSON.stringify(trade));await d.ltrim("tarotai:paper:ledger",0,999);}
+  catch(error){if(closeClaimKey)await d.del(closeClaimKey);throw error;}
   return NextResponse.json({accepted:true,trade,liveTradingEnabled:false,note:"Ledger-only simulation; no exchange order sent"},{status:201});
  }catch(e:any){return NextResponse.json({error:e?.message==="STORE_OFF"?"Persistent store unavailable; configure Upstash Redis":"Paper ledger write failed; no order was sent"},{status:503});}
 }

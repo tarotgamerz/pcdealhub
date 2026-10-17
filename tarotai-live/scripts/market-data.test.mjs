@@ -656,6 +656,14 @@ test("Binance Futures depth and aggregate-trade feeds use their current combined
     "combined stream envelopes must be unwrapped");
 });
 
+test("manual closes and automatic stop checks share an atomic paper-position close claim", () => {
+  assert.match(paperRoute, /tarotai:paper:close-claims:\"\+trade\.id/);
+  assert.match(paperRoute, /tarotai:paper:close-claims:\"\+parentTrade\.id/);
+  assert.match(paperRoute, /d\.set\(closeClaimKey,\"1\",\{ex:120,nx:true\}\)/);
+  assert.match(paperRoute, /A close or stop\/target event is already being recorded/);
+  assert.match(paperRoute, /catch\(error\)\{await d\.del\(closeClaimKey\);throw error;\}/);
+});
+
 test("paper-entry approvals require signed short-lived server tokens, fresh books, and single-use execution", () => {
   const approval = readFileSync(new URL("../lib/paper-approval.mjs", import.meta.url), "utf8");
   assert.match(parallelAgentsRoute, /createPaperApprovalToken/);
