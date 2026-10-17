@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
 import { isAuthorized } from "../../../../lib/auth";
 import { applySlippage, calculateFee, isStale, validateStops, resolveStopTarget } from "../../../../lib/trading-rules.mjs";
+import { verifyPaperApprovalToken } from "../../../../lib/paper-approval.mjs";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 function store(){const url=process.env.UPSTASH_REDIS_REST_URL,token=process.env.UPSTASH_REDIS_REST_TOKEN;if(!url||!token)throw new Error("STORE_OFF");return new Redis({url,token});}
@@ -118,7 +119,32 @@ export async function POST(req:Request){
    if(action==="OPEN"&&priceDrift>0.002)return NextResponse.json({error:"Paper entry blocked: chart price differs from the server-verified "+venue.toUpperCase()+" last-trade quote by "+(priceDrift*100).toFixed(3)+"%. Refresh the live chart before retrying.",verifiedMarketPrice,submittedPrice:price,maxAllowedDriftPct:0.2},{status:409});
    executionReferencePrice=action==="CLOSE"?verifiedMarketPrice:price;
   }catch{return NextResponse.json({error:"Market freshness verification failed; paper entry blocked"},{status:502});}
-  if(action==="OPEN"&&Math.abs(price-verifiedMarketPrice)/verifiedMarketPrice>0.01)return NextResponse.json({error:"Entry price moved more than 1% from the server-verified live price; re-analyze the chart before paper entry",requestedPrice:price,verifiedMarketPrice},{status:409});
+  let gateApproval:any=null;
+  if(action==="OPEN"){
+   gateApproval=verifyPaperApprovalToken(String(b.approvalToken||""),process.env.UPSTASH_REDIS_REST_TOKEN||"");
+   if(!gateApproval||gateApproval.tokenType!=="PAPER_EXECUTION")return NextResponse.json({error:"Paper entry requires a fresh signed execution approval from the server risk review; local-rule-only approval is not sufficient",liveTradingEnabled:false},{status:403});
+   const direction=side==="BUY"?"LONG":"SHORT";
+   const signalTime=Number(b.signalCandleTime),stopCheck=Number(b.stopPrice),targetCheck=Number(b.targetPrice);
+   const equityCheck=Number(b.paperBalance),riskCheck=Number(b.riskPct),requestedAction=String(b.decisionAction||"");
+   const closeEnough=(a:number,v:number)=>Number.isFinite(a)&&Number.isFinite(v)&&Math.abs(a-v)<=Math.max(1e-8,Math.abs(v)*1e-8);
+   if(gateApproval.symbol!==symbol||gateApproval.venue!==venue||gateApproval.interval!==String(b.interval||"")||
+      gateApproval.direction!==direction||signalTime!==Number(gateApproval.candleTime)||
+      requestedAction!==(direction==="LONG"?"BUY / LONG":"SELL / SHORT")||
+      String(b.decisionSource||"")!=="ai-eight-agent-review"||
+      !closeEnough(stopCheck,Number(gateApproval.stop))||!closeEnough(targetCheck,Number(gateApproval.target))||
+      !closeEnough(equityCheck,Number(gateApproval.paperEquity))||!closeEnough(riskCheck,Number(gateApproval.riskPct))){
+    return NextResponse.json({error:"Trade details do not match the signed reviewed AI plan. Rerun the team and risk review.",liveTradingEnabled:false},{status:409});
+   }
+   const entryDrift=Math.abs(price-Number(gateApproval.entry))/Number(gateApproval.entry);
+   const riskDistance=Math.abs(price-stopCheck),rewardDistance=Math.abs(targetCheck-price);
+   const actualRewardRisk=riskDistance>0?rewardDistance/riskDistance:0;
+   const maxQuantity=riskDistance>0?Math.min(equityCheck*riskCheck/100/riskDistance,equityCheck/price):0;
+   const geometry=direction==="LONG"?stopCheck<price&&targetCheck>price:targetCheck<price&&price<stopCheck;
+   if(!Number.isFinite(entryDrift)||entryDrift>0.0025||!geometry||actualRewardRisk<1.9||
+      !Number.isFinite(maxQuantity)||maxQuantity<=0||qty>maxQuantity*1.001){
+    return NextResponse.json({error:"Paper execution no longer satisfies signed entry drift, reward/risk or position-size limits. Rerun the AI team.",liveTradingEnabled:false},{status:409});
+   }
+  }
   if(action==="OPEN"){
    const existingRows=(await d.lrange("tarotai:paper:ledger",0,999)).map((x:any)=>typeof x==="string"?JSON.parse(x):x);
    const closedIds=new Set(existingRows.filter((x:any)=>x.parentTradeId&&["PAPER_CLOSE","PAPER_STOP","PAPER_TARGET"].includes(x.status)).map((x:any)=>x.parentTradeId));
@@ -145,8 +171,13 @@ export async function POST(req:Request){
   const roles=["market","entry","exits","sizing","discipline","position","journal","supervisor"];
   const agentVotes=Array.isArray(b.agentVotes)?b.agentVotes.slice(0,8).filter((v:any)=>v&&roles.includes(String(v.role))).map((v:any)=>({role:String(v.role),bias:["LONG","SHORT","WAIT"].includes(String(v.bias))?String(v.bias):"WAIT",veto:Boolean(v.veto),model:String(v.model||"unreported").slice(0,100),fallback:Boolean(v.fallback)})):[];
   const trade={id:crypto.randomUUID(),parentTradeId:parentTrade?.id||null,createdAt:new Date().toISOString(),symbol,side,quantity:qty,requestedPrice:price,verifiedMarketPrice,marketDataCheckedAt:new Date().toISOString(),venue,marketSource,fillPrice:Number(fill.toFixed(8)),fee:Number(fee.toFixed(8)),pnlGross:grossPnl===null?null:Number(grossPnl.toFixed(8)),pnlNet:grossPnl===null?null:Number((grossPnl-fee-Number(parentTrade.fee||0)).toFixed(8)),feeBps,slippageBps:slipBps,stopPrice,targetPrice,status:"PAPER_"+action,mode:"PAPER_ONLY",
-    decisionSource:parentTrade?.decisionSource||decisionSource,signalCandleTime:parentTrade?.signalCandleTime??signalCandleTime,decisionAction:parentTrade?.decisionAction||decisionAction,agentTeamModel:parentTrade?.agentTeamModel||agentTeamModel,agentVotes:parentTrade?.agentVotes||agentVotes};
+    decisionSource:parentTrade?.decisionSource||decisionSource,signalCandleTime:parentTrade?.signalCandleTime??signalCandleTime,decisionAction:parentTrade?.decisionAction||decisionAction,agentTeamModel:parentTrade?.agentTeamModel||agentTeamModel,agentVotes:parentTrade?.agentVotes||agentVotes,paperApproval:parentTrade?.paperApproval||(gateApproval?{tokenType:gateApproval.tokenType,candleTime:gateApproval.candleTime,plannedEntry:gateApproval.entry,plannedStop:gateApproval.stop,plannedTarget:gateApproval.target,reviewedBookMid:gateApproval.bookMid,reviewedSpreadBps:gateApproval.bookSpreadBps,reviewIssuedAt:new Date(gateApproval.issuedAt).toISOString()}:null)};
   if([trade.stopPrice,trade.targetPrice].some((x:any)=>x!==null&&(!Number.isFinite(x)||x<=0)))return NextResponse.json({error:"Stop/target must be positive numbers"},{status:400});
+  if(action==="OPEN"){
+   const nonce=String(gateApproval?.nonce||"");
+   const consumed=nonce?await d.set("tarotai:paper:approvals:used:"+nonce,"1",{ex:120,nx:true}):null;
+   if(!consumed)return NextResponse.json({error:"This signed paper execution approval was already used or expired. Rerun the AI team before another entry.",liveTradingEnabled:false},{status:409});
+  }
   await d.lpush("tarotai:paper:ledger",JSON.stringify(trade));await d.ltrim("tarotai:paper:ledger",0,999);
   return NextResponse.json({accepted:true,trade,liveTradingEnabled:false,note:"Ledger-only simulation; no exchange order sent"},{status:201});
  }catch(e:any){return NextResponse.json({error:e?.message==="STORE_OFF"?"Persistent store unavailable; configure Upstash Redis":"Paper ledger write failed; no order was sent"},{status:503});}
