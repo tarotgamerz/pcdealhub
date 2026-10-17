@@ -512,7 +512,7 @@ test("AI provider failures produce explicit fallback reports and block AI-review
 
 test("all live chart panels share one OKX swap symbol/timeframe and current WebSocket URL", () => {
   assert.match(futuresDesk, /function updateTradingViewChart\(source="tv"\)/);
-  assert.match(futuresDesk, /IN-APP CHARTS SYNCED/);
+  assert.match(futuresDesk, /PRIMARY LIVE CHART SYNCED/);
   assert.match(futuresDesk, /window\.tarotaiReloadLiveChart=/);
   assert.match(futuresDesk, /wss:\/\/ws\.okx\.com\/ws\/v5\/business/);
   assert.match(futuresDesk, /wss:\/\/ws\.okx\.com\/ws\/v5\/public/);
