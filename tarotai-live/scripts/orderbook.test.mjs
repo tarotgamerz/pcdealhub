@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { normalizeDepthSnapshot, summarizeOrderBook } from "../lib/orderbook.mjs";
+import { readFileSync } from "node:fs";
+
+const orderflowPanelSource = readFileSync(new URL("../public/orderflow-panel.js", import.meta.url), "utf8");
 
 const payload = {
   lastUpdateId: 12345,
@@ -50,4 +53,19 @@ test("rejects crossed and malformed snapshots", () => {
   assert.throws(() => normalizeDepthSnapshot("BTCUSDT", {
     lastUpdateId: -1, bids: [["100", "1"]], asks: [["101", "1"]]
   }), /update ID/);
+});
+
+test("routes Binance Futures depth and aggregate trades to their documented stream categories", () => {
+  assert.match(
+    orderflowPanelSource,
+    /new WebSocket\("wss:\/\/fstream\.binance\.com\/public\/stream\?streams=" \+ activeSymbol\.toLowerCase\(\) \+ "@depth@100ms"\)/
+  );
+  assert.match(
+    orderflowPanelSource,
+    /new WebSocket\("wss:\/\/fstream\.binance\.com\/market\/stream\?streams=" \+ symbol\.toLowerCase\(\) \+ "@aggTrade"\)/
+  );
+  assert.doesNotMatch(
+    orderflowPanelSource,
+    /new WebSocket\("wss:\/\/fstream\.binance\.com\/public\/stream\?streams=" \+ symbol\.toLowerCase\(\) \+ "@aggTrade"\)/
+  );
 });

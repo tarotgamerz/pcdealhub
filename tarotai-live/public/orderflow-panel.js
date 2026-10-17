@@ -180,7 +180,7 @@
   }
   function startTradeSocket(symbol, runId, attempt = 0) {
     try {
-      tradeSocket = new WebSocket("wss://fstream.binance.com/public/stream?streams=" + symbol.toLowerCase() + "@aggTrade");
+      tradeSocket = new WebSocket("wss://fstream.binance.com/market/stream?streams=" + symbol.toLowerCase() + "@aggTrade");
       tradeSocket.onmessage = (message) => {
         if (runId !== generation) return;
         let packet; try { packet = JSON.parse(message.data); } catch (_) { return; }
