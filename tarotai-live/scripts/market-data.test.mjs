@@ -655,7 +655,7 @@ test("paper-entry approvals require signed short-lived server tokens, fresh book
   assert.match(paperRoute, /tokenType!=="PAPER_EXECUTION"/);
   assert.match(paperRoute, /tarotai:paper:approvals:used:/);
   assert.match(paperRoute, /nx:true/);
-  assert.match(futuresDesk, /approval\?\.riskGate\?\.approved===true/);
+  assert.match(futuresDesk, /approval\.riskGate\?\.approved===true/);
   assert.match(futuresDesk, /paperExecutionToken/);
   assert.match(futuresDesk, /local-rule-only approval is not enough/);
   assert.match(approval, /timingSafeEqual/);
