@@ -49,15 +49,19 @@
   function validCandles(input, intervalMs) {
     if (!Array.isArray(input) || input.length === 0) return false;
     const duration = Number(intervalMs);
+    if (!Number.isFinite(duration) || duration <= 0) return false;
+    const now = Date.now();
     let previousTime = 0;
     for (const c of input) {
       // Forecast data must already be normalized by the exchange adapter.
-      // Missing volume cannot be treated as confirmation and broken time order is unsafe.
+      // Reject future/in-progress bars, missing volume, duplicate timestamps and invalid OHLC geometry.
       if (!c || ![c.time, c.open, c.high, c.low, c.close, c.volume].every((n) => typeof n === "number" && Number.isFinite(n))) return false;
       if (c.time <= previousTime || c.time <= 0 || c.open <= 0 || c.high <= 0 || c.low <= 0 || c.close <= 0 || c.volume < 0) return false;
       if (c.high < Math.max(c.open, c.close, c.low) || c.low > Math.min(c.open, c.close, c.high)) return false;
+      const closeTime = typeof c.closeTime === "number" && Number.isFinite(c.closeTime) ? c.closeTime : c.time + duration - 1;
+      if (closeTime < c.time || closeTime >= now) return false;
       // A large hole means the apparent "next N bars" horizon may not represent elapsed time.
-      if (previousTime && Number.isFinite(duration) && duration > 0 && c.time - previousTime > duration * 2.5) return false;
+      if (previousTime && c.time - previousTime > duration * 2.5) return false;
       previousTime = c.time;
     }
     return true;
