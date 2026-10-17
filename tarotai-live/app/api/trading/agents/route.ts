@@ -283,7 +283,7 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
  const lastClosedCandleAgeSeconds=Math.max(0,Math.round(market.lastClosedCandleAgeMs/1000));
  const decisionGate=evaluateTradeReadiness(results,{lastClosedCandleAgeSeconds},INTERVAL_MS[interval]);
  const supervisor=results.find(r=>r.role==="supervisor");
- if(supervisor) supervisor.text=String(supervisor.text||"")+"\\n\\nDETERMINISTIC TRADE GATE: "+decisionGate.status+"; recommendation "+decisionGate.recommendation+". "+(decisionGate.blockers.length?"Blockers: "+decisionGate.blockers.join(" | "):"All required checks passed; paper setup candidate only.");
+ if(supervisor) supervisor.text=String(supervisor.text||"")+"\n\nDETERMINISTIC TRADE GATE: "+decisionGate.status+"; recommendation "+decisionGate.recommendation+". "+(decisionGate.blockers.length?"Blockers: "+decisionGate.blockers.join(" | "):"All required checks passed; paper setup candidate only.");
  return NextResponse.json({ok:true,mode:fallbackCount?"hybrid-ai-with-deterministic-fallback":"parallel-llm-specialists",model,elapsedMs:Date.now()-started,decisionGate,
   market:{venue:market.venue,host:market.host,symbol,interval,higherInterval:market.higherInterval,fetchedAt:market.fetchedAt,
    lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),lastClosedCandleAgeSeconds:Math.max(0,Math.round(market.lastClosedCandleAgeMs/1000)),higherTimeframeTrend:higherTrend.direction},
