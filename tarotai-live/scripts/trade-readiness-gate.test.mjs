@@ -46,6 +46,11 @@ test("vetoes stale market data and any specialist veto", () => {
 test("vetoes missing or duplicate reports and WAIT votes", () => {
   const missing = healthy().slice(0, 7);
   assert.equal(evaluateTradeReadiness(missing, market, 300_000).approved, false);
+  const duplicate = healthy();
+  duplicate[7] = { ...duplicate[6], role: "journal" };
+  const duplicateResult = evaluateTradeReadiness(duplicate, market, 300_000);
+  assert.equal(duplicateResult.approved, false);
+  assert.ok(duplicateResult.blockers.some((item) => item.includes("unique")));
   const waiting = healthy();
   waiting.find((r) => r.role === "market").bias = "WAIT";
   assert.equal(evaluateTradeReadiness(waiting, market, 300_000).approved, false);
