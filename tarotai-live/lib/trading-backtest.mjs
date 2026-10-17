@@ -26,7 +26,7 @@ export function calculateSma(values, period) {
   return out;
 }
 
-function summarizeTrades(trades, equity, maxDrawdown, candles, startIndex, endIndex, feeRate, slipRate) {
+function summarizeTrades(trades, equity, maxDrawdown, closedTradeMaxDrawdown, candles, startIndex, endIndex, feeRate, slipRate) {
   const wins = trades.filter(t => t.netReturnPct > 0);
   const losses = trades.filter(t => t.netReturnPct < 0);
   const grossWins = wins.reduce((sum, t) => sum + t.netReturnPct, 0);
@@ -50,6 +50,8 @@ function summarizeTrades(trades, equity, maxDrawdown, candles, startIndex, endIn
     averageWinnerPct: wins.length ? Number((grossWins / wins.length).toFixed(4)) : 0,
     averageLoserPct: losses.length ? Number((-grossLosses / losses.length).toFixed(4)) : 0,
     maxDrawdownPct: Number((maxDrawdown * 100).toFixed(3)),
+    closedTradeMaxDrawdownPct: Number((closedTradeMaxDrawdown * 100).toFixed(3)),
+    drawdownMethod: "Mark-to-market estimate using each candle's adverse high/low, adverse exit slippage, and entry/exit fees; OHLC cannot reveal intrabar order."
     firstCandleTime: first?.time ?? null,
     lastCandleTime: last?.time ?? null,
     recentTrades: trades.slice(-20).map(t => ({
@@ -80,6 +82,7 @@ export function runSmaCrossoverBacktest(candles, {
   const feeRate = feeBps / 10_000;
   const slipRate = slippageBps / 10_000;
   let side = 0, entryFill = 0, entryTime = 0, equity = 1, peak = 1, maxDrawdown = 0;
+  let closedTradePeak = 1, closedTradeMaxDrawdown = 0;
   const trades = [];
 
   const closePosition = (marketPrice, time, reason) => {
@@ -90,14 +93,35 @@ export function runSmaCrossoverBacktest(candles, {
     trades.push({ side: side === 1 ? "LONG" : "SHORT", entryTime, exitTime: time, entryPrice: entryFill, exitPrice: exitFill, netReturnPct: netReturn * 100, exitReason: reason });
     equity *= Math.max(0, 1 + netReturn);
     trades[trades.length - 1].equityAfter = equity;
+    closedTradePeak = Math.max(closedTradePeak, equity);
+    if (closedTradePeak > 0) closedTradeMaxDrawdown = Math.max(closedTradeMaxDrawdown, (closedTradePeak - equity) / closedTradePeak);
     peak = Math.max(peak, equity);
     if (peak > 0) maxDrawdown = Math.max(maxDrawdown, (peak - equity) / peak);
     side = 0; entryFill = 0; entryTime = 0;
   };
 
+  // Estimate open-equity drawdown conservatively from each candle's adverse
+  // extreme. This is not tick-level replay and cannot determine the intrabar path.
+  const markIntratradeDrawdown = (candle) => {
+    if (!side || !candle) return;
+    const markedEquity = (marketPrice) => {
+      const hypotheticalExitFill = marketPrice * (1 - side * slipRate);
+      const grossReturn = side * (hypotheticalExitFill / entryFill - 1);
+      const netReturn = grossReturn - feeRate * (1 + hypotheticalExitFill / entryFill);
+      return equity * Math.max(0, 1 + netReturn);
+    };
+    const favorablePrice = side === 1 ? candle.high : candle.low;
+    const adversePrice = side === 1 ? candle.low : candle.high;
+    const favorableEquity = markedEquity(favorablePrice);
+    const adverseEquity = markedEquity(adversePrice);
+    peak = Math.max(peak, favorableEquity);
+    if (peak > 0) maxDrawdown = Math.max(maxDrawdown, (peak - adverseEquity) / peak);
+  };
+
   // A signal is known only after candle i closes, so every entry/exit executes
   // at candle i+1's open. This deliberately avoids same-close look-ahead fills.
   for (let i = start; i < end - 1; i++) {
+    markIntratradeDrawdown(candles[i]);
     if (fast[i] == null || slow[i] == null || fast[i - 1] == null || slow[i - 1] == null) continue;
     const crossedUp = fast[i - 1] <= slow[i - 1] && fast[i] > slow[i];
     const crossedDown = fast[i - 1] >= slow[i - 1] && fast[i] < slow[i];
@@ -111,8 +135,9 @@ export function runSmaCrossoverBacktest(candles, {
     entryTime = fillCandle.time;
   }
   const last = candles[end - 1];
+  markIntratradeDrawdown(last);
   closePosition(last.close, last.time, "WINDOW_END");
-  return summarizeTrades(trades, equity, maxDrawdown, candles, start, end, feeRate, slipRate);
+  return summarizeTrades(trades, equity, maxDrawdown, closedTradeMaxDrawdown, candles, start, end, feeRate, slipRate);
 }
 
 export function getIntervalMs(interval) {

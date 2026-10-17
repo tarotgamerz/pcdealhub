@@ -186,7 +186,7 @@ export async function POST(request: Request) {
       caveats: [
         "Research baseline only. No live or testnet order is placed.",
         "Next-bar-open fills avoid same-candle-close look-ahead, but real spreads, market impact, funding, liquidation, and exchange-specific execution are not fully simulated.",
-        "Maximum drawdown uses closed-trade equity; intratrade drawdown can be worse.",
+        "Maximum drawdown estimates intratrade mark-to-market loss from adverse candle highs/lows, fees, and slippage; the separate closed-trade drawdown is also reported. OHLC candles cannot reconstruct exact intrabar price order, and funding, liquidity shocks, and liquidation are not simulated.",
         "The 70/30 split is chronological. Do not tune periods on the test segment; preserve a further untouched period for final confirmation.",
         "The three sequential slices split the 30% holdout to expose regime sensitivity; do not use slice results to retune parameters. Each slice with fewer than 10 trades is low-confidence.",
         "Treat the holdout as weak evidence when trade count is small; seek many more trades across different market regimes and symbols.",

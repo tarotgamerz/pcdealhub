@@ -47,6 +47,18 @@ test("fees and adverse slippage do not improve the same SMA backtest",()=>{
  assert.ok(afterCosts.buyHoldReturnPct<free.buyHoldReturnPct);
 });
 
+
+test("maximum drawdown includes adverse intratrade candle wicks",()=>{
+ const candles=sampleBacktestCandles();
+ // A wick against the first long must count even if the close later recovers.
+ candles[5]={...candles[5],low:0.1};
+ const result=runSmaCrossoverBacktest(candles,{fastPeriod:2,slowPeriod:3,feeBps:0,slippageBps:0});
+ assert.ok(result.maxDrawdownPct>90, "adverse intratrade excursion should appear in maximum drawdown");
+ assert.ok(result.maxDrawdownPct>=result.closedTradeMaxDrawdownPct);
+ assert.match(result.drawdownMethod,/adverse high\/low/i);
+});
+
+
 test("backtest rejects malformed or unordered OHLC candles",()=>{
  const candles=sampleBacktestCandles();
  assert.equal(validateBacktestCandles(candles),true);
