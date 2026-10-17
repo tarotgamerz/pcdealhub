@@ -358,7 +358,7 @@
 <div class="feature-overlay" id="featureOverlay"><nav class="feature-drawer" role="dialog" aria-modal="true" aria-label="TarotAI features"><div class="feature-drawer-head"><div class="logo">T</div><div><div class="feature-drawer-title">tarotai</div><div class="feature-drawer-sub">Select an agent or workspace</div></div><button class="feature-drawer-close" id="featureClose" type="button" aria-label="Close menu">×</button></div><div class="feature-drawer-label">AI agents</div><a class="feature-drawer-link" href="/console.html?mode=chat"><span class="feature-drawer-icon">✳</span><span><b>Chat Agent</b><span class="feature-drawer-desc">General assistant and conversation</span></span></a><a class="feature-drawer-link" href="/console.html?mode=trading"><span class="feature-drawer-icon">↗</span><span><b>Trading Agent</b><span class="feature-drawer-desc">Market analysis, setup planning and risk review</span></span></a><a class="feature-drawer-link" href="/console.html?mode=work"><span class="feature-drawer-icon">◈</span><span><b>Work Agent</b><span class="feature-drawer-desc">Structured task execution</span></span></a><a class="feature-drawer-link" href="/console.html?mode=research"><span class="feature-drawer-icon">⌕</span><span><b>Research Agent</b><span class="feature-drawer-desc">Evidence and web sources</span></span></a><a class="feature-drawer-link" href="/console.html?mode=code"><span class="feature-drawer-icon">⌘</span><span><b>Code Agent</b><span class="feature-drawer-desc">Debugging and implementation</span></span></a><a class="feature-drawer-link" href="/agents.html"><span class="feature-drawer-icon">⎇</span><span><b>Multi-Agent Workspace</b><span class="feature-drawer-desc">Coordinate specialist roles</span></span></a><a class="feature-drawer-link" href="/agents.html?profile=trading"><span class="feature-drawer-icon">⚖</span><span><b>Trading Team</b><span class="feature-drawer-desc">Market Analyst → Trading Analyst → Risk Officer → Strategy Tester</span></span></a><div class="feature-drawer-label">Workspace</div><a class="feature-drawer-link" href="/trading-strategy-room.html"><span class="feature-drawer-icon">◉</span><span><b>Trading Strategy Room</b><span class="feature-drawer-desc">Trading-only agent discussions and risk challenges</span></span></a><a class="feature-drawer-link" href="/connected-apps.html"><span class="feature-drawer-icon">⧉</span><span><b>Connect Apps</b><span class="feature-drawer-desc">TradingView charts and supported broker/app connectors</span></span></a><a class="feature-drawer-link" href="/trading-desk.html"><span class="feature-drawer-icon">▤</span><span><b>Futures Lab</b><span class="feature-drawer-desc">Paper trades, backtests and risk controls</span></span></a><a class="feature-drawer-link" href="/console.html"><span class="feature-drawer-icon">⌂</span><span><b>Command Center</b><span class="feature-drawer-desc">Memory, documents, tasks and connected apps</span></span></a><div class="feature-drawer-note">Live trading remains disabled. The Futures Lab is designed for research, backtesting, persistent paper trades and explicitly confirmed demo/testnet orders only.</div></nav></div>
 <script src="/market-patterns.js"></script>
 <script src="/strategy-ensemble.js"></script>
-<script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+<script src="/chart-library-loader.js"></script>
 <script src="/market-forecast.js"></script>
 <script>
 const $=id=>document.getElementById(id);
@@ -576,8 +576,30 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     root.classList.toggle("active",mode==="active");root.classList.toggle("paused",mode==="paused");root.classList.toggle("warn",mode==="warn");
     heading.textContent=value;body.textContent=detail;
   }
+  let chartLibraryRetryTimer=null,chartLibraryRetryCount=0;
+  function queueChartLibraryRecovery(){
+    if(chartLibraryRetryTimer||chart||chartLibraryRetryCount>=120)return;
+    chartLibraryRetryCount++;
+    chartLibraryRetryTimer=setTimeout(()=>{
+      chartLibraryRetryTimer=null;
+      if(!window.LightweightCharts){
+        if(chartLibraryRetryCount<120)queueChartLibraryRecovery();
+        else{
+          setFeed("CHART LIBRARY UNAVAILABLE","bad");
+          status("Interactive chart library failed to load from both CDNs. Market analysis is withheld until chart recovery succeeds; tap Refresh after checking connectivity.");
+        }
+        return;
+      }
+      try{
+        createChart();createMirrorChart();
+        if(candleSeries&&rows.length)renderRows(true);
+        else if(candleSeries)analyze();
+      }catch(error){reportLiveChartError(error,"chart-library recovery");}
+    },250);
+  }
   function createChart(){
-    if(!window.LightweightCharts||chart)return;
+    if(chart)return;
+    if(!window.LightweightCharts){queueChartLibraryRecovery();return;}
     const host=byId("liveMarketChart");
     chart=window.LightweightCharts.createChart(host,{width:host.clientWidth||900,height:host.clientHeight||440,layout:{background:{type:"solid",color:"#080d14"},textColor:"#95a5b8",fontFamily:"Inter,system-ui,sans-serif"},grid:{vertLines:{color:"#172332"},horzLines:{color:"#172332"}},rightPriceScale:{borderColor:"#29384a",scaleMargins:{top:.12,bottom:.12}},timeScale:{borderColor:"#29384a",timeVisible:true,secondsVisible:false,rightOffset:8,barSpacing:7},crosshair:{mode:window.LightweightCharts.CrosshairMode.Normal},localization:{locale:"en-US"}});
     candleSeries=chart.addCandlestickSeries({upColor:"#65e6ad",downColor:"#ff7b83",borderUpColor:"#65e6ad",borderDownColor:"#ff7b83",wickUpColor:"#65e6ad",wickDownColor:"#ff7b83",priceLineVisible:false,lastValueVisible:false});
@@ -831,6 +853,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       els.liveForecastBull.textContent="Waiting for fresh data";els.liveForecastBear.textContent="Waiting for fresh data";els.liveForecastAccuracy.textContent="No walk-forward score";
       els.liveForecastBias.className="live-forecast-mixed";return;
     }
+    const visibleRange=chart?chart.timeScale().getVisibleLogicalRange():null;
+    const followForecast=!visibleRange||!rows.length||visibleRange.to>=rows.length-10;
     const start=toSec(forecast.lastTime),end=toSec(forecast.points[forecast.points.length-1].time);
     const direction=forecast.direction||"MIXED / RANGE",isBull=direction==="BULLISH",isBear=direction==="BEARISH",conflict=direction.indexOf("FLOW CONFLICT")>=0;
     const bandColor=conflict?"#b48cff":"#4d92cf";
@@ -872,6 +896,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       ?wf.directionalHitRatePct.toFixed(1)+"% ("+wf.correct+"/"+wf.sampleSize+") · endpoint error "+(Number.isFinite(wf.meanAbsoluteEndpointErrorPct)?wf.meanAbsoluteEndpointErrorPct.toFixed(2)+"%":"—")
       :(wf?(wf.sampleSize||0)+"/20 directional calls · rate withheld":"historical score unavailable");
     els.liveForecastEvidence.textContent=forecast.strengthLabel+" · "+forecast.technicalScore+"/"+forecast.maxTechnicalScore+" technical checks agree. "+forecast.evidence.join("; ")+". The rule score is not a calibrated probability. A walk-forward hit requires a close-to-close move in the forecast direction of at least max(0.02%, 0.15 ATR at the forecast origin); smaller moves count as misses. The metric is historical, past-only, and excludes trading costs.";
+    /* New forecast points extend the chart time scale. When the user is already at the live edge, scroll again after inserting them so the projected bars are actually visible. Preserve manually selected historical views. */
+    if(followForecast&&chart){chart.timeScale().scrollToRealTime();if(mirrorChart)mirrorChart.timeScale().scrollToRealTime();}
   }
 
   function trendFor(input,interval){const c=closedOnly(input,interval);if(c.length<55)return {ready:false,direction:"UNAVAILABLE",detail:"Not enough closed higher-timeframe candles to confirm trend."};const cls=c.map(x=>x.close),e20=ema(cls,20),e50=ema(cls,50),i=c.length-1;const up=cls[i]>e50[i]&&e20[i]>e50[i],down=cls[i]<e50[i]&&e20[i]<e50[i];return {ready:true,direction:up?"BULLISH":down?"BEARISH":"MIXED / NEUTRAL",up,down,close:cls[i],ema20:e20[i],ema50:e50[i],time:c[i].time};}
@@ -1927,14 +1953,20 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
 
   /* Order-flow observer: shadow signal only; no entry authority. */
   const OF_WINDOW_MS=60000;
-  let orderFlowDepthSocket=null,orderFlowTradeSocket=null,orderFlowReconnectTimer=null,orderFlowSymbol="",orderFlowLastDepthAt=0,orderFlowLastTradeAt=0,orderFlowLastDepthStoreAt=0,orderFlowDrawTimer=null;
+  let orderFlowDepthSocket=null,orderFlowTradeSocket=null,orderFlowReconnectTimer=null,orderFlowSymbol="",orderFlowLastDepthAt=0,orderFlowLastTradeAt=0,orderFlowLastDepthStoreAt=0,orderFlowDrawTimer=null,orderFlowRenderTimer=null,lastOrderFlowRenderAt=0;
   const orderFlowDepthHistory=[],orderFlowTrades=[],orderFlowTradeIds=new Set();
   const ofMoney=n=>Number.isFinite(n)?(Math.abs(n)>=1e6?"$"+(Math.abs(n)/1e6).toFixed(2)+"M":Math.abs(n)>=1e3?"$"+(Math.abs(n)/1e3).toFixed(1)+"K":"$"+Math.abs(n).toFixed(0)):"—";
   function ofStatus(text,mode=""){const el=byId("orderflowStatus");if(el){el.textContent=text;el.className="orderflow-status"+(mode?" "+mode:"");}}
+  /* Coalesce high-frequency depth/trade WebSocket bursts. Canvas redraws are capped at ~5.5 Hz; incoming trades are still recorded individually. */
+  function scheduleOrderFlowRender(){
+    if(orderFlowRenderTimer||document.visibilityState!=="visible")return;
+    const wait=Math.max(0,180-(Date.now()-lastOrderFlowRenderAt));
+    orderFlowRenderTimer=setTimeout(()=>{orderFlowRenderTimer=null;if(document.visibilityState==="visible")renderOrderFlow();},wait);
+  }
   function stopOrderFlowSockets(clearData=false){
     if(orderFlowReconnectTimer){clearTimeout(orderFlowReconnectTimer);orderFlowReconnectTimer=null;}
     for(const key of ["orderFlowDepthSocket","orderFlowTradeSocket"]){const ws=key==="orderFlowDepthSocket"?orderFlowDepthSocket:orderFlowTradeSocket;if(ws){ws.onopen=ws.onmessage=ws.onerror=ws.onclose=null;try{ws.close();}catch(e){}if(key==="orderFlowDepthSocket")orderFlowDepthSocket=null;else orderFlowTradeSocket=null;}}
-    if(clearData){orderFlowDepthHistory.length=0;orderFlowTrades.length=0;orderFlowTradeIds.clear();orderFlowLastDepthAt=0;orderFlowLastTradeAt=0;orderFlowLastDepthStoreAt=0;window.tarotaiOrderFlowSummary=null;}
+    if(clearData){if(orderFlowRenderTimer){clearTimeout(orderFlowRenderTimer);orderFlowRenderTimer=null;}orderFlowDepthHistory.length=0;orderFlowTrades.length=0;orderFlowTradeIds.clear();orderFlowLastDepthAt=0;orderFlowLastTradeAt=0;orderFlowLastDepthStoreAt=0;window.tarotaiOrderFlowSummary=null;}
   }
   function scheduleOrderFlowReconnect(){if(orderFlowReconnectTimer||document.visibilityState!=="visible"||marketVenue!=="binance"||!currentSymbol)return;orderFlowReconnectTimer=setTimeout(()=>{orderFlowReconnectTimer=null;connectOrderFlow();},1500);}
   function connectOrderFlow(){
@@ -1965,7 +1997,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
           orderFlowDepthHistory.push({time:eventTime,receivedAt:now,bids,asks,mid:(bids[0].price+asks[0].price)/2});orderFlowLastDepthStoreAt=now;
           const cutoff=now-OF_WINDOW_MS;if(orderFlowDepthHistory.length>300)orderFlowDepthHistory.splice(0,orderFlowDepthHistory.length-300);
           while(orderFlowDepthHistory.length&&orderFlowDepthHistory[0].receivedAt<cutoff)orderFlowDepthHistory.shift();
-        }renderOrderFlow();
+        }scheduleOrderFlowRender();
       };
       depthWs.onerror=()=>{if(orderFlowDepthSocket===depthWs)ofStatus("DEPTH RECONNECTING","bad");};
       depthWs.onclose=()=>{if(orderFlowDepthSocket===depthWs)orderFlowDepthSocket=null;scheduleOrderFlowReconnect();};
@@ -1984,16 +2016,16 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
         while(orderFlowTrades.length&&orderFlowTrades[0].receivedAt<cutoff){const old=orderFlowTrades.shift();if(old?.id)orderFlowTradeIds.delete(old.id);}
         if(orderFlowTrades.length>3000){const removed=orderFlowTrades.splice(0,orderFlowTrades.length-3000);for(const old of removed)if(old?.id)orderFlowTradeIds.delete(old.id);}
         if(orderFlowTradeIds.size>5000){const oldestId=orderFlowTradeIds.values().next().value;if(oldestId!==undefined)orderFlowTradeIds.delete(oldestId);}
-        renderOrderFlow();
+        scheduleOrderFlowRender();
       };
       tradeWs.onerror=()=>{if(orderFlowTradeSocket===tradeWs)ofStatus("TRADE STREAM RECONNECTING","bad");};
       tradeWs.onclose=()=>{if(orderFlowTradeSocket===tradeWs)orderFlowTradeSocket=null;scheduleOrderFlowReconnect();};
-      if(orderFlowDrawTimer)clearInterval(orderFlowDrawTimer);orderFlowDrawTimer=setInterval(renderOrderFlow,350);renderOrderFlow();
+      if(orderFlowDrawTimer)clearInterval(orderFlowDrawTimer);orderFlowDrawTimer=setInterval(scheduleOrderFlowRender,350);renderOrderFlow();
     }catch(e){stopOrderFlowSockets(false);ofStatus("ORDER FLOW UNAVAILABLE","bad");scheduleOrderFlowReconnect();}
   }
   function renderOrderFlow(){
     const canvas=byId("orderflowCanvas");if(!canvas)return;
-    const now=Date.now(),cutoff=now-OF_WINDOW_MS;
+    const now=Date.now(),cutoff=now-OF_WINDOW_MS;lastOrderFlowRenderAt=now;
     while(orderFlowDepthHistory.length&&orderFlowDepthHistory[0].receivedAt<cutoff)orderFlowDepthHistory.shift();
     while(orderFlowTrades.length&&orderFlowTrades[0].receivedAt<cutoff){const old=orderFlowTrades.shift();if(old?.id)orderFlowTradeIds.delete(old.id);}
     const snapshots=orderFlowDepthHistory,trades=orderFlowTrades,buy=trades.filter(t=>t.side==="BUY").reduce((s,t)=>s+t.notional,0),sell=trades.filter(t=>t.side==="SELL").reduce((s,t)=>s+t.notional,0),delta=buy-sell,total=buy+sell,deltaRatio=total?delta/total:0;
