@@ -359,6 +359,16 @@
 <script src="/market-patterns.js"></script>
 <script src="/strategy-ensemble.js"></script>
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+<script>
+/* CDN failover: the chart boot routine below retries while this alternate CDN loads. */
+if(!window.LightweightCharts&&!window.__tarotaiChartFallbackStarted){
+  window.__tarotaiChartFallbackStarted=true;
+  var tarotaiChartFallback=document.createElement("script");
+  tarotaiChartFallback.src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js";
+  tarotaiChartFallback.onerror=function(){window.__tarotaiChartFallbackFailed=true;};
+  document.head.appendChild(tarotaiChartFallback);
+}
+</script>
 <script src="/market-forecast.js"></script>
 <script>
 const $=id=>document.getElementById(id);
@@ -576,8 +586,30 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     root.classList.toggle("active",mode==="active");root.classList.toggle("paused",mode==="paused");root.classList.toggle("warn",mode==="warn");
     heading.textContent=value;body.textContent=detail;
   }
+  let chartLibraryRetryTimer=null,chartLibraryRetryCount=0;
+  function queueChartLibraryRecovery(){
+    if(chartLibraryRetryTimer||chart||chartLibraryRetryCount>=32)return;
+    chartLibraryRetryCount++;
+    chartLibraryRetryTimer=setTimeout(()=>{
+      chartLibraryRetryTimer=null;
+      if(!window.LightweightCharts){
+        if(chartLibraryRetryCount<32)queueChartLibraryRecovery();
+        else{
+          setFeed("CHART LIBRARY UNAVAILABLE","bad");
+          status("Interactive chart library failed to load from both CDNs. Market analysis is withheld until chart recovery succeeds; tap Refresh after checking connectivity.");
+        }
+        return;
+      }
+      try{
+        createChart();createMirrorChart();
+        if(candleSeries&&rows.length)renderRows(true);
+        else if(candleSeries)analyze();
+      }catch(error){reportLiveChartError(error,"chart-library recovery");}
+    },250);
+  }
   function createChart(){
-    if(!window.LightweightCharts||chart)return;
+    if(chart)return;
+    if(!window.LightweightCharts){queueChartLibraryRecovery();return;}
     const host=byId("liveMarketChart");
     chart=window.LightweightCharts.createChart(host,{width:host.clientWidth||900,height:host.clientHeight||440,layout:{background:{type:"solid",color:"#080d14"},textColor:"#95a5b8",fontFamily:"Inter,system-ui,sans-serif"},grid:{vertLines:{color:"#172332"},horzLines:{color:"#172332"}},rightPriceScale:{borderColor:"#29384a",scaleMargins:{top:.12,bottom:.12}},timeScale:{borderColor:"#29384a",timeVisible:true,secondsVisible:false,rightOffset:8,barSpacing:7},crosshair:{mode:window.LightweightCharts.CrosshairMode.Normal},localization:{locale:"en-US"}});
     candleSeries=chart.addCandlestickSeries({upColor:"#65e6ad",downColor:"#ff7b83",borderUpColor:"#65e6ad",borderDownColor:"#ff7b83",wickUpColor:"#65e6ad",wickDownColor:"#ff7b83",priceLineVisible:false,lastValueVisible:false});
@@ -831,6 +863,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       els.liveForecastBull.textContent="Waiting for fresh data";els.liveForecastBear.textContent="Waiting for fresh data";els.liveForecastAccuracy.textContent="No walk-forward score";
       els.liveForecastBias.className="live-forecast-mixed";return;
     }
+    const visibleRange=chart?chart.timeScale().getVisibleLogicalRange():null;
+    const followForecast=!visibleRange||!rows.length||visibleRange.to>=rows.length-10;
     const start=toSec(forecast.lastTime),end=toSec(forecast.points[forecast.points.length-1].time);
     const direction=forecast.direction||"MIXED / RANGE",isBull=direction==="BULLISH",isBear=direction==="BEARISH",conflict=direction.indexOf("FLOW CONFLICT")>=0;
     const bandColor=conflict?"#b48cff":"#4d92cf";
@@ -872,6 +906,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       ?wf.directionalHitRatePct.toFixed(1)+"% ("+wf.correct+"/"+wf.sampleSize+") · endpoint error "+(Number.isFinite(wf.meanAbsoluteEndpointErrorPct)?wf.meanAbsoluteEndpointErrorPct.toFixed(2)+"%":"—")
       :(wf?(wf.sampleSize||0)+"/20 directional calls · rate withheld":"historical score unavailable");
     els.liveForecastEvidence.textContent=forecast.strengthLabel+" · "+forecast.technicalScore+"/"+forecast.maxTechnicalScore+" technical checks agree. "+forecast.evidence.join("; ")+". The rule score is not a calibrated probability. A walk-forward hit requires a close-to-close move in the forecast direction of at least max(0.02%, 0.15 ATR at the forecast origin); smaller moves count as misses. The metric is historical, past-only, and excludes trading costs.";
+    /* New forecast points extend the chart time scale. When the user is already at the live edge, scroll again after inserting them so the projected bars are actually visible. Preserve manually selected historical views. */
+    if(followForecast&&chart){chart.timeScale().scrollToRealTime();if(mirrorChart)mirrorChart.timeScale().scrollToRealTime();}
   }
 
   function trendFor(input,interval){const c=closedOnly(input,interval);if(c.length<55)return {ready:false,direction:"UNAVAILABLE",detail:"Not enough closed higher-timeframe candles to confirm trend."};const cls=c.map(x=>x.close),e20=ema(cls,20),e50=ema(cls,50),i=c.length-1;const up=cls[i]>e50[i]&&e20[i]>e50[i],down=cls[i]<e50[i]&&e20[i]<e50[i];return {ready:true,direction:up?"BULLISH":down?"BEARISH":"MIXED / NEUTRAL",up,down,close:cls[i],ema20:e20[i],ema50:e50[i],time:c[i].time};}
