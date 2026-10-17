@@ -782,22 +782,36 @@ function makeScenarioFixture(count=260) {
   return candles;
 }
 
+function makeBreakoutFixture(count=361){
+  const candles=[];let previous=100;
+  for(let i=0;i<count;i++){
+    const step=Math.floor(i/40)*1.45;
+    const close=100+i*0.025+Math.sin(i*0.47)*0.65+Math.sin(i*0.13)*0.2+step;
+    const open=previous,volume=i%40===0?350:100+(i%9);
+    candles.push({time:1700000000000+i*300000,open,high:Math.max(open,close)+0.12,low:Math.min(open,close)-0.12,close,volume,closeTime:1700000000000+(i+1)*300000-1});
+    previous=close;
+  }
+  return candles;
+}
+
 test("directional scenario confirmation is withheld when higher-timeframe or relative-volume evidence is absent", () => {
-  const candles=makeScenarioFixture(260);
+  const candles=makeBreakoutFixture(361);
   const bullish=scenarioEngine.buildScenarioForecast(candles,{intervalMs:300000,higherTimeframeDirection:"BULLISH"});
   assert.equal(bullish.ready,true);
+  assert.equal(bullish.candidateSignal,"LONG");
+  assert.equal(bullish.signal,"LONG");
   assert.equal(bullish.volumeThreshold,1.1);
-  assert.equal(typeof bullish.volumeConfirmed,"boolean");
-  assert.equal(typeof bullish.higherTimeframeAligned,"boolean");
+  assert.equal(bullish.volumeConfirmed,true);
+  assert.equal(bullish.higherTimeframeAligned,true);
   const bearishContext=scenarioEngine.buildScenarioForecast(candles,{intervalMs:300000,higherTimeframeDirection:"BEARISH"});
   assert.equal(bearishContext.ready,true);
-  if(bearishContext.candidateSignal!=="NONE"){
-    assert.equal(bearishContext.signal,"NONE");
-    assert.equal(bearishContext.higherTimeframeAligned,false);
-  }
+  assert.equal(bearishContext.candidateSignal,"LONG");
+  assert.equal(bearishContext.signal,"NONE");
+  assert.equal(bearishContext.higherTimeframeAligned,false);
   const flatVolume=candles.map(c=>({...c,volume:0}));
   const lowVolume=scenarioEngine.buildScenarioForecast(flatVolume,{intervalMs:300000,higherTimeframeDirection:"BULLISH"});
   assert.equal(lowVolume.ready,true);
+  assert.equal(lowVolume.candidateSignal,"LONG");
   assert.equal(lowVolume.signal,"NONE");
   assert.equal(lowVolume.volumeConfirmed,false);
 });
@@ -831,6 +845,8 @@ test("scenario engine fails closed on inadequate, invalid, duplicate or unordere
   assert.equal(scenarioEngine.backtestScenarioForecast(duplicate).ready,false);
   const coerced=makeScenarioFixture(100);coerced[99]={...coerced[99],close:String(coerced[99].close)};
   assert.equal(scenarioEngine.buildScenarioForecast(coerced,{intervalMs:300000}).ready,false);
+  const openBar=makeScenarioFixture(100);openBar[99]={...openBar[99],closeTime:Date.now()+60000};
+  assert.equal(scenarioEngine.buildScenarioForecast(openBar,{intervalMs:300000}).ready,false);
   assert.equal(scenarioEngine.backtestScenarioForecast(makeScenarioFixture(80)).ready,false);
 });
 
@@ -849,7 +865,7 @@ function makeHigherScenarioFixture(mainCandles,count=180){
 }
 
 test("walk-forward replay is bounded and uses higher-timeframe and volume gates", () => {
-  const candles=makeScenarioFixture(260);
+  const candles=makeBreakoutFixture(361);
   const higherTimeframeCandles=makeHigherScenarioFixture(candles);
   const result=scenarioEngine.backtestScenarioForecast(candles,{
     horizon:3,intervalMs:300000,higherTimeframeCandles,higherTimeframeIntervalMs:3600000
@@ -857,6 +873,8 @@ test("walk-forward replay is bounded and uses higher-timeframe and volume gates"
   assert.equal(result.ready,true);
   assert.ok(result.candlesUsed<=1200);
   assert.equal(result.higherTimeframeCandlesUsed,180);
+  assert.ok(result.signals>0);
+  assert.ok(result.resolved>0);
   assert.ok(result.signals<=120);
   assert.equal(result.signals,result.targetFirst+result.stopFirst+result.timeouts);
   if(result.targetBeforeStopPct!==null)assert.ok(result.targetBeforeStopPct>=0&&result.targetBeforeStopPct<=100);
