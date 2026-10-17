@@ -968,8 +968,10 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     if(byId("liveAgentRunStatus")&&!byId("runLiveAgentTeam").disabled)byId("liveAgentRunStatus").textContent="Continuous monitoring active · 8/8 local roles checked · "+new Date(now).toLocaleTimeString()+". AI-enhanced review is separate.";
     updateDemoAgentTicket();
     if(autoPaperEnabled&&approve&&!paperOpening&&paperStoreReady){
-      const candleKey=currentSymbol+"|"+currentInterval+"|"+Number(last.time);
-      if(candleKey!==lastAutoPaperCandleKey){lastAutoPaperCandleKey=candleKey;byId("livePaperAutoStatus").textContent="AUTO PAPER: evaluating the just-approved "+bias+" setup on "+currentSymbol+" "+currentInterval+"…";void paperOpenSignal();}
+      const candleKey=currentSymbol+"|"+currentInterval+"|"+Number(last.time),serverApproval=window.tarotaiAgentCommitteeApproval;
+      const gateReady=serverApproval?.riskGate?.approved===true&&!!serverApproval.approvalToken&&serverApproval.symbol===currentSymbol&&serverApproval.interval===currentInterval&&Number(serverApproval.candleTime)===Number(last.time)&&serverApproval.action===(bias==="LONG"?"BUY / LONG":"SELL / SHORT");
+      if(gateReady&&candleKey!==lastAutoPaperCandleKey){lastAutoPaperCandleKey=candleKey;byId("livePaperAutoStatus").textContent="AUTO PAPER: signed server gate approved this exact candle. Checking fresh spread, entry drift and single-use execution approval…";void paperOpenSignal();}
+      else if(!gateReady)byId("livePaperAutoStatus").textContent="AUTO PAPER: waiting for model-backed eight-agent review, fresh same-venue order book and signed server gate. Local-rule-only signals cannot open paper trades.";
     }
   }
   function startContinuousAgentMonitor(){
@@ -1037,7 +1039,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   }
   async function runLiveAgentTeam(options={}){
     if(byId("runLiveAgentTeam").disabled)return;
-    window.tarotaiAgentCommitteeApproval=null;
+    window.tarotaiAgentCommitteeApproval=null;clearAiApprovalPriceLines();
     const runButton=byId("runLiveAgentTeam"),statusEl=byId("liveAgentRunStatus"),summary=byId("liveAgentConsensus");
     const selections=Array.from(document.querySelectorAll("[data-agent-role]")).map(s=>s.value).filter(Boolean);
     if(selections.length!==8){statusEl.textContent="Select all eight trading agents before running analysis.";return;}
@@ -1069,6 +1071,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const needed=4,failed=results.length!==selections.length||results.some(r=>!r.ok);
       const vetoes=results.filter(r=>r.ok&&r.veto),riskSelected=selections.includes("sizing"),supervisor=results.find(r=>r.role==="supervisor");
       const history=data.historicalAnalogueStudy||{},historyCount=Number(history.sampleCount)||0,historyBias=history.sideBias||"NEUTRAL";
+      const serverGate=data.decisionGate||null,gateBlockers=Array.isArray(serverGate?.blockers)?serverGate.blockers:[];
+      const gatePasses=direction=>serverGate?.approved===true&&serverGate?.recommendation===direction&&typeof data.approvalToken==="string"&&data.approvalToken.length>20&&!!serverGate?.riskGeometry;
       const latestLocal=closed[closed.length-1],decision=window.tarotaiLiveDecision||{};
       const sameSnapshot=!!latestLocal&&!!data.market&&data.market.symbol===currentSymbol&&data.market.interval===currentInterval&&Date.parse(data.market.lastClosedCandleTime)===Number(latestLocal.time)&&Number(decision.candleTime)===Number(latestLocal.time);
       const baseLong=decision.action==="BUY / LONG",baseShort=decision.action==="SELL / SHORT";
@@ -1081,16 +1085,19 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
         if(!sameSnapshot){title="Team consensus: bullish bias — refresh chart first";body="The server-verified snapshot differs from the chart's latest closed candle. Refresh the chart and rerun; this report will not qualify an entry on mismatched candles.";}
         else if(historyBias!=="LONG"){title="Team consensus: WAIT — historical cases conflict";body="Agents lean LONG, but nearest prior cases lean "+historyBias+". The historical evidence gate does not support a long setup.";}
         else if(!baseLong){title="Team consensus: bullish bias — chart signal not confirmed";body="AI specialists lean LONG and historical analogues support that direction, but the deterministic live chart rule has not confirmed a matching BUY / LONG entry.";}
+        else if(!gatePasses("LONG")){title="Team consensus: WAIT — server trade gate";body=gateBlockers.length?gateBlockers.join(" · "):"The signed, fresh server-side risk gate did not approve this exact candle. Rerun analysis before paper entry.";mood="bad";}
         else{title="Team consensus: LONG setup reviewed";body=longs+"/"+results.length+" independent AI specialists support LONG; the nearest "+historyCount+" historical analogues lean LONG; the current chart independently confirms the same closed candle. Chart reference: entry "+fmt(decision.entry)+" · stop "+fmt(decision.stop)+" · target "+fmt(decision.target)+" · "+Number(decision.rr).toFixed(2)+"R. Paper trading only; this is not a profit guarantee.";mood="good";}
       }else if(shorts>=needed&&longs<=1){
         if(!sameSnapshot){title="Team consensus: bearish bias — refresh chart first";body="The server-verified snapshot differs from the chart's latest closed candle. Refresh the chart and rerun; no entry can be qualified yet.";}
         else if(historyBias!=="SHORT"){title="Team consensus: WAIT — historical cases conflict";body="Agents lean SHORT, but nearest prior cases lean "+historyBias+". The historical evidence gate does not support a short setup.";}
         else if(!baseShort){title="Team consensus: bearish bias — chart signal not confirmed";body="AI specialists lean SHORT and historical analogues support that direction, but the deterministic live chart rule has not confirmed a matching SELL / SHORT entry.";}
+        else if(!gatePasses("SHORT")){title="Team consensus: WAIT — server trade gate";body=gateBlockers.length?gateBlockers.join(" · "):"The signed, fresh server-side risk gate did not approve this exact candle. Rerun analysis before paper entry.";mood="bad";}
         else{title="Team consensus: SHORT setup reviewed";body=shorts+"/"+results.length+" independent AI specialists support SHORT; the nearest "+historyCount+" historical analogues lean SHORT; the current chart independently confirms the same closed candle. Chart reference: entry "+fmt(decision.entry)+" · stop "+fmt(decision.stop)+" · target "+fmt(decision.target)+" · "+Number(decision.rr).toFixed(2)+"R. Paper trading only; this is not a profit guarantee.";mood="good";}
       }else if(longs>=needed||shorts>=needed){title="Team consensus: WAIT — agents disagree";body=longs+" LONG and "+shorts+" SHORT votes indicate cross-agent disagreement. No entry is qualified.";}
       summary.className="live-agent-consensus "+mood;summary.replaceChildren();const t=document.createElement("strong");t.textContent=title;const p=document.createElement("span");p.textContent=body;summary.append(t,p);
-      const committeeApproved=title==="Team consensus: LONG setup reviewed"||title==="Team consensus: SHORT setup reviewed";
-      window.tarotaiAgentCommitteeApproval=committeeApproved?{symbol:currentSymbol,interval:currentInterval,candleTime:Number(latestLocal.time),action:baseLong?"BUY / LONG":baseShort?"SELL / SHORT":null,source:"ai-eight-agent-review",model:data.model||"unreported",agentVotes:results.map(r=>({role:r.role,bias:r.bias,veto:r.veto,model:r.model,fallback:Boolean(r.fallback)})),completedAt:Date.now()}:null;
+      const committeeApproved=(title==="Team consensus: LONG setup reviewed"||title==="Team consensus: SHORT setup reviewed")&&gatePasses(baseLong?"LONG":"SHORT");
+      window.tarotaiAgentCommitteeApproval=committeeApproved?{symbol:currentSymbol,interval:currentInterval,candleTime:Number(latestLocal.time),action:baseLong?"BUY / LONG":baseShort?"SELL / SHORT":null,source:"ai-eight-agent-review",model:data.model||"unreported",riskGate:serverGate,approvalToken:data.approvalToken,agentVotes:results.map(r=>({role:r.role,bias:r.bias,veto:r.veto,model:r.model,fallback:Boolean(r.fallback)})),completedAt:Date.now()}:null;
+      drawAiApprovalPriceLines(window.tarotaiAgentCommitteeApproval);
       statusEl.textContent="Finished "+results.filter(r=>r.ok).length+"/8 agents · "+results.filter(r=>!r.ok).length+" failed · "+results.filter(r=>r.role!=="supervisor"&&r.ok).length+"/7 specialists verified · "+(results.find(r=>r.role==="market")?.model||data.model||"model unreported")+" · "+(data.elapsedMs||0)+" ms · "+(data.market?.venue||marketVenue)+".";
     }catch(e){const message=e&&e.message?e.message:String(e);statusEl.textContent=(options.automatic?"Automatic AI review failed: ":"Analysis failed: ")+message;if(options.automatic){const failedKey=currentSymbol+"|"+currentInterval+"|"+Number(closed[closed.length-1]?.time);autoDiscussionMessages.push({kind:"ai-review",role:"AI REVIEW · SYSTEM",cycleKey:failedKey+"|ai-error",at:new Date().toISOString(),text:"Model-backed review failed for this candle: "+message+". No AI approval was granted; deterministic monitoring remains separate."});if(autoDiscussionMessages.length>80)autoDiscussionMessages=autoDiscussionMessages.slice(-80);try{localStorage.setItem(autoDiscussionStorageKey,JSON.stringify(autoDiscussionMessages));}catch(e){}renderAutoAgentDiscussion();}if(/authentication required/i.test(message)){showAgentAuthGate("The server rejected this private session. Unlock again and rerun the team.");}}
     finally{runButton.disabled=false;}
@@ -1317,17 +1324,37 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       byId("livePaperOpen").disabled=true;paperStatus("Paper ledger unavailable: "+e.message+". Authentication and persistent storage must work before entry.",true);
     }finally{paperBusy=false;}
   }
+  let aiApprovalPriceLines=[];
+  function clearAiApprovalPriceLines(){
+    if(candleSeries&&typeof candleSeries.removePriceLine==="function")for(const line of aiApprovalPriceLines){try{candleSeries.removePriceLine(line);}catch(e){}}
+    aiApprovalPriceLines=[];
+  }
+  function drawAiApprovalPriceLines(approval){
+    clearAiApprovalPriceLines();
+    const plan=approval?.riskGate?.riskGeometry;
+    if(!candleSeries||!plan||approval.riskGate?.approved!==true||typeof candleSeries.createPriceLine!=="function")return;
+    const specs=[
+      ["AI ENTRY",Number(plan.entry),"#65e6ad"],
+      ["AI STOP",Number(plan.stop),"#ff7b83"],
+      ["AI TARGET",Number(plan.target),"#8bb8ff"]
+    ];
+    for(const [title,price,color] of specs){
+      if(!Number.isFinite(price)||price<=0)continue;
+      try{aiApprovalPriceLines.push(candleSeries.createPriceLine({price,title,color,lineWidth:2,lineStyle:2,axisLabelVisible:true,axisLabelColor:color,axisLabelTextColor:"#071018"}));}catch(e){}
+    }
+  }
   function updateDemoAgentTicket(){
     const now=Date.now(),fresh=Number.isFinite(lastTradePrice)&&lastTradePrice>0&&now-lastTradeAt<=3000;
     const d=window.tarotaiLiveDecision||null,symbol=byId("liveSymbol")?.value||currentSymbol||"—",interval=byId("liveInterval")?.value||currentInterval||"—";
     const action=d&&d.symbol===symbol&&d.interval===interval&&["BUY / LONG","SELL / SHORT"].includes(d.action)?d.action:"WAIT";
     const latest=closedOnly(rows,currentInterval).slice(-1)[0];
-    const approvals=[window.tarotaiContinuousTeamApproval,window.tarotaiAgentCommitteeApproval].filter(Boolean);
-    const approval=approvals.find(a=>a.symbol===d?.symbol&&a.interval===d?.interval&&Number(a.candleTime)===Number(d?.candleTime)&&a.action===d?.action&&["continuous-local-team","ai-eight-agent-review"].includes(a.source));
-    const approved=!!approval&&!!latest&&Number(latest.time)===Number(approval.candleTime);
-    const entry=fresh?Number(lastTradePrice):NaN,stop=action!=="WAIT"?Number(d.stop):NaN,long=action==="BUY / LONG";
-    const valid=Number.isFinite(entry)&&entry>0&&Number.isFinite(stop)&&stop>0&&(long?stop<entry:stop>entry);
-    const distance=valid?Math.abs(entry-stop):NaN,target=valid?(long?entry+2*distance:entry-2*distance):NaN;
+    const approval=window.tarotaiAgentCommitteeApproval||null;
+    const gatePlan=approval?.riskGate?.riskGeometry||null;
+    const approved=!!approval&&approval.source==="ai-eight-agent-review"&&approval.riskGate?.approved===true&&!!approval.approvalToken&&!!latest&&Number(latest.time)===Number(approval.candleTime)&&approval.action===action;
+    const entry=fresh?Number(lastTradePrice):NaN,stop=gatePlan?Number(gatePlan.stop):NaN,target=gatePlan?Number(gatePlan.target):NaN,long=action==="BUY / LONG";
+    const planEntry=gatePlan?Number(gatePlan.entry):NaN,entryDrift=Number.isFinite(planEntry)&&planEntry>0&&Number.isFinite(entry)?Math.abs(entry-planEntry)/planEntry:Infinity;
+    const valid=approved&&Number.isFinite(entry)&&entry>0&&Number.isFinite(stop)&&stop>0&&Number.isFinite(target)&&target>0&&entryDrift<=0.0025&&(long?stop<entry&&target>entry:target<entry&&entry<stop)&&Math.abs(target-entry)/Math.abs(entry-stop)>=1.9;
+    const distance=valid?Math.abs(entry-stop):NaN;
     const balance=Number(byId("livePaperBalance")?.value),riskPct=Number(byId("livePaperRisk")?.value),riskBudget=balance*riskPct/100;
     const quantity=valid&&Number.isFinite(riskBudget)&&riskBudget>0?Math.min(riskBudget/distance,balance/entry):NaN;
     const usable=approved&&valid&&fresh&&paperStoreReady&&!paperOpening&&Number.isFinite(quantity)&&quantity>0;
@@ -1337,7 +1364,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     put("demoLivePrice",fresh?paperFmt(entry)+" USDT":"STALE — waiting for live tick");
     put("demoQuoteAge",fresh?Math.max(0,now-lastTradeAt)+" ms":"stale / unavailable");
     put("demoAgentDirection",action);
-    put("demoAgentApproval",approved?(approval.source==="ai-eight-agent-review"?"AI 8-agent approved":"8-role rules approved"):"WAIT — exact candle not approved");
+    put("demoAgentApproval",approved?"AI 8-agent + signed server gate approved":"WAIT — signed server gate not approved");
     put("demoAgentStop",valid?paperFmt(stop)+" USDT":"—");
     put("demoAgentTarget",valid?paperFmt(target)+" USDT":"—");
     put("demoAgentQuantity",Number.isFinite(quantity)?quantity.toLocaleString("en-US",{maximumFractionDigits:8})+" units":"—");
@@ -1349,9 +1376,10 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       else if(!paperStoreReady)status.textContent="Blocked: unlock the private session and connect the persistent paper ledger first.";
       else if(action==="WAIT")status.textContent="WAIT: no qualified live-chart setup. Agents will not invent an entry.";
       else if(!valid)status.textContent="Blocked: the live quote has crossed the setup's stop/invalidation level.";
-      else if(!approved)status.textContent="Candidate "+action+" only. Waiting for all eight roles to approve this exact closed candle.";
+      else if(!approved)status.textContent="Candidate "+action+" only. Waiting for the model-backed eight-agent team and signed server-side risk gate on this exact closed candle.";
+      else if(!valid)status.textContent="Blocked: approved levels are stale, live quote drifted, or risk geometry no longer qualifies.";
       else if(paperOpening)status.textContent="Paper order is being validated and recorded.";
-      else status.textContent="Ready: entry uses the live last-trade quote; stop comes from the active setup; target is recalculated at 2R. Independent risk review and server-side price verification still apply.";
+      else status.textContent="Ready: signed AI plan entry "+paperFmt(planEntry)+" · stop "+paperFmt(stop)+" · target "+paperFmt(target)+". Current quote must remain within 0.25% of the approved reference; a fresh order book and one-time execution review are required.";
     }
   }
   async function paperOpenSignal(){
@@ -1359,27 +1387,29 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const d=window.tarotaiLiveDecision,now=Date.now();
     if(!d||!["BUY / LONG","SELL / SHORT"].includes(d.action)||d.symbol!==byId("liveSymbol").value||d.interval!==byId("liveInterval").value){paperStatus("No qualified signal. HOLD / WAIT is never paper-traded.",true);return;}
     const latestClosedForApproval=closedOnly(rows,currentInterval).slice(-1)[0];
-    const approval=[window.tarotaiAgentCommitteeApproval,window.tarotaiContinuousTeamApproval].filter(Boolean).find(a=>a.symbol===d.symbol&&a.interval===d.interval&&Number(a.candleTime)===Number(d.candleTime)&&a.action===d.action&&["continuous-local-team","ai-eight-agent-review"].includes(a.source));
-    if(!approval||!latestClosedForApproval||Number(latestClosedForApproval.time)!==Number(approval.candleTime)){paperStatus("Paper entry blocked: wait for the continuous eight-role team to approve this exact closed candle.",true);return;}
+    const approval=window.tarotaiAgentCommitteeApproval||null;
+    if(!approval||approval.source!=="ai-eight-agent-review"||approval.riskGate?.approved!==true||!approval.approvalToken||!latestClosedForApproval||Number(latestClosedForApproval.time)!==Number(approval.candleTime)||approval.symbol!==d.symbol||approval.interval!==d.interval||approval.action!==d.action){paperStatus("Paper entry blocked: the exact candle needs fresh signed model-backed server risk approval. Local-rule-only approval is not enough.",true);return;}
+    const gatePlan=approval.riskGate.riskGeometry;
+    if(!gatePlan||!Number.isFinite(Number(gatePlan.entry))||!Number.isFinite(Number(gatePlan.stop))||!Number.isFinite(Number(gatePlan.target))){paperStatus("Paper entry blocked: the signed server plan has no valid numeric entry/stop/target geometry.",true);return;}
     const balance=Number(byId("livePaperBalance").value),riskPct=Number(byId("livePaperRisk").value);
     if(!Number.isFinite(balance)||balance<100||balance>10000000||!Number.isFinite(riskPct)||riskPct<0.1||riskPct>1){paperStatus("Balance must be 100–10,000,000 USDT and risk 0.1%–1%.",true);return;}
     const live=rows[rows.length-1],closed=closedOnly(rows,currentInterval).slice(-1)[0];
     if(!live||!closed||now-live.time>msFor(currentInterval)*2){paperStatus("Candles are stale. Refresh analysis before paper trading.",true);return;}
     if(!hasFreshLiveQuote()){paperStatus("Paper entry blocked: no fresh validated live quote. Wait for the "+(marketVenue==="binance"?"Binance Futures":"OKX")+" WebSocket or REST ticker fallback; no delayed entry is allowed.",true);return;}
-    const entry=Number(currentMarketPrice()),stop=Number(d.stop),long=d.action==="BUY / LONG";
-    if(!Number.isFinite(entry)||entry<=0||!Number.isFinite(stop)||(long?stop>=entry:stop<=entry)){paperStatus("Price crossed the setup's invalidation level. Signal expired; re-analyze.",true);return;}
-    const drift=Math.abs(entry-Number(d.entry))/Number(d.entry);
-    if(!Number.isFinite(drift)||drift>0.01){paperStatus("Price moved more than 1% from the signal reference. Do not chase it; refresh analysis.",true);return;}
-    const distance=Math.abs(entry-stop),riskBudget=balance*riskPct/100,quantity=Math.min(riskBudget/distance,balance/entry);
-    if(!Number.isFinite(quantity)||quantity<=0){paperStatus("Position sizing failed validation.",true);return;}
-    const target=long?entry+2*distance:entry-2*distance,side=long?"LONG":"SHORT";
+    const entry=Number(currentMarketPrice()),planEntry=Number(gatePlan.entry),stop=Number(gatePlan.stop),target=Number(gatePlan.target),long=d.action==="BUY / LONG";
+    const drift=Number.isFinite(planEntry)&&planEntry>0?Math.abs(entry-planEntry)/planEntry:Infinity;
+    if(!Number.isFinite(entry)||entry<=0||!Number.isFinite(drift)||drift>0.0025){paperStatus("Paper entry blocked: live quote drifted more than 0.25% from the signed AI entry. Rerun analysis; do not chase.",true);return;}
+    if(!Number.isFinite(stop)||!Number.isFinite(target)||(long?!(stop<entry&&target>entry):!(target<entry&&entry<stop))){paperStatus("Price crossed the signed AI price plan. Candidate expired; re-analyze.",true);return;}
+    const distance=Math.abs(entry-stop),reward=Math.abs(target-entry),actualRR=distance>0?reward/distance:0,riskBudget=balance*riskPct/100,quantity=Math.min(riskBudget/distance,balance/entry);
+    if(!Number.isFinite(quantity)||quantity<=0||actualRR<1.9){paperStatus("Paper entry blocked: current price, 1.9R execution floor or sizing no longer meets the signed risk plan.",true);return;}
+    const side=long?"LONG":"SHORT";
     const age=Math.max(0,now-lastMarketUpdateAt);
     paperOpening=true;byId("livePaperOpen").disabled=true;byId("livePaperOpen").textContent="Reviewing risk…";
     try{
-      const review=await paperRequest("/api/trading/review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({entry,stop,target,side,riskPct,paperBalance:balance,dataAgeMs:age,spreadBps:0})});
-      if(review.combinedVerdict!=="PAPER_ONLY_APPROVAL")throw new Error("Independent risk review veto: "+(review.strategyAgent?.issues||review.riskAgent?.issues||[]).join("; "));
+      const review=await paperRequest("/api/trading/review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({symbol:d.symbol,venue:marketVenue,interval:currentInterval,approvalToken:approval.approvalToken,entry,stop,target,side,riskPct,paperBalance:balance,dataAgeMs:age})});
+      if(review.combinedVerdict!=="PAPER_ONLY_APPROVAL"||typeof review.paperExecutionToken!=="string")throw new Error("Server risk review veto: "+(review.strategyAgent?.issues||review.riskAgent?.issues||[]).join("; "));
       byId("livePaperOpen").textContent="Saving paper trade…";
-      const opened=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"OPEN",symbol:d.symbol,venue:marketVenue,side:long?"BUY":"SELL",quantity,price:entry,stopPrice:stop,targetPrice:target,feeBps:Number(byId("feeBps")?.value??5),slippageBps:Number(byId("slippageBps")?.value??2),marketTime:Date.now(),decisionSource:approval.source,signalCandleTime:Number(approval.candleTime),decisionAction:d.action,agentTeamModel:approval.model||"local-rules-v1",agentVotes:Array.isArray(approval.agentVotes)?approval.agentVotes.slice(0,8):Array.isArray(window.tarotaiContinuousAgentReports)?window.tarotaiContinuousAgentReports.slice(0,8).map(r=>({role:r.role,bias:r.bias,veto:r.veto,model:r.model,fallback:r.fallback})):[]})});
+      const opened=await paperRequest("/api/trading/paper",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"OPEN",symbol:d.symbol,venue:marketVenue,interval:currentInterval,approvalToken:review.paperExecutionToken,paperBalance:balance,riskPct,side:long?"BUY":"SELL",quantity,price:entry,stopPrice:stop,targetPrice:target,feeBps:Number(byId("feeBps")?.value??5),slippageBps:Number(byId("slippageBps")?.value??2),marketTime:Date.now(),decisionSource:approval.source,signalCandleTime:Number(approval.candleTime),decisionAction:d.action,agentTeamModel:approval.model||"local-rules-v1",agentVotes:Array.isArray(approval.agentVotes)?approval.agentVotes.slice(0,8):Array.isArray(window.tarotaiContinuousAgentReports)?window.tarotaiContinuousAgentReports.slice(0,8).map(r=>({role:r.role,bias:r.bias,veto:r.veto,model:r.model,fallback:r.fallback})):[]})});
       paperStatus("Opened "+d.symbol+" "+side+" in persistent paper ledger · fill "+paperFmt(opened.trade?.fillPrice??entry)+" · planned risk ≤ "+paperFmt(quantity*distance)+" USDT. No exchange order was sent.");
       if(autoPaperEnabled)byId("livePaperAutoStatus").textContent="AUTO PAPER: ON · opened a "+(approval.source==="ai-eight-agent-review"?"AI-reviewed":"continuous-rule-approved")+" simulated "+side+" on "+d.symbol+". Source and role votes are saved with the trade; results update after exit. No real order.";
       log("Opened persistent paper position "+d.symbol+" "+side+". PAPER ONLY; no exchange order sent.");
@@ -1412,7 +1442,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       if(!paperStoreReady){status.textContent="AUTO PAPER BLOCKED: private authentication or persistent Upstash Redis ledger is unavailable. No simulated entry was created.";status.style.color="var(--red)";button.setAttribute("aria-pressed","false");return;}
       autoPaperEnabled=true;lastAutoPaperCandleKey="";
       button.textContent="Disable auto paper trading";button.setAttribute("aria-pressed","true");
-      status.textContent="AUTO PAPER: ON · the 8-role local rule team checks the same closed candle every second and opens a simulated position only after exact-candle approval, position sizing and server-side risk review. Stop/target monitoring uses live last-trade ticks plus closed Binance 1-minute candle reconciliation. No real orders. Keep this tab open and visible.";
+      status.textContent="AUTO PAPER: ON · local rules identify candidates only. A model-backed eight-agent review, fresh same-venue order book, signed server risk approval and one-time execution check must pass for the exact candle. Existing paper positions remain monitored. No real orders.";
       status.style.color="var(--green)";runContinuousAgentCycle();
     }else{
       autoPaperEnabled=false;button.textContent="Enable auto paper trading";button.setAttribute("aria-pressed","false");
@@ -1424,8 +1454,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   paperRefresh(true).finally(updateDemoAgentTicket);
   setInterval(()=>{if(document.visibilityState==="visible")paperRefresh(true).finally(updateDemoAgentTicket);},10000);
 
-  byId("liveSymbol").addEventListener("change",()=>{updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;window.tarotaiContinuousTeamApproval=null;window.tarotaiAgentCommitteeApproval=null;void refresh(true).then(()=>runContinuousAgentCycle());});
-  byId("liveInterval").addEventListener("change",()=>{updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;window.tarotaiContinuousTeamApproval=null;window.tarotaiAgentCommitteeApproval=null;void refresh(true).then(()=>runContinuousAgentCycle());});
+  byId("liveSymbol").addEventListener("change",()=>{clearAiApprovalPriceLines();updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;window.tarotaiContinuousTeamApproval=null;window.tarotaiAgentCommitteeApproval=null;void refresh(true).then(()=>runContinuousAgentCycle());});
+  byId("liveInterval").addEventListener("change",()=>{clearAiApprovalPriceLines();updateTradingViewChart("live");higherCache=[];higherCacheKey="";higherCacheAt=0;window.tarotaiContinuousTeamApproval=null;window.tarotaiAgentCommitteeApproval=null;void refresh(true).then(()=>runContinuousAgentCycle());});
   window.tarotaiReloadLiveChart=()=>{higherCache=[];higherCacheKey="";higherCacheAt=0;void refresh(true).then(()=>runContinuousAgentCycle());};
   startContinuousAgentMonitor();
   if(quoteFallbackTimer)clearInterval(quoteFallbackTimer);quoteFallbackTimer=setInterval(()=>{if(document.visibilityState==="visible"&&(!hasFreshLiveQuote()||lastQuoteSource!==marketVenue+"-websocket"))void refreshQuoteFallback();},2000);
