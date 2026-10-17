@@ -209,6 +209,20 @@
     <div class="live-metric"><label>Higher-timeframe trend</label><strong id="liveHtf">CHECKING</strong></div>
   </div>
   <div class="live-chart-shell"><div id="liveMarketChart" role="img" aria-label="Interactive live candlestick chart with EMA indicators and current buy, sell, wait, entry, stop loss and take profit annotations"></div><div class="live-chart-overlay"><strong id="liveOverlayDecision">HOLD / WAIT</strong><span id="liveOverlayMeta">Awaiting verified closed candles…</span></div></div>
+  <section class="orderflow-panel panel full" id="orderflowPanel" aria-label="Live order book and aggressor flow" style="margin-top:14px">
+    <div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px"><div><h2 style="margin:0">Live Order Flow & Liquidity Map</h2><div class="sub">Binance USDⓈ-M Futures · sequenced depth updates + 60-second taker flow</div></div><strong id="orderflowStatus" class="amber" aria-live="polite">CONNECTING</strong></div>
+    <div class="live-metrics" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-bottom:10px">
+      <div class="live-metric"><label>Best bid / ask spread</label><strong id="orderflowSpread">—</strong></div>
+      <div class="live-metric"><label>Displayed depth imbalance · ±0.5%</label><strong id="orderflowImbalance">—</strong></div>
+      <div class="live-metric"><label>60s aggressive buy / sell</label><strong id="orderflowTakerSplit">—</strong></div>
+      <div class="live-metric"><label>60s taker delta · quote value</label><strong id="orderflowTakerDelta">—</strong></div>
+    </div>
+    <div class="row" style="gap:14px;align-items:stretch">
+      <div style="flex:1;min-width:260px"><h3 style="color:var(--red)">ASK LIQUIDITY · closest five price levels</h3><div id="orderflowAsks" class="orderflow-levels"><div class="empty">Waiting for synchronized depth…</div></div></div>
+      <div style="flex:1;min-width:260px"><h3 style="color:var(--green)">BID LIQUIDITY · closest five price levels</h3><div id="orderflowBids" class="orderflow-levels"><div class="empty">Waiting for synchronized depth…</div></div></div>
+    </div>
+    <p id="orderflowNote" class="sub" style="font-size:11px;margin-bottom:0">Liquidity is displayed resting limit-order depth, not guaranteed support/resistance. Orders can cancel or move. The order-flow panel is analytical only and never places orders.</p>
+  </section>
   <section class="scenario-forecast" id="scenarioForecastPanel" aria-live="polite">
     <div class="scenario-forecast-head"><div><strong>Next-move scenario forecast</strong><small id="scenarioForecastSource">Waiting for valid closed candles…</small></div><strong id="scenarioForecastBias" class="amber">RANGE / WAIT</strong></div>
     <p id="scenarioForecastSummary">Conditional price paths will appear on the live chart after the market snapshot is validated. No guessed probability is displayed.</p>
@@ -1421,4 +1435,4 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   window.addEventListener("beforeunload",()=>{if(pollTimer)clearInterval(pollTimer);if(quoteFallbackTimer)clearInterval(quoteFallbackTimer);if(feedSocket)feedSocket.close();if(quoteSocket)quoteSocket.close();if(resizeObserver)resizeObserver.disconnect();});
 })();
 
-</script><script src="/live-agent-monitor.js"></script></body></html>
+</script><script src="/live-agent-monitor.js"></script><script src="/orderflow-panel.js"></script></body></html>
