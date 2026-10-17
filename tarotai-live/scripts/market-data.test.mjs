@@ -650,6 +650,7 @@ test("legacy strategy canvas remains quote-aware but does not poll while hidden"
   assert.match(futuresDesk, /quoteFresh\?quote\.toLocaleString/);
   assert.match(futuresDesk, /LIVE '\+liveP\.toLocaleString/);
   assert.match(futuresDesk, /strategyRefreshTimer=setInterval/);
+  assert.ok(futuresDesk.includes("window.tarotaiUpdateStrategyLiveQuote=function(price,now){if($('visual-strategy-panel')?.hidden)return;"));
     assert.match(futuresDesk, /startStrategyAutoRefresh\(\);if\(document\.visibilityState==='visible'&&!\$\('visual-strategy-panel'\)\?\.hidden\)/);
   assert.match(futuresDesk, /window\.tarotaiStrategyCandles=null/);
 });
@@ -709,7 +710,7 @@ test("stale last-trade feed is never relabeled as a live quote", () => {
 
 test("live last-trade tick updates the in-progress candle on the canonical chart", () => {
   assert.match(futuresDesk, /function syncLiveQuoteToCurrentCandle\(price,exchangeTimestamp,now=Date\.now\(\)\)/);
-  assert.match(futuresDesk, /candleSeries\.update\(point\)/);
+  assert.match(futuresDesk, /candleSeries\.update\(plotCandle\(bar\)\)/);
   assert.doesNotMatch(futuresDesk, /createChart\(\);createMirrorChart\(\)/);
   assert.match(futuresDesk, /priceLineVisible:false,lastValueVisible:false/);
   assert.match(futuresDesk, /function drawStrategyChart\(candles,symbol,interval,higherCandles=\[\],liveCandle=null\)/);
@@ -781,6 +782,40 @@ function makeScenarioFixture(count=260) {
   return candles;
 }
 
+function makeBreakoutFixture(count=361){
+  const candles=[];let previous=100;
+  for(let i=0;i<count;i++){
+    const step=Math.floor(i/40)*1.45;
+    const close=100+i*0.025+Math.sin(i*0.47)*0.65+Math.sin(i*0.13)*0.2+step;
+    const open=previous,volume=i%40===0?350:100+(i%9);
+    candles.push({time:1700000000000+i*300000,open,high:Math.max(open,close)+0.12,low:Math.min(open,close)-0.12,close,volume,closeTime:1700000000000+(i+1)*300000-1});
+    previous=close;
+  }
+  return candles;
+}
+
+test("directional scenario confirmation is withheld when higher-timeframe or relative-volume evidence is absent", () => {
+  const candles=makeBreakoutFixture(361);
+  const bullish=scenarioEngine.buildScenarioForecast(candles,{intervalMs:300000,higherTimeframeDirection:"BULLISH"});
+  assert.equal(bullish.ready,true);
+  assert.equal(bullish.candidateSignal,"LONG");
+  assert.equal(bullish.signal,"LONG");
+  assert.equal(bullish.volumeThreshold,1.1);
+  assert.equal(bullish.volumeConfirmed,true);
+  assert.equal(bullish.higherTimeframeAligned,true);
+  const bearishContext=scenarioEngine.buildScenarioForecast(candles,{intervalMs:300000,higherTimeframeDirection:"BEARISH"});
+  assert.equal(bearishContext.ready,true);
+  assert.equal(bearishContext.candidateSignal,"LONG");
+  assert.equal(bearishContext.signal,"NONE");
+  assert.equal(bearishContext.higherTimeframeAligned,false);
+  const flatVolume=candles.map(c=>({...c,volume:0}));
+  const lowVolume=scenarioEngine.buildScenarioForecast(flatVolume,{intervalMs:300000,higherTimeframeDirection:"BULLISH"});
+  assert.equal(lowVolume.ready,true);
+  assert.equal(lowVolume.candidateSignal,"LONG");
+  assert.equal(lowVolume.signal,"NONE");
+  assert.equal(lowVolume.volumeConfirmed,false);
+});
+
 test("scenario forecast uses validated closed candles and returns two conditional chart paths", () => {
   const candles=makeScenarioFixture();
   const result=scenarioEngine.buildScenarioForecast(candles,{intervalMs:300000,symbol:"BTCUSDT",interval:"5m",higherTimeframeDirection:"BULLISH"});
@@ -810,18 +845,44 @@ test("scenario engine fails closed on inadequate, invalid, duplicate or unordere
   assert.equal(scenarioEngine.backtestScenarioForecast(duplicate).ready,false);
   const coerced=makeScenarioFixture(100);coerced[99]={...coerced[99],close:String(coerced[99].close)};
   assert.equal(scenarioEngine.buildScenarioForecast(coerced,{intervalMs:300000}).ready,false);
+  const openBar=makeScenarioFixture(100);openBar[99]={...openBar[99],closeTime:Date.now()+60000};
+  assert.equal(scenarioEngine.buildScenarioForecast(openBar,{intervalMs:300000}).ready,false);
   assert.equal(scenarioEngine.backtestScenarioForecast(makeScenarioFixture(80)).ready,false);
 });
 
-test("walk-forward replay is bounded, chronological and never reports impossible percentages", () => {
-  const result=scenarioEngine.backtestScenarioForecast(makeScenarioFixture(260),{horizon:3});
+function makeHigherScenarioFixture(mainCandles,count=180){
+  const intervalMs=3600000, lastMain=mainCandles[mainCandles.length-1];
+  const lastCompletedBucket=Math.floor((lastMain.closeTime+1)/intervalMs)*intervalMs-intervalMs;
+  const candles=[];let previous=80;
+  for(let i=0;i<count;i++){
+    const time=lastCompletedBucket-(count-i-1)*intervalMs;
+    const close=80+i*0.15+Math.sin(i*0.17)*0.4;
+    const open=previous;
+    candles.push({time,open,high:Math.max(open,close)+0.4,low:Math.min(open,close)-0.4,close,volume:500+i*2,closeTime:time+intervalMs-1});
+    previous=close;
+  }
+  return candles;
+}
+
+test("walk-forward replay is bounded and uses higher-timeframe and volume gates", () => {
+  const candles=makeBreakoutFixture(361);
+  const higherTimeframeCandles=makeHigherScenarioFixture(candles);
+  const result=scenarioEngine.backtestScenarioForecast(candles,{
+    horizon:3,intervalMs:300000,higherTimeframeCandles,higherTimeframeIntervalMs:3600000
+  });
   assert.equal(result.ready,true);
-  assert.ok(result.candlesUsed<=400);
+  assert.ok(result.candlesUsed<=1200);
+  assert.equal(result.higherTimeframeCandlesUsed,180);
+  assert.ok(result.signals>0);
+  assert.ok(result.resolved>0);
   assert.ok(result.signals<=120);
   assert.equal(result.signals,result.targetFirst+result.stopFirst+result.timeouts);
   if(result.targetBeforeStopPct!==null)assert.ok(result.targetBeforeStopPct>=0&&result.targetBeforeStopPct<=100);
   if(result.targetOfAllSignalsPct!==null)assert.ok(result.targetOfAllSignalsPct>=0&&result.targetOfAllSignalsPct<=100);
-  assert.match(result.caveat,/No fees, slippage, funding/);
+  assert.match(result.caveat,/same volume and higher-timeframe confirmation gates/);
+  const withoutHigherTimeframe=scenarioEngine.backtestScenarioForecast(candles,{horizon:3,intervalMs:300000});
+  assert.equal(withoutHigherTimeframe.ready,false);
+  assert.match(withoutHigherTimeframe.reason,/higher-timeframe history is required/);
 });
 
 test("live chart forecast and auto discussion remain visible, safe and automatic", () => {
@@ -831,12 +892,24 @@ test("live chart forecast and auto discussion remain visible, safe and automatic
   assert.match(futuresDesk, /bearForecastSeries=chart\.addLineSeries/);
   assert.match(futuresDesk, /renderScenarioForecast\(closed,htf,staleness\)/);
   assert.ok(futuresDesk.includes('const higherMap={"1m":"15m","3m":"15m","5m":"1h","15m":"4h","30m":"4h","1h":"1d","2h":"1d","4h":"1d","1d":"1d"}'));
-  assert.ok(futuresDesk.includes("Main-timeframe rule replay (no higher-timeframe gate)"));
-  assert.match(futuresDesk, /backtestScenarioForecast\(candles,\{horizon:3\}\)/);
+  assert.ok(futuresDesk.includes("Walk-forward replay (HTF trend + relative-volume gates)"));
+  assert.match(futuresDesk, /backtestScenarioForecast\(candles,\{horizon:3,intervalMs:msFor\(currentInterval\),higherTimeframeCandles:higherCache,higherTimeframeIntervalMs:msFor\(higherMap\[currentInterval\]\|\|"1d"\)\}\)/);
   assert.match(futuresDesk, /id="autoAgentDiscussionLog"/);
   assert.match(futuresDesk, /function updateAutoAgentDiscussion\(context\)/);
   assert.match(futuresDesk, /no extra model-provider calls/i);
   assert.match(futuresDesk, /textContent=message\.text/);
+});
+
+test("live quote EMA updates are incremental and avoid full-history setData per tick", () => {
+  assert.match(futuresDesk, /function rebuildEmaSeries\(anchorIndex\)/);
+  assert.match(futuresDesk, /function updateActiveEma\(bar\)/);
+  assert.match(futuresDesk, /ema9Series\.update\(\{time,value:close\*\(2\/10\)\+emaAnchor\.e9\*\(8\/10\)\}\)/);
+  const start=futuresDesk.indexOf("function syncLiveQuoteToCurrentCandle");
+  const end=futuresDesk.indexOf("function renderSharedQuote",start);
+  assert.ok(start>=0&&end>start);
+  assert.doesNotMatch(futuresDesk.slice(start,end), /ema9Series\.setData/);
+  assert.match(futuresDesk, /if\(isClosed\)rebuildEmaSeries\(rows\.length-1\);else updateActiveEma\(bar\)/);
+  assert.match(futuresDesk, /if\(isClosed\)\{analyze\(\);runContinuousAgentCycle\(\);\}/);
 });
 
 test("user chart viewport is restored after candle and forecast data updates", () => {
