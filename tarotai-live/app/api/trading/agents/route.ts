@@ -3,6 +3,7 @@ import { isAuthorized } from "@/lib/auth";
 import { findSimilarCases } from "@/lib/market-patterns.mjs";
 import { evaluateTradeReadiness } from "@/lib/trade-readiness-gate.mjs";
 import { normalizeDepthSnapshot, summarizeOrderBook } from "@/lib/orderbook.mjs";
+import { createPaperApprovalToken } from "@/lib/paper-approval.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -231,7 +232,7 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
  send({type:"phase",phase:"market",message:"Fetching fresh closed candles and checking the higher timeframe."});
  let market:any;try{market=await fetchVerifiedMarket(symbol,interval,preferred);}catch(e){return jsonError(e instanceof Error?e.message:"Verified market data unavailable.",502,{readOnly:true,orderPlacement:false});}
  const patternStudy=findSimilarCases(market.candles,interval,{horizon:6,maxExamples:8,maxDistance:0.34}),higherTrend=trendSummary(market.higherCandles),last=market.candles[market.candles.length-1];
- const orderBookSnapshot=await fetchOrderBookSnapshot(symbol,market.venue);
+ let orderBookSnapshot=await fetchOrderBookSnapshot(symbol,market.venue);
  send({type:"phase",phase:"agents",symbol,interval,message:"Market snapshot verified. Dispatching selected independent specialists concurrently.",roles:roles.map((role:string)=>({role,name:SPECIALISTS[role].name,focus:SPECIALISTS[role].focus}))});
  const suppliedLedger=Array.isArray(body.paperLedger)?body.paperLedger.slice(-20):[];
  const paperLedger=suppliedLedger.map((t:any)=>({id:String(t?.id||"").slice(0,100),status:String(t?.status||"").slice(0,40),symbol:String(t?.symbol||"").slice(0,20),side:String(t?.side||"").slice(0,10),quantity:Number.isFinite(Number(t?.quantity))?Number(t.quantity):null,fillPrice:Number.isFinite(Number(t?.fillPrice))?Number(t.fillPrice):null,stopPrice:Number.isFinite(Number(t?.stopPrice))?Number(t.stopPrice):null,targetPrice:Number.isFinite(Number(t?.targetPrice))?Number(t.targetPrice):null,pnlNet:Number.isFinite(Number(t?.pnlNet))?Number(t.pnlNet):null,createdAt:String(t?.createdAt||"").slice(0,40),closedAt:String(t?.closedAt||"").slice(0,40),parentTradeId:String(t?.parentTradeId||"").slice(0,100)}));
@@ -309,13 +310,32 @@ async function executeAnalysis(request:Request, emit:(event:Record<string,unknow
  }
  const ok=results.filter(r=>r.ok).length; const failed=results.filter(r=>!r.ok).length; const specialistOk=results.filter(r=>r.role!=="supervisor"&&r.ok).length; const fallbackCount=results.filter(r=>r.fallback).length;
  if(results.length!==8||failed!==0||specialistOk!==7)return jsonError("The team did not return all eight usable role reports.",502,{results,model,elapsedMs:Date.now()-started,completedAgents:ok,requestedAgents:8});
- const lastClosedCandleAgeSeconds=Math.max(0,Math.round(market.lastClosedCandleAgeMs/1000));
- const decisionGate=evaluateTradeReadiness(results,{lastClosedCandleAgeSeconds,orderBookSnapshot,paperTradeContext},INTERVAL_MS[interval]);
+ orderBookSnapshot=await fetchOrderBookSnapshot(symbol,market.venue);
+ const gateNow=Date.now();
+ const lastClosedCandleAgeSeconds=Math.max(0,Math.round((gateNow-last.closeTime)/1000));
+ let decisionGate=evaluateTradeReadiness(results,{lastClosedCandleAgeSeconds,orderBookSnapshot,paperTradeContext},INTERVAL_MS[interval]);
+ let approvalToken:string|null=null;
+ if(decisionGate.approved){
+  const signingSecret=process.env.UPSTASH_REDIS_REST_TOKEN;
+  const plan=decisionGate.riskGeometry;
+  try{
+   if(!signingSecret||!plan||!orderBookSnapshot)throw new Error("Signing secret, numeric plan or fresh book unavailable.");
+   approvalToken=createPaperApprovalToken({
+    tokenType:"PAPER_GATE",symbol,venue:market.venue,interval,candleTime:Number(last.time),
+    direction:decisionGate.recommendation,entry:plan.entry,stop:plan.stop,target:plan.target,quantity:plan.quantity,
+    paperEquity:paperTradeContext.paperEquity,riskPct:paperTradeContext.riskPct,
+    bookAgeMs:orderBookSnapshot.ageMs,bookFetchedAtMs:Date.parse(orderBookSnapshot.fetchedAt),
+    bookMid:orderBookSnapshot.midPrice,bookSpreadBps:orderBookSnapshot.spreadBps
+   },signingSecret,gateNow);
+  }catch{
+   decisionGate={...decisionGate,status:"WAIT",recommendation:"WAIT",approved:false,blockers:[...decisionGate.blockers,"A fresh signed server approval could not be issued; rerun the team before paper entry."]};
+  }
+ }
  const supervisor=results.find(r=>r.role==="supervisor");
  if(supervisor) supervisor.text=String(supervisor.text||"")+"\n\nDETERMINISTIC TRADE GATE: "+decisionGate.status+"; recommendation "+decisionGate.recommendation+". "+(decisionGate.blockers.length?"Blockers: "+decisionGate.blockers.join(" | "):"All required checks passed; paper setup candidate only.");
- return NextResponse.json({ok:true,mode:fallbackCount?"hybrid-ai-with-deterministic-fallback":"parallel-llm-specialists",model,elapsedMs:Date.now()-started,decisionGate,
+ return NextResponse.json({ok:true,mode:fallbackCount?"hybrid-ai-with-deterministic-fallback":"parallel-llm-specialists",model,elapsedMs:Date.now()-started,decisionGate,approvalToken,
   market:{venue:market.venue,host:market.host,symbol,interval,higherInterval:market.higherInterval,fetchedAt:market.fetchedAt,
-   lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),lastClosedCandleAgeSeconds:Math.max(0,Math.round(market.lastClosedCandleAgeMs/1000)),higherTimeframeTrend:higherTrend.direction},
+   lastClosedCandleTime:new Date(market.lastClosedCandleTime).toISOString(),lastClosedCandleAgeSeconds,higherTimeframeTrend:higherTrend.direction},
   historicalAnalogueStudy:userContext.historicalAnalogueStudy,results,completedAgents:ok,requestedAgents:8,fallbackAgents:fallbackCount,aiProviderStatus:fallbackCount?"degraded":"ok",
   safety:{readOnly:true,orderPlacement:false,paperTradingOnly:true}
  },{headers:{"Cache-Control":"no-store"}});
