@@ -966,12 +966,15 @@ test("live quote EMA updates are incremental and avoid full-history setData per 
   assert.match(futuresDesk, /if\(isClosed\)\{analyze\(\);runContinuousAgentCycle\(\);\}/);
 });
 
-test("user chart viewport is restored after candle and forecast data updates", () => {
+test("user chart viewport is restored and time range synchronization covers both charts", () => {
   assert.match(futuresDesk, /else if\(rangeBefore\)\{try\{chart\.timeScale\(\)\.setVisibleLogicalRange\(rangeBefore\)/);
   assert.match(futuresDesk, /if\(chart&&!followLive&&rangeBefore\)chart\.timeScale\(\)\.setVisibleLogicalRange\(rangeBefore\)/);
   assert.match(futuresDesk, /Math\.abs\(event\.clientX-start\.x\)>2\|\|Math\.abs\(event\.clientY-start\.y\)>2/);
   assert.match(futuresDesk, /byId\("liveGoLive"\)\.addEventListener\("click",\(\)=>setLiveFollow\(true\)\)/);
-  assert.match(futuresDesk, /One synchronized interactive chart is shown in this desk/);
+  assert.match(futuresDesk, /id="liveMarketChart"/);
+  assert.match(futuresDesk, /id="orderflowBubbleChart"/);
+  assert.match(futuresDesk, /function syncOrderflowRange\(source\)/);
+  assert.match(futuresDesk, /syncOrderflowRange\("main"\)/);
 });
 
 
