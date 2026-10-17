@@ -3,6 +3,7 @@
 All tests must run with live trading disabled and must never send production orders.
 
 ## Market data
+- Route Binance Futures trade, aggregate-trade, and kline streams to the documented Market endpoint; route diff-depth streams to the Public endpoint. Do not use the retired generic Futures `/ws` or `/stream` roots.
 - Reject malformed JSON and non-finite OHLCV values.
 - Reject unsupported symbols and intervals.
 - Reject stale candles before generating a new simulated entry.

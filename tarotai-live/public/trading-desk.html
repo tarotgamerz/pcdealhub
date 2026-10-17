@@ -510,7 +510,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const instId=currentSymbol.endsWith("USDT")?currentSymbol.slice(0,-4)+"-USDT-SWAP":currentSymbol;
     try{
       if(marketVenue==="binance"){
-        quoteSocket=new WebSocket("wss://fstream.binance.com/ws/"+currentSymbol.toLowerCase()+"@trade");
+        quoteSocket=new WebSocket("wss://fstream.binance.com/market/ws/"+currentSymbol.toLowerCase()+"@aggTrade");
         quoteSocket.onopen=()=>{if(quoteSocket&&quoteSymbol===currentSymbol)renderSharedQuote(NaN);};
         quoteSocket.onmessage=event=>{if(quoteSymbol!==currentSymbol)return;let tick;try{tick=JSON.parse(event.data);}catch(e){return;}const price=Number(tick.p);if(!Number.isFinite(price)||price<=0)return;const ts=Number(tick.T)||Date.now();lastTradePrice=price;lastTradeAt=Date.now();lastWsTradeAt=lastTradeAt;lastQuoteSource="binance-websocket";lastQuoteSourceTimestamp=ts;renderSharedQuote(price);};
         quoteSocket.onerror=()=>{const meta=byId("tvSyncedMeta");if(meta)meta.textContent="Binance trade WebSocket reconnecting; Binance REST ticker fallback is available while ticks are stale."};

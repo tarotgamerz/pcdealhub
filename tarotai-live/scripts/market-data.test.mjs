@@ -692,7 +692,8 @@ test("market-data status reports the actual selected venue rather than a hard-co
 
 test("Binance live chart renders automatic support, resistance, trendlines and shared live ticks", () => {
   assert.match(futuresDesk, /marketVenue="binance"/);
-  assert.match(futuresDesk, /wss:\/\/fstream\.binance\.com\/ws\//);
+  assert.ok(futuresDesk.includes('quoteSocket=new WebSocket("wss://fstream.binance.com/market/ws/"+currentSymbol.toLowerCase()+"@aggTrade")'));
+  assert.equal(futuresDesk.split("wss://fstream.binance.com/ws/").length - 1, 0, "do not use the retired generic Futures WebSocket URL");
   assert.match(futuresDesk, /function drawStructureAnnotations\(candles,currentAtr\)/);
   assert.match(futuresDesk, /Auto support/);
   assert.match(futuresDesk, /Auto resistance/);
