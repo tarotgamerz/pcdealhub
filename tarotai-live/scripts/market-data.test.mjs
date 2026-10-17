@@ -643,11 +643,16 @@ test("demo order ticket uses live agent decision and persistent paper execution,
 });
 
 
-test("Binance Futures depth and aggregate-trade feeds use the current public combined-stream endpoint", () => {
+test("Binance Futures depth and aggregate-trade feeds use their current combined-stream categories", () => {
   const flow = readFileSync(new URL("../public/orderflow-panel.js", import.meta.url), "utf8");
-  assert.equal((flow.match(/wss:\\/\\/fstream\\.binance\\.com\\/public\\/stream\\?streams=/g) || []).length, 2);
-  assert.match(flow, /packet && packet\.data && typeof packet\.data === "object" \? packet\.data : packet/);
-  assert.doesNotMatch(flow, /wss:\\/\\/fstream\\.binance\\.com\\/ws\\//);
+  assert.equal(flow.split("wss://fstream.binance.com/public/stream?streams=").length - 1, 1,
+    "depth must use the Public stream category");
+  assert.equal(flow.split("wss://fstream.binance.com/market/stream?streams=").length - 1, 1,
+    "aggregate trades must use the Market stream category");
+  assert.equal(flow.split("wss://fstream.binance.com/ws/").length - 1, 0,
+    "do not use the retired generic stream URL");
+  assert.ok(flow.includes('packet && packet.data && typeof packet.data === "object" ? packet.data : packet'),
+    "combined stream envelopes must be unwrapped");
 });
 
 test("paper-entry approvals require signed short-lived server tokens, fresh books, and single-use execution", () => {
