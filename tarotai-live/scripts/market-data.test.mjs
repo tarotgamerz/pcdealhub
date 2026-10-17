@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import scenarioEngine from "../public/trading-scenarios.js";
 import { readFileSync } from "node:fs";
 import { findSimilarCases } from "../lib/market-patterns.mjs";
 
@@ -763,4 +764,85 @@ test("all live overlays run on a single interactive chart, with external Trading
   assert.match(futuresDesk, /id="visual-strategy-panel" hidden/);
   assert.match(futuresDesk, /attachChartNavigation\(byId\("liveMarketChart"\)\)/);
   assert.doesNotMatch(futuresDesk, /attachChartNavigation\(byId\("tvSyncedChart"\)\)/);
+});
+
+
+function makeScenarioFixture(count=260) {
+  const candles=[];
+  let previous=100;
+  for(let i=0;i<count;i++){
+    const close=100+i*0.035+Math.sin(i*0.47)*0.75+Math.sin(i*0.13)*0.25;
+    const open=previous;
+    const high=Math.max(open,close)+0.25+(i%7)*0.005;
+    const low=Math.min(open,close)-0.25-(i%5)*0.005;
+    candles.push({time:1700000000000+i*300000,open,high,low,close,volume:100+(i%19),closeTime:1700000000000+(i+1)*300000-1});
+    previous=close;
+  }
+  return candles;
+}
+
+test("scenario forecast uses validated closed candles and returns two conditional chart paths", () => {
+  const candles=makeScenarioFixture();
+  const result=scenarioEngine.buildScenarioForecast(candles,{intervalMs:300000,symbol:"BTCUSDT",interval:"5m",higherTimeframeDirection:"BULLISH"});
+  assert.equal(result.ready,true);
+  assert.equal(result.symbol,"BTCUSDT");
+  assert.equal(result.interval,"5m");
+  assert.equal(result.basedOn,"closed OHLC candles only");
+  assert.equal(result.scenarios.bull.projected.length,4);
+  assert.equal(result.scenarios.bear.projected.length,4);
+  assert.ok(result.scenarios.bull.target>result.close);
+  assert.ok(result.scenarios.bull.invalidation<result.close);
+  assert.ok(result.scenarios.bear.target<result.close);
+  assert.ok(result.scenarios.bear.invalidation>result.close);
+  assert.ok(result.longScore>=0&&result.longScore<=5);
+  assert.ok(result.shortScore>=0&&result.shortScore<=5);
+  assert.match(result.note,/not calibrated probabilities/);
+});
+
+test("scenario engine fails closed on inadequate, invalid, duplicate or unordered candle history", () => {
+  assert.equal(scenarioEngine.buildScenarioForecast([], {intervalMs:300000}).ready,false);
+  const broken=makeScenarioFixture(100);
+  broken[90]={...broken[90],low:broken[90].high+1};
+  assert.equal(scenarioEngine.buildScenarioForecast(broken,{intervalMs:300000}).ready,false);
+  const unordered=makeScenarioFixture(100);[unordered[30],unordered[31]]=[unordered[31],unordered[30]];
+  assert.equal(scenarioEngine.buildScenarioForecast(unordered,{intervalMs:300000}).ready,false);
+  const duplicate=makeScenarioFixture(100);duplicate[51]={...duplicate[51],time:duplicate[50].time};
+  assert.equal(scenarioEngine.backtestScenarioForecast(duplicate).ready,false);
+  const coerced=makeScenarioFixture(100);coerced[99]={...coerced[99],close:String(coerced[99].close)};
+  assert.equal(scenarioEngine.buildScenarioForecast(coerced,{intervalMs:300000}).ready,false);
+  assert.equal(scenarioEngine.backtestScenarioForecast(makeScenarioFixture(80)).ready,false);
+});
+
+test("walk-forward replay is bounded, chronological and never reports impossible percentages", () => {
+  const result=scenarioEngine.backtestScenarioForecast(makeScenarioFixture(260),{horizon:3});
+  assert.equal(result.ready,true);
+  assert.ok(result.candlesUsed<=400);
+  assert.ok(result.signals<=120);
+  assert.equal(result.signals,result.targetFirst+result.stopFirst+result.timeouts);
+  if(result.targetBeforeStopPct!==null)assert.ok(result.targetBeforeStopPct>=0&&result.targetBeforeStopPct<=100);
+  if(result.targetOfAllSignalsPct!==null)assert.ok(result.targetOfAllSignalsPct>=0&&result.targetOfAllSignalsPct<=100);
+  assert.match(result.caveat,/No fees, slippage, funding/);
+});
+
+test("live chart forecast and auto discussion remain visible, safe and automatic", () => {
+  assert.match(futuresDesk, /<script src="\/trading-scenarios\.js"><\/script>/);
+  assert.match(futuresDesk, /id="scenarioForecastPanel"/);
+  assert.match(futuresDesk, /bullForecastSeries=chart\.addLineSeries/);
+  assert.match(futuresDesk, /bearForecastSeries=chart\.addLineSeries/);
+  assert.match(futuresDesk, /renderScenarioForecast\(closed,htf,staleness\)/);
+  assert.ok(futuresDesk.includes('const higherMap={"1m":"15m","3m":"15m","5m":"1h","15m":"4h","30m":"4h","1h":"1d","2h":"1d","4h":"1d","1d":"1d"}'));
+  assert.ok(futuresDesk.includes("Main-timeframe rule replay (no higher-timeframe gate)"));
+  assert.match(futuresDesk, /backtestScenarioForecast\(candles,\{horizon:3\}\)/);
+  assert.match(futuresDesk, /id="autoAgentDiscussionLog"/);
+  assert.match(futuresDesk, /function updateAutoAgentDiscussion\(context\)/);
+  assert.match(futuresDesk, /no extra model-provider calls/i);
+  assert.match(futuresDesk, /textContent=message\.text/);
+});
+
+test("user chart viewport is restored after candle and forecast data updates", () => {
+  assert.match(futuresDesk, /else if\(rangeBefore\)\{try\{chart\.timeScale\(\)\.setVisibleLogicalRange\(rangeBefore\)/);
+  assert.match(futuresDesk, /if\(chart&&!followLive&&rangeBefore\)chart\.timeScale\(\)\.setVisibleLogicalRange\(rangeBefore\)/);
+  assert.match(futuresDesk, /Math\.abs\(event\.clientX-start\.x\)>2\|\|Math\.abs\(event\.clientY-start\.y\)>2/);
+  assert.match(futuresDesk, /byId\("liveGoLive"\)\.addEventListener\("click",\(\)=>setLiveFollow\(true\)\)/);
+  assert.match(futuresDesk, /One synchronized interactive chart is shown in this desk/);
 });
