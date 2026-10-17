@@ -27,6 +27,7 @@ export async function GET(request: Request) {
       headers: { "User-Agent": "TarotAI-ReadOnly-OrderBook" }
     });
     const payload: unknown = await response.json().catch(() => null);
+    const receivedAt = Date.now();
     if (!response.ok) {
       return NextResponse.json({
         error: "Binance futures order-book snapshot request failed.",
@@ -34,8 +35,9 @@ export async function GET(request: Request) {
         readOnly: true
       }, { status: 502, headers: { "Cache-Control": "no-store" } });
     }
-    const snapshot = normalizeDepthSnapshot(symbol, payload);
-    const now = Date.now();
+    const payloadWithReceipt = payload && typeof payload === "object" ? { ...(payload as Record<string, unknown>), receivedAt } : payload;
+    const snapshot = normalizeDepthSnapshot(symbol, payloadWithReceipt);
+    const now = receivedAt;
     const metrics = summarizeOrderBook(snapshot, now);
     if (metrics.snapshotAgeMs !== null && metrics.snapshotAgeMs > 15_000) {
       return NextResponse.json({ error: "Exchange snapshot is stale; retry before using liquidity metrics.", snapshotAgeMs: metrics.snapshotAgeMs, readOnly: true }, { status: 502, headers: { "Cache-Control": "no-store" } });
@@ -44,7 +46,8 @@ export async function GET(request: Request) {
       ...metrics,
       snapshot: { lastUpdateId: snapshot.lastUpdateId, bids: snapshot.bids, asks: snapshot.asks },
       source: "Binance USDⓈ-M Futures REST order book",
-      use: "Seed only: the browser must bridge this update ID with the depth WebSocket before treating the local book as synchronized.",
+      use: "Seed only: the browser must bridge this update ID with depth WebSocket updates before treating the local book as synchronized.",
+      timestampCaveat: metrics.timestampSource === "local-receipt-time" ? "Binance REST depth has no exchange event timestamp; age is measured from local receipt. The browser must sequence-sync it to depth WebSocket updates for a continuously updated book." : "Snapshot timestamp is provided by the exchange; the browser must still sequence-sync a live book.",
       liveOrdersEnabled: false,
       readOnly: true
     }, { headers: { "Cache-Control": "no-store" } });
