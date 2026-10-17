@@ -190,7 +190,7 @@
     <div id="continuousTeamStatus" class="live-agent-consensus warn" aria-live="polite"><strong id="continuousTeamTitle">Continuous team: CONNECTING</strong><span id="continuousTeamDetails">Loading market candles before enabling all eight local rule agents.</span></div>
     <div id="continuousAgentResults" class="live-agent-results"><div class="live-agent-result"><p>Eight local agents will continuously evaluate the live chart once market candles load.</p></div></div>
     <section class="live-agent-room" id="autoAgentDiscussion" aria-label="Automatic market-driven agent discussion">
-      <div class="live-agent-room-head"><strong>Agent discussion · automatic market topic</strong><span>Local evidence agents · no extra API calls</span></div>
+      <div class="live-agent-room-head"><strong>Agent discussion · automatic market topic</strong><span>Rule-based monitoring + model-backed review per fresh closed candle</span></div>
       <div id="autoAgentDiscussionStatus" class="live-agent-room-status" aria-live="polite">Waiting for 80 closed candles and a fresh quote; no topic input is needed.</div>
       <div id="autoAgentDiscussionLog" class="live-agent-room-log" role="log" aria-live="polite" aria-relevant="additions text">
         <article class="live-agent-room-message"><p>The team will select a topic from the live market regime, breakout/rejection state, volatility and risk gates automatically.</p></article>
@@ -807,10 +807,41 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     if(autoDiscussionMessages.length>80)autoDiscussionMessages=autoDiscussionMessages.slice(-80);
     try{localStorage.setItem(autoDiscussionStorageKey,JSON.stringify(autoDiscussionMessages));}catch(e){}
     const status=byId("autoAgentDiscussionStatus");
-    if(status)status.textContent="Topic auto-selected from the latest closed candle · "+c.symbol+" "+c.interval+" · "+new Date(c.candleTime).toLocaleTimeString()+" · local deterministic roles · no extra model-provider calls.";
+    if(status)status.textContent="Topic auto-selected from the latest closed candle · "+c.symbol+" "+c.interval+" · "+new Date(c.candleTime).toLocaleTimeString()+" · local rule discussion posted; model-backed specialist review starts once per fresh candle when your private session is unlocked.";
     renderAutoAgentDiscussion();
   }
   renderAutoAgentDiscussion();
+
+  function appendAiReviewToDiscussion(results,market){
+    if(!Array.isArray(results)||!results.length)return;
+    const cycleKey=String(market?.symbol||currentSymbol)+"|"+String(market?.interval||currentInterval)+"|"+String(market?.lastClosedCandleTime||"");
+    const at=new Date().toISOString();
+    const messages=[{kind:"topic",role:"AI REVIEW · VERIFIED SNAPSHOT",text:"Model-backed specialist review completed for "+(market?.symbol||currentSymbol)+" "+(market?.interval||currentInterval)+" · closed candle "+(market?.lastClosedCandleTime||"timestamp unavailable")+". These are actual endpoint reports; failures and fallback roles remain visible."}];
+    for(const r of results){
+      const model=String(r?.model||"model not reported"),bias=String(r?.bias||"WAIT"),state=r?.ok===false?"FAILED":r?.fallback?"FALLBACK · NOT INDEPENDENT MODEL EVIDENCE":"MODEL REPORT";
+      const body=String(r?.text||r?.detail||r?.error||"No report text returned.").slice(0,1400);
+      messages.push({kind:"ai-review",role:String(r?.name||r?.role||"Unknown specialist")+" · "+state,text:"Model: "+model+" · BIAS: "+bias+" · VETO: "+(r?.veto?"YES":"NO")+"\n"+body});
+    }
+    autoDiscussionMessages.push(...messages.map(m=>({...m,cycleKey:cycleKey+"|ai",at})));
+    if(autoDiscussionMessages.length>80)autoDiscussionMessages=autoDiscussionMessages.slice(-80);
+    try{localStorage.setItem(autoDiscussionStorageKey,JSON.stringify(autoDiscussionMessages));}catch(e){}
+    const status=byId("autoAgentDiscussionStatus");
+    if(status)status.textContent="Model-backed review finished · "+results.filter(r=>r?.ok!==false&&!r?.fallback).length+"/"+results.length+" non-fallback reports · "+(market?.symbol||currentSymbol)+" "+(market?.interval||currentInterval)+" · "+new Date().toLocaleTimeString()+". Supervisor vetoes and provider fallbacks block AI approval.";
+    renderAutoAgentDiscussion();
+  }
+  let lastAutomaticAiReviewKey="",automaticAiReviewInFlight=false;
+  function maybeRunAutomaticAiReview(context){
+    if(!continuousTeamEnabled||document.visibilityState!=="visible"||!context||context.stale||!context.htf?.ready)return;
+    const key=context.symbol+"|"+context.interval+"|"+Number(context.candleTime);
+    if(!key||key===lastAutomaticAiReviewKey||automaticAiReviewInFlight)return;
+    const button=byId("runLiveAgentTeam");
+    if(!button||button.disabled)return;
+    lastAutomaticAiReviewKey=key;
+    automaticAiReviewInFlight=true;
+    const status=byId("liveAgentRunStatus");
+    if(status)status.textContent="Automatic AI review queued for "+context.symbol+" "+context.interval+" · closed candle "+new Date(context.candleTime).toLocaleTimeString()+".";
+    void runLiveAgentTeam({automatic:true}).finally(()=>{automaticAiReviewInFlight=false;});
+  }
 
   function runContinuousAgentCycle(){
     if(!continuousTeamEnabled||document.visibilityState!=="visible"||!rows.length||!candleSeries)return;
@@ -915,6 +946,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     window.tarotaiContinuousAgentReports=reports.map(r=>({role:r.role,bias:r.bias,veto:r.veto,model:r.model,fallback:Boolean(r.fallback)}));
     const approve=!!validLevels&&!localVeto&&!disciplineVeto&&sizeReady&&onSymbol.length===0&&alerts.length===0&&Number.isFinite(drift)&&drift<=.01;
     updateAutoAgentDiscussion({symbol:currentSymbol,interval:currentInterval,candleTime:Number(last.time),close:last.close,ema9:e9[i],ema21:e21[i],ema50:e50[i],rsi:rsiValues[i],atr:atrValues[i],longScore,shortScore,upBreak,downBreak,htf,stale,quoteFresh,action:approve?bias==="LONG"?"BUY / LONG":bias==="SHORT"?"SELL / SHORT":"HOLD / WAIT":"HOLD / WAIT",openCount:onSymbol.length,closedTrades:finished.length});
+    maybeRunAutomaticAiReview({symbol:currentSymbol,interval:currentInterval,candleTime:Number(last.time),stale,htf});
     window.tarotaiContinuousTeamApproval=approve?{symbol:currentSymbol,interval:currentInterval,candleTime:Number(last.time),action:action,source:"continuous-local-team",model:"local-rules-v1",agentVotes:window.tarotaiContinuousAgentReports,checkedAt:now}:null;
     statusPanel.className="live-agent-consensus "+(localVeto?"warn":approve?"good":"warn");
     title.textContent="Continuous local team: "+(localVeto?"8/8 CHECKED · VETO / WAIT":approve?"8/8 CHECKED · "+bias+" SETUP REVIEWED":"8/8 CHECKED · HOLD / WAIT");
@@ -989,7 +1021,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     }catch(e){showAgentAuthGate(e&&e.message?e.message:String(e));}
     finally{button.disabled=false;button.textContent="Unlock & continue";}
   }
-  async function runLiveAgentTeam(){
+  async function runLiveAgentTeam(options={}){
+    if(byId("runLiveAgentTeam").disabled)return;
     window.tarotaiAgentCommitteeApproval=null;
     const runButton=byId("runLiveAgentTeam"),statusEl=byId("liveAgentRunStatus"),summary=byId("liveAgentConsensus");
     const selections=Array.from(document.querySelectorAll("[data-agent-role]")).map(s=>s.value).filter(Boolean);
@@ -1012,7 +1045,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const response=await fetch("/api/trading/agents",{method:"POST",cache:"no-store",credentials:"same-origin",headers:{"Content-Type":"application/json"},signal:AbortSignal.timeout(40000),
         body:JSON.stringify({symbol:currentSymbol,interval:currentInterval,venue:marketVenue,roles:selections,livePrice:Number(rows[rows.length-1]?.close),paperEquity:Number(byId("livePaperBalance")?.value),riskPct:Number(byId("livePaperRisk")?.value),paperLedger:(Array.isArray(window.tarotaiPaperLedger)?window.tarotaiPaperLedger:[]).slice(-20).map(t=>({id:t.id,status:t.status,symbol:t.symbol,side:t.side,quantity:t.quantity,fillPrice:t.fillPrice,stopPrice:t.stopPrice,targetPrice:t.targetPrice,pnlNet:t.pnlNet,createdAt:t.createdAt,closedAt:t.closedAt,parentTradeId:t.parentTradeId}))})});
       const data=await response.json().catch(()=>({}));
-      if(Array.isArray(data.results))renderLiveAgentResults(data.results);
+      if(Array.isArray(data.results)){renderLiveAgentResults(data.results);appendAiReviewToDiscussion(data.results,data.market||{symbol:currentSymbol,interval:currentInterval,lastClosedCandleTime:new Date(closed[closed.length-1].time).toISOString()});}
       if(data.historicalAnalogueStudy)renderHistoricalStudy(data.historicalAnalogueStudy);
       if(!response.ok)throw new Error(data.error||"AI specialist endpoint returned HTTP "+response.status);
       renderHistoricalStudy(data.historicalAnalogueStudy);
@@ -1045,7 +1078,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const committeeApproved=title==="Team consensus: LONG setup reviewed"||title==="Team consensus: SHORT setup reviewed";
       window.tarotaiAgentCommitteeApproval=committeeApproved?{symbol:currentSymbol,interval:currentInterval,candleTime:Number(latestLocal.time),action:baseLong?"BUY / LONG":baseShort?"SELL / SHORT":null,source:"ai-eight-agent-review",model:data.model||"unreported",agentVotes:results.map(r=>({role:r.role,bias:r.bias,veto:r.veto,model:r.model,fallback:Boolean(r.fallback)})),completedAt:Date.now()}:null;
       statusEl.textContent="Finished "+results.filter(r=>r.ok).length+"/8 agents · "+results.filter(r=>!r.ok).length+" failed · "+results.filter(r=>r.role!=="supervisor"&&r.ok).length+"/7 specialists verified · "+(results.find(r=>r.role==="market")?.model||data.model||"model unreported")+" · "+(data.elapsedMs||0)+" ms · "+(data.market?.venue||marketVenue)+".";
-    }catch(e){const message=e&&e.message?e.message:String(e);statusEl.textContent="Analysis failed: "+message;if(/authentication required/i.test(message)){showAgentAuthGate("The server rejected this private session. Unlock again and rerun the team.");}}
+    }catch(e){const message=e&&e.message?e.message:String(e);statusEl.textContent=(options.automatic?"Automatic AI review failed: ":"Analysis failed: ")+message;if(options.automatic){const failedKey=currentSymbol+"|"+currentInterval+"|"+Number(closed[closed.length-1]?.time);autoDiscussionMessages.push({kind:"ai-review",role:"AI REVIEW · SYSTEM",cycleKey:failedKey+"|ai-error",at:new Date().toISOString(),text:"Model-backed review failed for this candle: "+message+". No AI approval was granted; deterministic monitoring remains separate."});if(autoDiscussionMessages.length>80)autoDiscussionMessages=autoDiscussionMessages.slice(-80);try{localStorage.setItem(autoDiscussionStorageKey,JSON.stringify(autoDiscussionMessages));}catch(e){}renderAutoAgentDiscussion();}if(/authentication required/i.test(message)){showAgentAuthGate("The server rejected this private session. Unlock again and rerun the team.");}}
     finally{runButton.disabled=false;}
   }
   async function fetchJSON(url){const r=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(9000)});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.detail||j.error||("HTTP "+r.status));if(j.stale)throw new Error("Exchange data marked stale by the server");if(!Array.isArray(j.candles))throw new Error("Exchange response did not contain candles");return j;}
