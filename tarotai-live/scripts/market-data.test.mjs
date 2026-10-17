@@ -799,11 +799,17 @@ test("scenario forecast uses validated closed candles and returns two conditiona
   assert.match(result.note,/not calibrated probabilities/);
 });
 
-test("scenario engine fails closed on inadequate or invalid candle history", () => {
+test("scenario engine fails closed on inadequate, invalid, duplicate or unordered candle history", () => {
   assert.equal(scenarioEngine.buildScenarioForecast([], {intervalMs:300000}).ready,false);
   const broken=makeScenarioFixture(100);
   broken[90]={...broken[90],low:broken[90].high+1};
   assert.equal(scenarioEngine.buildScenarioForecast(broken,{intervalMs:300000}).ready,false);
+  const unordered=makeScenarioFixture(100);[unordered[30],unordered[31]]=[unordered[31],unordered[30]];
+  assert.equal(scenarioEngine.buildScenarioForecast(unordered,{intervalMs:300000}).ready,false);
+  const duplicate=makeScenarioFixture(100);duplicate[51]={...duplicate[51],time:duplicate[50].time};
+  assert.equal(scenarioEngine.backtestScenarioForecast(duplicate).ready,false);
+  const coerced=makeScenarioFixture(100);coerced[99]={...coerced[99],close:String(coerced[99].close)};
+  assert.equal(scenarioEngine.buildScenarioForecast(coerced,{intervalMs:300000}).ready,false);
   assert.equal(scenarioEngine.backtestScenarioForecast(makeScenarioFixture(80)).ready,false);
 });
 
