@@ -167,7 +167,7 @@ export async function POST(request: Request) {
         from: candles[startIndex]?.time ?? null,
         to: candles[endIndex - 1]?.time ?? null,
         results,
-        warning: results.closedTrades < 10 ? "Fewer than 10 closed trades; metrics are highly uncertain." : null
+        warning: (results as { closedTrades: number }).closedTrades < 10 ? "Fewer than 10 closed trades; metrics are highly uncertain." : null
       };
     });
     const stepMs = getIntervalMs(interval)!;
