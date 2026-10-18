@@ -1017,3 +1017,14 @@ test("the /virtual route serves the dedicated screenshot-inspired order-flow wor
   assert.ok(virtualPage.includes('$("liveSymbol").dispatchEvent(new Event("change"))'), "changing symbol reconnects the depth/trade feed");
   assert.ok(orderflowPanelScript.includes('new CustomEvent("tarotai:orderflow-update"'), "sequence-checked order book publishes to virtual workspace");
 });
+
+
+test("virtual order-flow workspace overlays conditional next-move projections and historical replay", () => {
+  assert.ok(virtualPage.includes('src="/trading-scenarios.js"'), "virtual page loads the existing scenario engine");
+  assert.ok(virtualPage.includes('id="forecastBias"') && virtualPage.includes('id="forecastBull"') && virtualPage.includes('id="forecastBear"'), "bullish and bearish scenario summaries are visible");
+  assert.ok(virtualPage.includes('bullForecastSeries=chart.addLineSeries'), "bullish path is rendered as a chart line");
+  assert.ok(virtualPage.includes('bearForecastSeries=chart.addLineSeries'), "bearish path is rendered as a chart line");
+  assert.ok(virtualPage.includes("engine.buildScenarioForecast"), "live prediction uses the validated scenario engine");
+  assert.ok(virtualPage.includes("engine.backtestScenarioForecast"), "the display includes a bounded historical walk-forward replay");
+  assert.ok(virtualPage.includes("Forecast uses") && virtualPage.includes("current higher-timeframe trend"), "the displayed forecast identifies its candle and trend evidence");
+});
