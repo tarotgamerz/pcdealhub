@@ -1033,6 +1033,8 @@ test("virtual order-flow workspace overlays conditional next-move projections an
   assert.ok(virtualPage.includes("flow.bookAgeMs") && virtualPage.includes("flow.tradeAgeMs"), "flow confirmation rejects stale depth or tape feeds");
   assert.ok(virtualPage.includes('typeof flow.bookAgeMs==="number"') && virtualPage.includes('typeof flow.tradeAgeMs==="number"'), "missing flow timestamps stay unavailable instead of being shown as zero age");
   assert.ok(virtualPage.includes("30m taker delta") && virtualPage.includes("displayed depth imbalance"), "flow confirmation combines observed taker delta and displayed depth");
+  assert.ok(virtualPage.includes("coverageMs<60000") && virtualPage.includes("60 seconds of observed tape"), "flow confirmation waits for a minimum one-minute observed sample and does not mislabel a fresh tab as a full 30-minute window");
+  assert.ok(virtualPage.includes("coverageLabel") && virtualPage.includes("s observed taker delta"), "flow confirmation reports the actual observed tape coverage");
   assert.ok(virtualPage.includes("Heuristic confirmation only, not a calibrated probability"), "flow confirmation is not presented as a calibrated prediction probability");
   assert.ok(orderflowPanelScript.includes("bookAgeMs, tradeAgeMs"), "order-flow publisher exposes independent feed ages");
 });
