@@ -46,9 +46,8 @@
 .live-decision{color:var(--amber)}
 .live-live-price{color:var(--text)}
 .live-chart-shell{position:relative;width:100%;height:clamp(350px,52vw,560px);border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#080d14}
-#liveMarketChart{width:100%;height:100%;position:relative;z-index:0}
-.live-chart-pair{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:stretch;margin-top:3px}
-.flow-chart-shell .flow-chart-note{top:auto;left:auto;right:9px;bottom:8px;max-width:62%;}
+#liveMarketChart,#orderflowBubbleChart{width:100%;height:100%;position:relative;z-index:0}
+.live-chart-pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:stretch;margin-top:3px}
 .live-chart-unit{min-width:0}
 .live-chart-unit-head{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:34px;margin-bottom:6px;color:#dce7f4;font-size:11px;flex-wrap:wrap}
 .live-chart-unit-head strong{font-size:11px;font-weight:850;letter-spacing:.04em}
@@ -227,21 +226,14 @@
     <div class="live-metric"><label>Entry reference</label><strong id="liveEntry">—</strong></div>
     <div class="live-metric"><label>Higher-timeframe trend</label><strong id="liveHtf">CHECKING</strong></div>
   </div>
-  <div class="live-chart-pair single-flow-chart">
-    <section class="live-chart-unit" aria-label="Unified live price and order-flow chart">
-      <div class="live-chart-unit-head">
-        <div><strong>PRICE + ORDER FLOW BUBBLES</strong><span> Candles · small executed-trade bubbles · EMA + trade plan</span></div>
-        <div class="row" style="gap:7px;align-items:center">
-          <strong id="orderflowBubbleStatus" class="chart-unit-status">FLOW · WAITING</strong>
-          <button id="toggleOrderflowBubbles" class="btn" type="button" aria-pressed="true" style="padding:5px 8px;font-size:10px">Hide bubbles</button>
-        </div>
-      </div>
-      <div class="live-chart-shell flow-chart-shell">
-        <div id="liveMarketChart" role="img" aria-label="Single interactive live candlestick chart with small order-flow bubbles, EMA indicators, and trade-plan annotations"></div>
-        <canvas id="orderflowBubbleCanvas" aria-hidden="true"></canvas>
-        <div class="live-chart-overlay"><strong id="liveOverlayDecision">HOLD / WAIT</strong><span id="liveOverlayMeta">Awaiting verified closed candles…</span></div>
-        <div class="flow-chart-note">Small purple bubbles = executed volume · green outline = buyer-initiated · red outline = seller-initiated</div>
-      </div>
+  <div class="live-chart-pair">
+    <section class="live-chart-unit" aria-label="Primary price chart">
+      <div class="live-chart-unit-head"><div><strong>PRICE ACTION</strong><span> Candles · EMA · trade plan</span></div><span class="chart-unit-tag">PRIMARY</span></div>
+      <div class="live-chart-shell"><div id="liveMarketChart" role="img" aria-label="Primary interactive live candlestick chart with EMA indicators and buy, sell, wait, entry, stop loss and take profit annotations"></div><div class="live-chart-overlay"><strong id="liveOverlayDecision">HOLD / WAIT</strong><span id="liveOverlayMeta">Awaiting verified closed candles…</span></div></div>
+    </section>
+    <section class="live-chart-unit" aria-label="Separate live order-flow bubble chart">
+      <div class="live-chart-unit-head"><div><strong>ORDER FLOW · BUBBLES</strong><span> Executed trades + current liquidity</span></div><div class="row" style="gap:7px;align-items:center"><strong id="orderflowBubbleStatus" class="chart-unit-status">FLOW · WAITING</strong><button id="toggleOrderflowBubbles" class="btn" type="button" aria-pressed="true" style="padding:5px 8px;font-size:10px">Hide bubbles</button></div></div>
+      <div class="live-chart-shell flow-chart-shell"><div id="orderflowBubbleChart" role="img" aria-label="Separate interactive candlestick chart with order-flow trade bubbles and current order-book liquidity zones"></div><canvas id="orderflowBubbleCanvas" aria-hidden="true"></canvas><div class="flow-chart-note">Bubble size = observed executed notional · green buy aggressors · red sell aggressors</div></div>
       <div class="flow-chart-legend"><span><i class="flow-dot buy"></i>Buyer-initiated trades</span><span><i class="flow-dot sell"></i>Seller-initiated trades</span><span><i class="flow-line bid"></i>Current bid liquidity</span><span><i class="flow-line ask"></i>Current ask liquidity</span></div>
     </section>
   </div>
@@ -1191,13 +1183,58 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   window.addEventListener("pointerup",clearChartPointer,{capture:true,passive:true});
   window.addEventListener("pointercancel",clearChartPointer,{capture:true,passive:true});
 
-  // Small order-flow bubbles are drawn directly on the primary price chart so their price/time stays aligned.
+  // A separate secondary chart carries order-flow bubbles. The primary chart stays uncluttered.
   let orderflowSnapshot={symbol:"",asOf:0,bookFresh:false,tradeFresh:false,mid:null,bids:[],asks:[],trades:[]};
   let orderflowVisible=true,orderflowResizeObserver=null,orderflowDrawQueued=false,orderflowTape=new Map();
-  function createOrderflowBubbleChart(){ /* Secondary chart removed: bubbles now use the primary chart. */ }
-  function syncOrderflowRange(){ scheduleOrderflowDraw(); }
+  function createOrderflowBubbleChart(){
+    if(!window.LightweightCharts||orderflowChart)return;
+    const host=byId("orderflowBubbleChart");
+    if(!host)return;
+    orderflowChart=window.LightweightCharts.createChart(host,{
+      width:host.clientWidth||700,height:host.clientHeight||440,
+      layout:{background:{type:"solid",color:"#080d14"},textColor:"#95a5b8",fontFamily:"Inter,system-ui,sans-serif"},
+      grid:{vertLines:{color:"#172332"},horzLines:{color:"#172332"}},
+      rightPriceScale:{borderColor:"#29384a",scaleMargins:{top:.12,bottom:.12}},
+      timeScale:{borderColor:"#29384a",timeVisible:true,secondsVisible:false,rightOffset:5,barSpacing:7},
+      crosshair:{mode:window.LightweightCharts.CrosshairMode.Normal},localization:{locale:"en-US"}
+    });
+    orderflowCandleSeries=orderflowChart.addCandlestickSeries({
+      upColor:"#65e6ad",downColor:"#ff7b83",borderUpColor:"#65e6ad",borderDownColor:"#ff7b83",
+      wickUpColor:"#65e6ad",wickDownColor:"#ff7b83",priceLineVisible:true,lastValueVisible:true
+    });
+    if(rows.length)orderflowCandleSeries.setData(rows.map(plotCandle));
+    if(chart){
+      const range=chart.timeScale().getVisibleLogicalRange();
+      if(range){try{orderflowChart.timeScale().setVisibleLogicalRange(range);}catch(e){orderflowChart.timeScale().fitContent();}}
+      else orderflowChart.timeScale().fitContent();
+    }
+    if(typeof ResizeObserver==="function"){
+      orderflowResizeObserver=new ResizeObserver(entries=>{
+        const box=entries[0]&&entries[0].contentRect;
+        if(box&&orderflowChart)orderflowChart.applyOptions({width:Math.max(320,Math.floor(box.width)),height:Math.max(300,Math.floor(box.height))});
+        resizeOrderflowCanvas();scheduleOrderflowDraw();
+      });
+      orderflowResizeObserver.observe(host);
+    }else{
+      window.addEventListener("resize",()=>{if(orderflowChart)orderflowChart.applyOptions({width:Math.max(320,host.clientWidth),height:Math.max(300,host.clientHeight)});resizeOrderflowCanvas();scheduleOrderflowDraw();},{passive:true});
+    }
+    orderflowChart.timeScale().subscribeVisibleLogicalRangeChange(()=>syncOrderflowRange("bubble"));
+    resizeOrderflowCanvas();scheduleOrderflowDraw();
+  }
+  function syncOrderflowRange(source){
+    if(orderflowRangeSyncLock||!chart||!orderflowChart)return;
+    const fromChart=source==="main"?chart:orderflowChart;
+    const toChart=source==="main"?orderflowChart:chart;
+    const range=fromChart.timeScale().getVisibleLogicalRange();
+    if(!range||!Number.isFinite(range.from)||!Number.isFinite(range.to))return;
+    orderflowRangeSyncLock=true;
+    try{toChart.timeScale().setVisibleLogicalRange(range);}catch(e){/* Different loaded history windows can temporarily prevent range matching. */}
+    orderflowRangeSyncLock=false;
+    if(source==="bubble")pauseLiveFollow();
+    scheduleOrderflowDraw();
+  }
   function resizeOrderflowCanvas(){
-    const canvas=byId("orderflowBubbleCanvas"),host=byId("liveMarketChart");
+    const canvas=byId("orderflowBubbleCanvas"),host=byId("orderflowBubbleChart");
     if(!canvas||!host)return;
     const dpr=Math.max(1,Math.min(3,window.devicePixelRatio||1));
     canvas.style.width=host.clientWidth+"px";canvas.style.height=host.clientHeight+"px";
@@ -1211,15 +1248,15 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     requestAnimationFrame(()=>{orderflowDrawQueued=false;drawOrderflowOverlay();});
   }
   function drawOrderflowOverlay(){
-    const canvas=byId("orderflowBubbleCanvas"),host=byId("liveMarketChart");
-    if(!canvas||!host||!chart||!candleSeries)return;
+    const canvas=byId("orderflowBubbleCanvas"),host=byId("orderflowBubbleChart");
+    if(!canvas||!host||!orderflowChart||!orderflowCandleSeries)return;
     resizeOrderflowCanvas();
     const context=canvas.getContext("2d");if(!context)return;
     const dpr=Math.max(1,Math.min(3,window.devicePixelRatio||1)),width=host.clientWidth,height=host.clientHeight;
     context.setTransform(dpr,0,0,dpr,0,0);context.clearRect(0,0,width,height);
-    const statusEl=byId("orderflowBubbleStatus");
+    const statusEl=byId("orderflowBubbleStatus"),toggle=byId("toggleOrderflowBubbles");
     if(!orderflowVisible){
-      if(statusEl)statusEl.textContent="BUBBLES · HIDDEN";
+      if(statusEl)statusEl.textContent="FLOW · HIDDEN";
       return;
     }
     if(!orderflowSnapshot.symbol||orderflowSnapshot.symbol!==currentSymbol){
@@ -1230,11 +1267,11 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     const tradesLive=orderflowSnapshot.tradeFresh===true&&now-Number(orderflowSnapshot.asOf||0)<=15000;
     if(statusEl){
       statusEl.textContent=bookLive&&tradesLive?"FLOW · LIVE":bookLive?"DEPTH · LIVE":tradesLive?"TRADES · LIVE":"FLOW · STALE";
-      statusEl.style.color=bookLive&&tradesLive?"var(--green)":tradesLive?"var(--amber)":"var(--red)";
+      statusEl.style.color=bookLive?"var(--green)":tradesLive?"var(--amber)":"var(--red)";
       statusEl.style.borderColor=bookLive&&tradesLive?"#2c5949":"#65512d";
     }
-    // Leave the price scale clear; the overlay coordinates are from this exact same chart.
     const plotRight=Math.max(30,width-72),top=2,bottom=22;
+    // Live resting-order liquidity bands are deliberately restricted to the latest book snapshot.
     if(bookLive&&Number.isFinite(Number(orderflowSnapshot.mid))){
       const levels=[];
       for(const level of orderflowSnapshot.bids||[])if(Number.isFinite(Number(level.price))&&Number.isFinite(Number(level.notional)))levels.push({...level,side:"bid"});
@@ -1242,21 +1279,21 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const maxNotional=Math.max(1,...levels.map(level=>Number(level.notional)||0));
       const zoneStart=Math.max(12,Math.min(plotRight-18,width*.69));
       for(const level of levels){
-        const y=candleSeries.priceToCoordinate(Number(level.price));
+        const y=orderflowCandleSeries.priceToCoordinate(Number(level.price));
         if(!Number.isFinite(y)||y<top||y>height-bottom)continue;
         const ratio=Math.max(0,Math.min(1,Math.sqrt((Number(level.notional)||0)/maxNotional)));
         const color=level.side==="bid"?"#8d78ff":"#73aaff";
         context.globalAlpha=.035+ratio*.12;context.fillStyle=color;context.fillRect(zoneStart,y-2,Math.max(2,plotRight-zoneStart),4);
-        context.globalAlpha=.18+ratio*.48;context.strokeStyle=color;context.lineWidth=1;
+        context.globalAlpha=.18+ratio*.56;context.strokeStyle=color;context.lineWidth=1+ratio*1.4;
         context.beginPath();context.moveTo(zoneStart,y);context.lineTo(plotRight-5,y);context.stroke();
-        context.beginPath();context.arc(plotRight-6,y,2+ratio*2.2,0,Math.PI*2);context.fillStyle=color;context.fill();
+        context.beginPath();context.arc(plotRight-6,y,2.2+ratio*5.8,0,Math.PI*2);context.fillStyle=color;context.fill();
       }
-      const midY=candleSeries.priceToCoordinate(Number(orderflowSnapshot.mid));
-      if(Number.isFinite(midY)&&midY>=top&&midY<=height-bottom){context.globalAlpha=.55;context.strokeStyle="#9aa9bd";context.setLineDash([3,4]);context.beginPath();context.moveTo(0,midY);context.lineTo(plotRight,midY);context.stroke();context.setLineDash([]);}
+      const midY=orderflowCandleSeries.priceToCoordinate(Number(orderflowSnapshot.mid));
+      if(Number.isFinite(midY)&&midY>=top&&midY<=height-bottom){context.globalAlpha=.65;context.strokeStyle="#9aa9bd";context.setLineDash([3,4]);context.beginPath();context.moveTo(0,midY);context.lineTo(plotRight,midY);context.stroke();context.setLineDash([]);}
       context.globalAlpha=1;
     }
-    // Plot only observed trades. Purple fill represents executed notional; outline represents aggressor side.
-    const range=chart.timeScale().getVisibleRange();
+    // Keep only actual observed aggregate trades, deduplicated across the rolling feed snapshots.
+    const range=orderflowChart.timeScale().getVisibleRange();
     const from=range&&Number.isFinite(Number(range.from))?Number(range.from)-60:now/1000-900;
     const to=range&&Number.isFinite(Number(range.to))?Number(range.to)+60:now/1000+5;
     const tape=Array.from(orderflowTape.values()).filter(t=>t.time/1000>=from&&t.time/1000<=to&&now-t.time<=30*60*1000);
@@ -1264,34 +1301,30 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       const quoteRanks=tape.map(t=>t.quote).filter(Number.isFinite).sort((a,b)=>a-b);
       const quoteScale=quoteRanks.length?Math.max(1,quoteRanks[Math.floor((quoteRanks.length-1)*.9)]):1;
       for(const trade of tape){
-        const x=chart.timeScale().timeToCoordinate(Math.floor(trade.time/1000));
-        const y=candleSeries.priceToCoordinate(trade.price);
+        const x=orderflowChart.timeScale().timeToCoordinate(Math.floor(trade.time/1000));
+        const y=orderflowCandleSeries.priceToCoordinate(trade.price);
         if(!Number.isFinite(x)||!Number.isFinite(y)||x<1||x>plotRight||y<top||y>height-bottom)continue;
-        const ratio=Math.min(1.35,Math.sqrt(Math.max(0,trade.quote)/quoteScale));
-        const radius=Math.max(1.8,Math.min(5.2,1.8+ratio*2.5));
+        const ratio=Math.max(0,Math.min(1.25,Math.sqrt(Math.max(0,trade.quote)/quoteScale)));
+        const radius=Math.max(1.9,Math.min(5.2,1.9+ratio*2.6));
         const sideColor=trade.side==="buy"?"#65e6ad":"#ff7b83";
-        context.globalAlpha=.34+Math.min(.3,ratio*.18);
+        context.globalAlpha=.28+Math.min(.3,ratio*.2);
         context.beginPath();context.arc(x,y,radius,0,Math.PI*2);context.fillStyle="#9b83ff";context.fill();
-        context.globalAlpha=.92;context.strokeStyle=sideColor;context.lineWidth=.9;context.stroke();
-        context.globalAlpha=1;
+        context.globalAlpha=.94;context.strokeStyle=sideColor;context.lineWidth=.9;context.stroke();context.globalAlpha=1;
       }
+    }else{
+      context.globalAlpha=.8;context.fillStyle="#9aabbe";context.font="11px system-ui";context.fillText(tradesLive?"Receiving trade tape…":"Waiting for fresh aggregate trades…",14,32);context.globalAlpha=1;
     }
   }
   function initOrderflowOverlay(){
-    const canvas=byId("orderflowBubbleCanvas"),host=byId("liveMarketChart"),toggle=byId("toggleOrderflowBubbles");
+    const canvas=byId("orderflowBubbleCanvas"),host=byId("orderflowBubbleChart"),toggle=byId("toggleOrderflowBubbles");
     if(!canvas||!host)return;
+    createOrderflowBubbleChart();
     if(toggle)toggle.addEventListener("click",()=>{
       orderflowVisible=!orderflowVisible;
       toggle.setAttribute("aria-pressed",String(orderflowVisible));
       toggle.textContent=orderflowVisible?"Hide bubbles":"Show bubbles";
       scheduleOrderflowDraw();
     });
-    if(typeof ResizeObserver==="function"){
-      orderflowResizeObserver=new ResizeObserver(()=>{resizeOrderflowCanvas();scheduleOrderflowDraw();});
-      orderflowResizeObserver.observe(host);
-    }else{
-      window.addEventListener("resize",()=>{resizeOrderflowCanvas();scheduleOrderflowDraw();},{passive:true});
-    }
     document.addEventListener("tarotai:orderflow-update",event=>{
       const detail=event&&event.detail;
       if(!detail||typeof detail.symbol!=="string")return;
@@ -1309,7 +1342,8 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
       }
       scheduleOrderflowDraw();
     });
-    if(chart)chart.timeScale().subscribeVisibleLogicalRangeChange(()=>scheduleOrderflowDraw());
+    if(chart)chart.timeScale().subscribeVisibleLogicalRangeChange(()=>{syncOrderflowRange("main");scheduleOrderflowDraw();});
+    if(orderflowChart)orderflowChart.timeScale().subscribeVisibleLogicalRangeChange(()=>scheduleOrderflowDraw());
     resizeOrderflowCanvas();scheduleOrderflowDraw();
   }
 
@@ -1394,6 +1428,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   byId("liveLoadOlder").addEventListener("click",()=>loadOlderHistory());
   byId("liveGoLive").addEventListener("click",()=>setLiveFollow(true));
   attachChartNavigation(byId("liveMarketChart"));
+  attachChartNavigation(byId("orderflowBubbleChart"));
   byId("liveRefresh").addEventListener("click",()=>refresh(true));
   const liveAgentPanel=byId("liveAgentPanel"),toggleLiveAgentTeam=byId("toggleLiveAgentTeam");
   toggleLiveAgentTeam.addEventListener("click",()=>{
