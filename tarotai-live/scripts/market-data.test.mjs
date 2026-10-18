@@ -1031,6 +1031,7 @@ test("virtual order-flow workspace overlays conditional next-move projections an
   assert.ok(virtualPage.includes("Forecast uses") && virtualPage.includes("current higher-timeframe trend"), "the displayed forecast identifies its candle and trend evidence");
   assert.ok(virtualPage.includes('id="forecastFlowStatus"') && virtualPage.includes("function updateForecastFlowStatus()"), "virtual forecast shows live order-flow confirmation");
   assert.ok(virtualPage.includes("flow.bookAgeMs") && virtualPage.includes("flow.tradeAgeMs"), "flow confirmation rejects stale depth or tape feeds");
+  assert.ok(virtualPage.includes('typeof flow.bookAgeMs==="number"') && virtualPage.includes('typeof flow.tradeAgeMs==="number"'), "missing flow timestamps stay unavailable instead of being shown as zero age");
   assert.ok(virtualPage.includes("30m taker delta") && virtualPage.includes("displayed depth imbalance"), "flow confirmation combines observed taker delta and displayed depth");
   assert.ok(virtualPage.includes("Heuristic confirmation only, not a calibrated probability"), "flow confirmation is not presented as a calibrated prediction probability");
   assert.ok(orderflowPanelScript.includes("bookAgeMs, tradeAgeMs"), "order-flow publisher exposes independent feed ages");

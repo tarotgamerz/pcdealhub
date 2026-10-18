@@ -270,7 +270,7 @@ function clearVirtualForecast(message){
 }
 function updateForecastFlowStatus(){
  const el=$("forecastFlowStatus");if(!el)return;
- const now=Date.now(),bookAge=Number(flow.bookAgeMs),tapeAge=Number(flow.tradeAgeMs);
+ const now=Date.now(),bookAge=typeof flow.bookAgeMs==="number"&&Number.isFinite(flow.bookAgeMs)?flow.bookAgeMs:NaN,tapeAge=typeof flow.tradeAgeMs==="number"&&Number.isFinite(flow.tradeAgeMs)?flow.tradeAgeMs:NaN;
  const bookFresh=flow.bookFresh===true&&Number.isFinite(bookAge)&&bookAge>=0&&bookAge<=15000;
  const tapeFresh=flow.tradeFresh===true&&Number.isFinite(tapeAge)&&tapeAge>=0&&tapeAge<=15000;
  const recent=Array.from(tradeStore.values()).filter(t=>Number.isFinite(t.time)&&t.time>=now-30*60*1000&&t.time<=now+5000&&Number.isFinite(t.quote)&&t.quote>0);
