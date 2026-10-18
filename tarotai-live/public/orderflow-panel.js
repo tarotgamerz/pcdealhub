@@ -308,10 +308,12 @@
       }
     }
     const tradeFresh = Boolean(lastTakerMessageAt && now - lastTakerMessageAt <= 15000);
+    const bookAgeMs = book.lastMessageAt ? Math.max(0, now - book.lastMessageAt) : null;
+    const tradeAgeMs = lastTakerMessageAt ? Math.max(0, now - lastTakerMessageAt) : null;
     const recentTrades = tradeFresh ? liveTrades.filter(trade => Number.isFinite(trade.price) && Number.isFinite(trade.qty) && trade.price > 0 && trade.qty > 0)
       .slice(-500).map(trade => ({time: trade.time, price: trade.price, qty: trade.qty, quote: Math.abs(trade.quote), side: trade.quote >= 0 ? "buy" : "sell"})) : [];
     document.dispatchEvent(new CustomEvent("tarotai:orderflow-update", {
-      detail: {symbol: activeSymbol, asOf: now, bookFresh, tradeFresh, mid, bids, asks, trades: recentTrades}
+      detail: {symbol: activeSymbol, asOf: now, bookFresh, tradeFresh, bookAgeMs, tradeAgeMs, mid, bids, asks, trades: recentTrades}
     }));
   }
 
