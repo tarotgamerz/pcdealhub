@@ -108,6 +108,14 @@
     };
   }
 
+  // Keep scenario targets beyond the relevant breakout/breakdown trigger. A target
+  // derived only from the last close can otherwise sit on the wrong side of its trigger.
+  function targetBeyondTrigger(sign, close, volatility, trigger) {
+    return sign > 0
+      ? Math.max(close + volatility * 1.5, trigger + volatility)
+      : Math.min(close - volatility * 1.5, trigger - volatility);
+  }
+
   function buildScenarioForecast(input, options) {
     const opts = options || {};
     const intervalMs = Number(opts.intervalMs);
@@ -144,7 +152,7 @@
     const makeScenario = (side) => {
       const sign = side === "BULL" ? 1 : -1;
       const trigger = side === "BULL" ? priorHigh : priorLow;
-      const target = last.close + sign * scored.atr * 1.5;
+      const target = targetBeyondTrigger(sign, last.close, scored.atr, trigger);
       const invalidation = last.close - sign * scored.atr;
       const progress = [0.22, 0.50, 0.82, 1.0];
       return {
@@ -219,7 +227,8 @@
       if (!setup || setup.signal === "NONE" || !Number.isFinite(setup.atr) || setup.atr <= 0) continue;
       signals++;
       const sign = setup.signal === "LONG" ? 1 : -1;
-      const target = setup.last.close + sign * setup.atr * 1.5;
+      const trigger = sign > 0 ? setup.priorHigh : setup.priorLow;
+      const target = targetBeyondTrigger(sign, setup.last.close, setup.atr, trigger);
       const stop = setup.last.close - sign * setup.atr;
       let outcome = "TIMEOUT";
       for (let j = i + 1; j <= Math.min(candles.length - 1, i + horizon); j++) {

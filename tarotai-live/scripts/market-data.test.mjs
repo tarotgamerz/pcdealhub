@@ -876,8 +876,10 @@ test("scenario forecast uses validated closed candles and returns two conditiona
   assert.equal(result.scenarios.bull.projected.length,4);
   assert.equal(result.scenarios.bear.projected.length,4);
   assert.ok(result.scenarios.bull.target>result.close);
+  assert.ok(result.scenarios.bull.target>result.scenarios.bull.trigger, "bullish target must be beyond its resistance-break trigger");
   assert.ok(result.scenarios.bull.invalidation<result.close);
   assert.ok(result.scenarios.bear.target<result.close);
+  assert.ok(result.scenarios.bear.target<result.scenarios.bear.trigger, "bearish target must be beyond its support-break trigger");
   assert.ok(result.scenarios.bear.invalidation>result.close);
   assert.ok(result.longScore>=0&&result.longScore<=5);
   assert.ok(result.shortScore>=0&&result.shortScore<=5);
