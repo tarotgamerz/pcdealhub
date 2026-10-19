@@ -88,6 +88,7 @@
     try {
       const response = await fetch("/api/trading/orderbook?symbol=" + encodeURIComponent(activeSymbol), {
         method: "GET", cache: "no-store", credentials: "same-origin",
+        signal: AbortSignal.timeout(6500),
         headers: { "Accept": "application/json" }
       });
       const data = await response.json().catch(() => ({}));

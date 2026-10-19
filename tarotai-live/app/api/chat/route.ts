@@ -26,9 +26,9 @@ function normalizeMessages(input: unknown) {
   if (!Array.isArray(input)) return [];
   return input
     .filter((m: any) => m && ["user", "assistant"].includes(m.role))
-    .map((m: any) => ({ role: m.role, content: String(m.content ?? "") }))
+    .map((m: any) => ({ role: m.role, content: String(m.content ?? "").slice(0, 12_000) }))
     .filter((m: any) => m.content.length > 0)
-    .slice(-40);
+    .slice(-30);
 }
 
 function normalizeDocuments(input: unknown) {
