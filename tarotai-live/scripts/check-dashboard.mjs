@@ -1,21 +1,51 @@
 import { readFileSync } from "node:fs";
 import { Script } from "node:vm";
 
-const pages = ["console.html", "agents.html", "trading-desk.html", "trading.html"];
+const pages = ["console.html", "agents.html", "trading-desk.html", "trading.html", "virtual.html"];
+const htmlByPage = new Map();
+
 for (const page of pages) {
   const html = readFileSync(new URL("../public/" + page, import.meta.url), "utf8");
-  const matches = [...html.matchAll(/<script>([\s\S]*?)<\/script>/gi)];
-  if (matches.length !== 1) {
-    throw new Error("Expected exactly one inline script in " + page + "; found " + matches.length);
+  htmlByPage.set(page, html);
+  const scripts = [...html.matchAll(/<script\\b([^>]*)>([\\s\\S]*?)<\\/script>/gi)]
+    .filter((match) => !/\\bsrc\\s*=/.test(match[1]))
+    .map((match) => match[2])
+    .filter((script) => script.trim().length > 0);
+  if (!scripts.length) {
+    throw new Error("Expected at least one inline script in " + page);
   }
-  new Script(matches[0][1], { filename: page + ":inline-script" });
+  for (const [index, source] of scripts.entries()) {
+    new Script(source, { filename: page + ":inline-script-" + (index + 1) });
+  }
   if (page === "trading-desk.html") {
-    const monitor = readFileSync(new URL("../public/live-agent-monitor.js", import.meta.url), "utf8");
-    new Script(monitor, { filename: "live-agent-monitor.js" });
-    console.log("live-agent-monitor.js syntax check passed");
-    const orderflow = readFileSync(new URL("../public/orderflow-panel.js", import.meta.url), "utf8");
-    new Script(orderflow, { filename: "orderflow-panel.js" });
-    console.log("orderflow-panel.js syntax check passed");
+    for (const file of ["live-agent-monitor.js", "orderflow-panel.js"]) {
+      const source = readFileSync(new URL("../public/" + file, import.meta.url), "utf8");
+      new Script(source, { filename: file });
+      console.log(file + " syntax check passed");
+    }
+  }
+  if (page === "virtual.html") {
+    if (!html.includes('id="bubbleChart"') || !html.includes('id="bubbleOverlay"') ||
+        !html.includes('id="liquidityProfileCanvas"')) {
+      throw new Error("Virtual order-flow chart is missing required chart layers.");
+    }
+    if (!html.includes("signal:AbortSignal.timeout(9000)")) {
+      throw new Error("Virtual chart candle-history request must have a bounded timeout.");
+    }
+    if (!html.includes("cdn.jsdelivr.net/npm/lightweight-charts@4.2.3")) {
+      throw new Error("Virtual chart must have a chart-library CDN fallback.");
+    }
+    const liveStart = html.indexOf("startKlineSocket(run);redraw();void renderVirtualForecast");
+    const blockingForecast = html.indexOf("await renderVirtualForecast(run,{force:true,fit:true})");
+    if (liveStart < 0 || blockingForecast >= 0) {
+      throw new Error("Live candle streaming must start before asynchronous forecast work.");
+    }
+    if (!html.includes("Conditional bullish path") || !html.includes("Conditional bearish path")) {
+      throw new Error("Virtual chart must expose both conditional trend scenarios.");
+    }
+    if (!html.includes("No exchange order was sent.")) {
+      throw new Error("Virtual chart must clearly label paper-only order actions.");
+    }
   }
   console.log(page + " inline JavaScript syntax check passed");
 }
