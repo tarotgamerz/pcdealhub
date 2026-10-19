@@ -170,7 +170,10 @@ export async function POST(request: Request) {
         warning: (results as { closedTrades: number }).closedTrades < 10 ? "Fewer than 10 closed trades; metrics are highly uncertain." : null
       };
     });
-    const evidenceAssessment = assessBacktestEvidence(test, holdoutSlices);
+    const evidenceAssessment = assessBacktestEvidence(
+      test as unknown as { closedTrades: number; netReturnPct: number; profitFactor: number | null; maxDrawdownPct: number },
+      holdoutSlices as unknown as Array<{ results: { closedTrades: number; netReturnPct: number } | null }>
+    );
     const stepMs = getIntervalMs(interval)!;
     return NextResponse.json({
       mode: "RESEARCH_ONLY_NO_ORDERS",
