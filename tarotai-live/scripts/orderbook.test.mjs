@@ -4,6 +4,7 @@ import { normalizeDepthSnapshot, summarizeOrderBook } from "../lib/orderbook.mjs
 import { readFileSync } from "node:fs";
 
 const orderflowPanelSource = readFileSync(new URL("../public/orderflow-panel.js", import.meta.url), "utf8");
+const orderbookRouteSource = readFileSync(new URL("../app/api/trading/orderbook/route.ts", import.meta.url), "utf8");
 
 const payload = {
   lastUpdateId: 12345,
@@ -68,4 +69,17 @@ test("routes Binance Futures depth and aggregate trades to their documented stre
     orderflowPanelSource,
     /new WebSocket\("wss:\/\/fstream\.binance\.com\/public\/stream\?streams=" \+ symbol\.toLowerCase\(\) \+ "@aggTrade"\)/
   );
+});
+
+
+test("public read-only depth snapshot is available without the private AI session", () => {
+  assert.doesNotMatch(orderbookRouteSource, /isAuthorized|TAROTAI_ACCESS_CODE/);
+  assert.match(orderbookRouteSource, /fapi\.binance\.com\/fapi\/v1\/depth/);
+  assert.match(orderbookRouteSource, /liveOrdersEnabled: false/);
+  assert.match(orderbookRouteSource, /readOnly: true/);
+});
+
+test("initial local order book bridges the REST snapshot at lastUpdateId plus one", () => {
+  assert.match(orderflowPanelSource, /const firstRequiredUpdateId = book\.lastUpdateId \+ 1/);
+  assert.match(orderflowPanelSource, /Number\(first\.U\) <= firstRequiredUpdateId && Number\(first\.u\) >= firstRequiredUpdateId/);
 });

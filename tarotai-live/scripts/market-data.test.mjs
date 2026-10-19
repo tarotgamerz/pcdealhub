@@ -35,6 +35,13 @@ const virtualPage = readFileSync(new URL("../public/virtual.html", import.meta.u
 const orderflowPanelScript = readFileSync(new URL("../public/orderflow-panel.js", import.meta.url), "utf8");
 const nextConfig = readFileSync(new URL("../next.config.mjs", import.meta.url), "utf8");
 
+test("order-flow page may be embedded by the same-origin trading desk only", () => {
+  assert.match(nextConfig, /Content-Security-Policy/);
+  assert.match(nextConfig, /frame-ancestors/);
+  assert.doesNotMatch(nextConfig, /X-Frame-Options.*DENY/);
+  assert.match(tradingDeskPage, /class="virtual-orderflow-frame"/);
+});
+
 test("market feeds use production public endpoints, never demo or testnet prices", () => {
   assert.match(source, /https:\/\/fapi\.binance\.com\/fapi\/v1\/klines/);
   assert.match(source, /https:\/\/api\.bybit\.com\/v5\/market\/kline/);
