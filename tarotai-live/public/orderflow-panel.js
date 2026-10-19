@@ -290,9 +290,37 @@
     const maxNotional = Math.max(...levels.map(([price, qty]) => price * qty), 1);
     for (const [price, qty] of levels) container.append(createLevelRow(side, price, qty, price * qty, maxNotional));
   }
+  function publishChartFlow(now, liveTrades) {
+    let bookFresh = Boolean(book.synced && book.lastMessageAt && now - book.lastMessageAt <= 15000);
+    let mid = null, bids = [], asks = [];
+    if (bookFresh) {
+      const bestBid = bestLevel(book.bids, true), bestAsk = bestLevel(book.asks, false);
+      if (!bestBid || !bestAsk || bestBid[0] >= bestAsk[0]) {
+        bookFresh = false;
+      } else {
+        mid = (bestBid[0] + bestAsk[0]) / 2;
+        const compact = (map, isBid) => Array.from(map, ([price, qty]) => ({price, qty, notional: price * qty}))
+          .filter(level => isBid ? level.price < mid && level.price >= mid * 0.995 : level.price > mid && level.price <= mid * 1.005)
+          .sort((a, b) => b.notional - a.notional)
+          .slice(0, 45);
+        bids = compact(book.bids, true);
+        asks = compact(book.asks, false);
+      }
+    }
+    const tradeFresh = Boolean(lastTakerMessageAt && now - lastTakerMessageAt <= 15000);
+    const bookAgeMs = book.lastMessageAt ? Math.max(0, now - book.lastMessageAt) : null;
+    const tradeAgeMs = lastTakerMessageAt ? Math.max(0, now - lastTakerMessageAt) : null;
+    const recentTrades = tradeFresh ? liveTrades.filter(trade => Number.isFinite(trade.price) && Number.isFinite(trade.qty) && trade.price > 0 && trade.qty > 0)
+      .slice(-500).map(trade => ({time: trade.time, price: trade.price, qty: trade.qty, quote: Math.abs(trade.quote), side: trade.quote >= 0 ? "buy" : "sell"})) : [];
+    document.dispatchEvent(new CustomEvent("tarotai:orderflow-update", {
+      detail: {symbol: activeSymbol, asOf: now, bookFresh, tradeFresh, bookAgeMs, tradeAgeMs, mid, bids, asks, trades: recentTrades}
+    }));
+  }
+
   function render() {
     const now = Date.now();
     const liveTrades = trades.filter((trade) => now - trade.time <= 60_000 && now >= trade.time - 5000);
+    publishChartFlow(now, liveTrades);
     let buy = 0, sell = 0;
     for (const trade of liveTrades) {
       if (trade.quote > 0) buy += trade.quote; else sell += -trade.quote;
