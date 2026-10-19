@@ -802,13 +802,13 @@ test("redundant visual strategy chart stays hidden and stops its polling loop", 
   assert.ok(futuresDesk.includes("!$('visual-strategy-panel')?.hidden&&!$('drawStrategy').disabled"));
 });
 
-test("primary chart stays intact and execution-routing architecture replaces the duplicate bubble chart", () => {
+test("primary chart stays intact and live virtual order flow replaces the execution map", () => {
   assert.match(futuresDesk, /id="liveMarketChart"/);
-  assert.match(futuresDesk, /class="execution-map-shell"/);
-  for (const stage of ["Trader / Investor", "OMS / EMS", "Retail Broker / DMA", "Prime Broker", "Smart Order Router (SOR)", "Lit Exchanges", "Dark Pools", "OTC / Market Makers", "Clearing House (CCP)", "Central Depository & Settlement"]) {
-    assert.ok(futuresDesk.includes(stage), "execution architecture includes " + stage);
-  }
-  assert.match(futuresDesk, /TarotAI only reaches the exchanges and APIs actually configured/);
+  assert.match(futuresDesk, /class="virtual-orderflow-frame"/);
+  assert.match(futuresDesk, /src="\/virtual\.html"/);
+  assert.match(futuresDesk, /href="\/virtual\.html"/);
+  assert.match(futuresDesk, /LIVE VIRTUAL ORDER FLOW/);
+  assert.doesNotMatch(futuresDesk, /class="execution-map-shell"|class="exec-node/);
   assert.doesNotMatch(futuresDesk, /id="orderflowBubbleChart"|id="orderflowBubbleCanvas"|orderflowChart=window\.LightweightCharts\.createChart/);
   assert.match(futuresDesk, /id="tvOpenExternal"/);
   assert.doesNotMatch(futuresDesk, /id="tradingview-panel"/);
