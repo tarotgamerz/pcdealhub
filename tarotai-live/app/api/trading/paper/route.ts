@@ -3,6 +3,7 @@ import { Redis } from "@upstash/redis";
 import { isAuthorized } from "../../../../lib/auth";
 import { applySlippage, calculateFee, isStale, validateStops, resolveStopTarget } from "../../../../lib/trading-rules.mjs";
 import { verifyPaperApprovalToken } from "../../../../lib/paper-approval.mjs";
+import { claimPaperOpenSlot } from "../../../../lib/paper-position-guard.mjs";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 function store(){const url=process.env.UPSTASH_REDIS_REST_URL,token=process.env.UPSTASH_REDIS_REST_TOKEN;if(!url||!token)throw new Error("STORE_OFF");return new Redis({url,token});}
@@ -188,6 +189,10 @@ export async function POST(req:Request){
    closeClaimKey="tarotai:paper:close-claims:"+parentTrade.id;
    const closeClaim=await d.set(closeClaimKey,"1",{ex:120,nx:true});
    if(!closeClaim)return NextResponse.json({error:"A close or stop/target event is already being recorded for this paper position. Refresh the ledger before retrying.",liveTradingEnabled:false},{status:409});
+  }
+  if(action==="OPEN"){
+   const slot=await claimPaperOpenSlot(d,symbol);
+   if(!slot.claimed)return NextResponse.json({error:"Another paper entry for this symbol is already being recorded. Refresh the ledger before retrying.",liveTradingEnabled:false},{status:409});
   }
   try{await d.lpush("tarotai:paper:ledger",JSON.stringify(trade));await d.ltrim("tarotai:paper:ledger",0,999);}
   catch(error){if(closeClaimKey)await d.del(closeClaimKey);throw error;}
