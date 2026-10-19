@@ -24,3 +24,16 @@ export function runSmaCrossoverBacktest(
   options?: BacktestOptions
 ): Record<string, unknown>;
 export function getIntervalMs(interval: string): number | null;
+
+export type BacktestEvidenceStatus = "INSUFFICIENT_EVIDENCE" | "DO_NOT_ADVANCE" | "PAPER_FORWARD_TEST_ONLY";
+export function assessBacktestEvidence(
+  testResults: { closedTrades: number; netReturnPct: number; profitFactor: number | null; maxDrawdownPct: number },
+  holdoutSlices: Array<{ results: { closedTrades: number; netReturnPct: number } | null }>
+): {
+  status: BacktestEvidenceStatus;
+  mayStartPaperForwardTest: boolean;
+  mayPlaceLiveOrders: false;
+  thresholds: Record<string, number>;
+  observed: Record<string, number | null>;
+  reasons: string[];
+};
