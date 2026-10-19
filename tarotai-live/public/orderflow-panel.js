@@ -142,10 +142,11 @@
   }
   function trySynchronize(runId) {
     if (runId !== generation || book.lastUpdateId == null || book.synced || snapshotInFlight) return;
-    const index = bufferedDepth.findIndex((event) => Number(event.u) >= book.lastUpdateId);
+    const firstRequiredUpdateId = book.lastUpdateId + 1;
+    const index = bufferedDepth.findIndex((event) => Number(event.u) >= firstRequiredUpdateId);
     if (index < 0) return;
     const first = bufferedDepth[index];
-    if (!(Number(first.U) <= book.lastUpdateId && Number(first.u) >= book.lastUpdateId)) {
+    if (!(Number(first.U) <= firstRequiredUpdateId && Number(first.u) >= firstRequiredUpdateId)) {
       if (Number(first.U) > book.lastUpdateId) requestResync("snapshot ID was skipped", runId);
       return;
     }
