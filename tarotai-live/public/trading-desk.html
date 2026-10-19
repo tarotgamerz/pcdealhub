@@ -1496,4 +1496,14 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
   window.addEventListener("beforeunload",()=>{if(pollTimer)clearInterval(pollTimer);if(quoteFallbackTimer)clearInterval(quoteFallbackTimer);if(feedSocket)feedSocket.close();if(quoteSocket)quoteSocket.close();if(resizeObserver)resizeObserver.disconnect();});
 })();
 
-</script><script src="/live-agent-monitor.js"></script><script src="/orderflow-panel.js"></script></body></html>
+</script><script src="/live-agent-monitor.js"></script><script src="/orderflow-panel.js"></script>
+<script>
+/* Keep the live order-flow workspace on the exact market and interval selected by the primary candlestick chart. */
+(()=>{const frame=document.querySelector(".virtual-orderflow-frame");const symbol=document.getElementById("liveSymbol");const interval=document.getElementById("liveInterval");if(!frame||!symbol||!interval)return;
+const supportedIntervals=new Set(["1m","5m","15m","1h","4h"]);
+function syncToFlow(){if(!frame.contentWindow)return;frame.contentWindow.postMessage({type:"tarotai:sync-market",symbol:symbol.value,interval:supportedIntervals.has(interval.value)?interval.value:"15m"},"*");}
+window.addEventListener("message",event=>{if(event.source!==frame.contentWindow||!event.data||event.data.type!=="tarotai:sync-market")return;const data=event.data;let changed=false;if(Array.from(symbol.options).some(o=>o.value===data.symbol)&&symbol.value!==data.symbol){symbol.value=data.symbol;changed=true;}if(Array.from(interval.options).some(o=>o.value===data.interval)&&interval.value!==data.interval){interval.value=data.interval;changed=true;}if(changed){if(symbol.value!==data.symbol)symbol.dispatchEvent(new Event("change"));else if(interval.value!==data.interval)interval.dispatchEvent(new Event("change"));else if(typeof window.tarotaiReloadLiveChart==="function")window.tarotaiReloadLiveChart();}});
+frame.addEventListener("load",syncToFlow);symbol.addEventListener("change",()=>setTimeout(syncToFlow,0));interval.addEventListener("change",()=>setTimeout(syncToFlow,0));setTimeout(syncToFlow,500);
+})();
+</script>
+</body></html>
