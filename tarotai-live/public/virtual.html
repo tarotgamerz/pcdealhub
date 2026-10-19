@@ -113,7 +113,7 @@ const els={symbol:$("symbolPicker"),interval:$("intervalPicker"),status:$("feedS
 const intervalMs={"1m":60000,"3m":180000,"5m":300000,"15m":900000,"1h":3600000,"4h":14400000,"1d":86400000};
 const higherIntervalFor={"1m":"15m","3m":"15m","5m":"1h","15m":"4h","1h":"1d","4h":"1d"};
 let symbol="BTCUSDT",interval="1m",candles=[],flow={symbol:"",asOf:0,bookFresh:false,tradeFresh:false,mid:null,bids:[],asks:[],trades:[]};
-let tradeStore=new Map(),cvdHistory=[],lastTradeAt=0,lastTradePrice=NaN,bookLastAt=0,klineSocket=null,chart=null,candleSeries=null,volumeSeries=null;
+let tradeStore=new Map(),cvdHistory=[],lastTradeAt=0,lastTradePrice=NaN,bookLastAt=0,klineSocket=null,klineLastMessageAt=0,klineConnectedAt=0,klineReconnectAttempts=0,klineReconnectTimer=null,redrawFrame=0,chart=null,candleSeries=null,volumeSeries=null;
 let visibleFlow=true,chartReady=false,fetchGeneration=0,paper={side:0,size:0,entry:0,realized:0},paperMarks=[];
 let bullForecastSeries=null,bearForecastSeries=null,forecastKey="",higherForecastCandles=[],higherForecastInterval="",lastForecastResult=null;
 const fmt=(n,d=2)=>Number.isFinite(Number(n))?Number(n).toLocaleString("en-US",{maximumFractionDigits:d}):"—";
@@ -268,7 +268,7 @@ function drawVolume(){
 function drawCvd(){
  const {ctx,w,h}=resizeCanvas(els.cvd);ctx.clearRect(0,0,w,h);ctx.fillStyle="#080e15";ctx.fillRect(0,0,w,h);const rows=cvdHistory.slice(-500);if(rows.length<2){ctx.fillStyle="#718297";ctx.font="10px system-ui";ctx.fillText("Collecting aggressor delta…",10,20);return;}const vals=rows.map(x=>x.value),lo=Math.min(...vals),hi=Math.max(...vals),range=hi-lo||1;ctx.strokeStyle="#1d2a39";ctx.beginPath();ctx.moveTo(0,h/2);ctx.lineTo(w,h/2);ctx.stroke();ctx.strokeStyle="#9b83ff";ctx.lineWidth=1.7;ctx.beginPath();rows.forEach((r,i)=>{const x=i/(rows.length-1)*w,y=6+(hi-r.value)/range*(h-12);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.stroke();ctx.fillStyle="#b7a8ff";ctx.font="9px ui-monospace,monospace";ctx.fillText(fmt(vals[vals.length-1],0)+" quote USDT",8,12);
 }
-function redraw(){if(!chartReady)return;drawBubbles();drawLiquidityProfile();drawVolume();drawCvd();updatePaper();}
+function redraw(){if(!chartReady||redrawFrame)return;redrawFrame=requestAnimationFrame(()=>{redrawFrame=0;if(!chartReady)return;drawBubbles();drawLiquidityProfile();drawVolume();drawCvd();updatePaper();});}
 function resizeAll(){if(chart){chart.applyOptions({width:Math.max(1,$("bubbleStage").clientWidth-64),height:$("bubbleStage").clientHeight});}redraw();}
 function updatePaper(){
  const px=Number.isFinite(lastTradePrice)?lastTradePrice:(candles.length?candles[candles.length-1].close:NaN),pos=paper.side===1?"LONG":paper.side===-1?"SHORT":"FLAT";
@@ -292,12 +292,39 @@ function closePaper(){
  paper.realized+=(px-paper.entry)*paper.size*paper.side;paperMarks.push({side:paper.side,price:px,time:Math.floor(Date.now()/1000),role:"EXIT"});paper.side=0;paper.size=0;paper.entry=0;$("paperNote").textContent="Paper position closed at "+fmt(px,4)+" USDT. Result excludes trading fees, slippage and funding.";redraw();
 }
 function parseKline(k){return {time:Math.floor(Number(k[0])/1000),open:Number(k[1]),high:Number(k[2]),low:Number(k[3]),close:Number(k[4]),volume:Number(k[5]),quoteVolume:Number(k[7]),closeTime:Number(k[6]),closed:Number(k[6])<Date.now()};}
+function scheduleKlineReconnect(run,socket){
+ if(run!==fetchGeneration||(socket&&socket!==klineSocket)||klineReconnectTimer)return;
+ const delay=Math.min(30000,1000*Math.pow(2,Math.min(klineReconnectAttempts,5)));
+ klineReconnectAttempts+=1;
+ setStatus("CANDLE STREAM RETRY IN "+Math.ceil(delay/1000)+"s",true);
+ klineReconnectTimer=setTimeout(()=>{klineReconnectTimer=null;if(run===fetchGeneration)startKlineSocket(run);},delay);
+}
 function startKlineSocket(run){
- if(klineSocket){try{klineSocket.close()}catch(_){}}
- try{klineSocket=new WebSocket("wss://fstream.binance.com/market/stream?streams="+symbol.toLowerCase()+"@kline_"+interval);
- klineSocket.onmessage=e=>{if(run!==fetchGeneration)return;let packet;try{packet=JSON.parse(e.data)}catch(_){return}const k=packet&&packet.data&&packet.data.k;if(!k)return;const bar={time:Math.floor(Number(k.t)/1000),open:Number(k.o),high:Number(k.h),low:Number(k.l),close:Number(k.c),volume:Number(k.v),quoteVolume:Number(k.q),closeTime:Number(k.T),closed:!!k.x};if(![bar.time,bar.open,bar.high,bar.low,bar.close,bar.volume].every(Number.isFinite)||bar.low>bar.high)return;const i=candles.findIndex(x=>x.time===bar.time);if(i>=0)candles[i]=bar;else{candles.push(bar);candles.sort((a,b)=>a.time-b.time);if(candles.length>500)candles=candles.slice(-500)}if(candleSeries){candleSeries.update({time:bar.time,open:bar.open,high:bar.high,low:bar.low,close:bar.close});}if(volumeSeries)volumeSeries.update({time:bar.time,value:bar.quoteVolume||bar.volume,color:bar.close>=bar.open?"rgba(63,202,143,.65)":"rgba(231,90,118,.65)"});if(!Number.isFinite(lastTradePrice))lastTradePrice=bar.close;$("lastPrice").textContent=fmt(Number.isFinite(lastTradePrice)?lastTradePrice:bar.close,4);redraw();setStatus("LIVE · "+symbol,false);if(bar.closed)void renderVirtualForecast(run,{force:true});};
- klineSocket.onopen=()=>{if(run===fetchGeneration)setStatus("LIVE · "+symbol,false)};klineSocket.onerror=()=>{if(run===fetchGeneration)setStatus("STREAM RETRYING",true)};klineSocket.onclose=()=>{if(run===fetchGeneration)setTimeout(()=>{if(run===fetchGeneration)startKlineSocket(run)},1800)};
- }catch(_){setStatus("WEBSOCKET UNAVAILABLE",true);}
+ if(klineReconnectTimer){clearTimeout(klineReconnectTimer);klineReconnectTimer=null;}
+ if(klineSocket){try{klineSocket.onopen=klineSocket.onmessage=klineSocket.onerror=klineSocket.onclose=null;klineSocket.close()}catch(_){}}
+ try{
+  const socket=new WebSocket("wss://fstream.binance.com/market/stream?streams="+symbol.toLowerCase()+"@kline_"+interval);
+  klineSocket=socket;klineConnectedAt=0;
+  socket.onmessage=e=>{
+   if(run!==fetchGeneration||socket!==klineSocket)return;
+   let packet;try{packet=JSON.parse(e.data)}catch(_){return}
+   const k=packet&&packet.data&&packet.data.k;if(!k)return;
+   const bar={time:Math.floor(Number(k.t)/1000),open:Number(k.o),high:Number(k.h),low:Number(k.l),close:Number(k.c),volume:Number(k.v),quoteVolume:Number(k.q),closeTime:Number(k.T),closed:!!k.x};
+   if(![bar.time,bar.open,bar.high,bar.low,bar.close,bar.volume].every(Number.isFinite)||bar.time<=0||bar.open<=0||bar.close<=0||bar.low<=0||bar.volume<0||bar.high<Math.max(bar.open,bar.close,bar.low)||bar.low>Math.min(bar.open,bar.close,bar.high))return;
+   klineLastMessageAt=Date.now();klineReconnectAttempts=0;
+   const i=candles.findIndex(x=>x.time===bar.time);
+   if(i>=0)candles[i]=bar;else{candles.push(bar);candles.sort((a,b)=>a.time-b.time);if(candles.length>500)candles=candles.slice(-500)}
+   if(candleSeries)candleSeries.update({time:bar.time,open:bar.open,high:bar.high,low:bar.low,close:bar.close});
+   if(volumeSeries)volumeSeries.update({time:bar.time,value:bar.quoteVolume||bar.volume,color:bar.close>=bar.open?"rgba(63,202,143,.65)":"rgba(231,90,118,.65)"});
+   if(!Number.isFinite(lastTradePrice))lastTradePrice=bar.close;
+   $("lastPrice").textContent=fmt(Number.isFinite(lastTradePrice)?lastTradePrice:bar.close,4);
+   redraw();setStatus("LIVE · "+symbol,false);
+   if(bar.closed)void renderVirtualForecast(run,{force:true});
+  };
+  socket.onopen=()=>{if(run===fetchGeneration&&socket===klineSocket){klineConnectedAt=Date.now();setStatus("CANDLE SOCKET CONNECTED · WAITING FOR DATA",true)}};
+  socket.onerror=()=>{if(run===fetchGeneration&&socket===klineSocket)setStatus("CANDLE STREAM ERROR · RETRYING",true)};
+  socket.onclose=()=>{if(run!==fetchGeneration||socket!==klineSocket)return;klineConnectedAt=0;scheduleKlineReconnect(run,socket)};
+ }catch(_){scheduleKlineReconnect(run,null);}
 }
 
 function forecastCandles(input,durationMs){
@@ -440,8 +467,11 @@ async function ensureChartLibrary(){
  });
 }
 async function loadMarket(){
- const run=++fetchGeneration;const previousSymbol=symbol;const nextSymbol=els.symbol.value;if(paper.side!==0&&nextSymbol!==previousSymbol)closePaper();symbol=nextSymbol;interval=els.interval.value;if(symbol!==previousSymbol){lastTradeAt=0;lastTradePrice=NaN;tradeStore.clear();cvdHistory=[];flow={symbol:"",asOf:0,bookFresh:false,tradeFresh:false,mid:null,bids:[],asks:[],trades:[]};}
- if(klineSocket){klineSocket.onmessage=null;try{klineSocket.close()}catch(_){}}
+ const run=++fetchGeneration;const previousSymbol=symbol;const nextSymbol=els.symbol.value;
+ if(klineReconnectTimer){clearTimeout(klineReconnectTimer);klineReconnectTimer=null;}
+ klineLastMessageAt=0;klineConnectedAt=0;klineReconnectAttempts=0;
+ if(paper.side!==0&&nextSymbol!==previousSymbol)closePaper();symbol=nextSymbol;interval=els.interval.value;if(symbol!==previousSymbol){lastTradeAt=0;lastTradePrice=NaN;tradeStore.clear();cvdHistory=[];flow={symbol:"",asOf:0,bookFresh:false,tradeFresh:false,mid:null,bids:[],asks:[],trades:[]};}
+ if(klineSocket){try{klineSocket.onopen=klineSocket.onmessage=klineSocket.onerror=klineSocket.onclose=null;klineSocket.close()}catch(_){}klineSocket=null;}
  $("marketTitle").textContent=symbol+" · PERPETUAL";$("bubbleSymbol").textContent=symbol;$("footprintInterval").textContent=interval;$("liveSymbol").value=symbol;
  $("liveSymbol").dispatchEvent(new Event("change"));
  if(chart){chart.remove();chart=null;candleSeries=null;volumeSeries=null;bullForecastSeries=null;bearForecastSeries=null;chartReady=false;}forecastKey="";clearVirtualForecast("Loading fresh candle history and higher-timeframe evidence…");
@@ -453,7 +483,7 @@ async function loadMarket(){
  bearForecastSeries=chart.addLineSeries({color:"#ff7788",lineWidth:2,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:"Conditional bearish path"});
  volumeSeries=chart.addHistogramSeries({priceFormat:{type:"volume"},priceScaleId:"volume",visible:false});chart.priceScale("volume").applyOptions({scaleMargins:{top:.85,bottom:0},visible:false});
  const url="https://fapi.binance.com/fapi/v1/klines?symbol="+encodeURIComponent(symbol)+"&interval="+encodeURIComponent(interval)+"&limit=300";
- try{const response=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(9000)});if(!response.ok)throw new Error("Exchange candle request returned HTTP "+response.status);const data=await response.json();if(run!==fetchGeneration)return;if(!Array.isArray(data)||data.length<2)throw new Error("Exchange returned insufficient candle history.");candles=data.map(parseKline).filter(c=>[c.time,c.open,c.high,c.low,c.close,c.volume,c.closeTime].every(Number.isFinite)&&c.low<=c.high&&c.low>0&&c.high>0&&c.closeTime>=c.time);candleSeries.setData(candles.map(c=>({time:c.time,open:c.open,high:c.high,low:c.low,close:c.close})));volumeSeries.setData(candles.map(c=>({time:c.time,value:c.quoteVolume||c.volume,color:c.close>=c.open?"rgba(63,202,143,.65)":"rgba(231,90,118,.65)"})));chartReady=true;chart.timeScale().fitContent();chart.subscribeVisibleLogicalRangeChange(()=>drawBubbles());setStatus("LIVE · "+symbol,false);$("lastPrice").textContent=fmt(candles[candles.length-1].close,4);startKlineSocket(run);redraw();void renderVirtualForecast(run,{force:true,fit:true});}
+ try{const response=await fetch(url,{cache:"no-store",signal:AbortSignal.timeout(9000)});if(!response.ok)throw new Error("Exchange candle request returned HTTP "+response.status);const data=await response.json();if(run!==fetchGeneration)return;if(!Array.isArray(data)||data.length<2)throw new Error("Exchange returned insufficient candle history.");candles=data.map(parseKline).filter(c=>[c.time,c.open,c.high,c.low,c.close,c.volume,c.closeTime].every(Number.isFinite)&&c.low<=c.high&&c.low>0&&c.high>0&&c.closeTime>=c.time);candleSeries.setData(candles.map(c=>({time:c.time,open:c.open,high:c.high,low:c.low,close:c.close})));volumeSeries.setData(candles.map(c=>({time:c.time,value:c.quoteVolume||c.volume,color:c.close>=c.open?"rgba(63,202,143,.65)":"rgba(231,90,118,.65)"})));chartReady=true;chart.timeScale().fitContent();chart.subscribeVisibleLogicalRangeChange(()=>drawBubbles());setStatus("HISTORY LOADED · WAITING FOR LIVE DATA",true);$("lastPrice").textContent=fmt(candles[candles.length-1].close,4);startKlineSocket(run);redraw();void renderVirtualForecast(run,{force:true,fit:true});}
  catch(error){if(run!==fetchGeneration)return;chartReady=false;setStatus("CANDLE FEED ERROR",true);$("footprintNote").textContent=(error&&error.message?error.message:"Could not load candle history")+"; refresh or select the symbol again.";}
 }
 document.addEventListener("tarotai:orderflow-update",event=>{
@@ -464,7 +494,10 @@ document.addEventListener("tarotai:orderflow-update",event=>{
  const cutoff=Date.now()-30*60*1000;for(const [key,t] of tradeStore){if(t.time<cutoff)tradeStore.delete(key);}while(tradeStore.size>5000)tradeStore.delete(tradeStore.keys().next().value);const sorted=Array.from(tradeStore.values()).sort((a,b)=>a.time-b.time);
  if(d.tradeFresh&&sorted.length){const latest=sorted[sorted.length-1];lastTradePrice=latest.price;lastTradeAt=latest.time;$("lastPrice").textContent=fmt(lastTradePrice,4);let delta=0;for(const t of sorted)delta+=t.side==="buy"?t.quote:-t.quote;$("sessionDelta").textContent=(delta>=0?"+":"")+compact(delta)+" USDT";$("sessionDelta").className=delta>=0?"green":"red";cvdHistory=sorted.map(t=>({time:t.time,value:0}));let cvd=0;cvdHistory.forEach((r,i)=>{const t=sorted[i];cvd+=t.side==="buy"?t.quote:-t.quote;r.value=cvd;});}
  $("feedAge").textContent=d.asOf?"updated "+Math.max(0,Math.round((Date.now()-d.asOf)/1000))+"s ago":"Waiting for feed";
- if(d.tradeFresh&&d.bookFresh)setStatus("LIVE · "+symbol,false);else setStatus(d.bookFresh?"DEPTH LIVE · TRADES WAIT":d.tradeFresh?"TRADES LIVE · DEPTH WAIT":"WAITING FOR FEEDS",true);
+ const candleAge=klineLastMessageAt?Date.now()-klineLastMessageAt:Infinity,candleFresh=Number.isFinite(candleAge)&&candleAge<=8000;
+ if(!candleFresh)setStatus(klineLastMessageAt?"CANDLE STREAM STALE · ORDER FLOW LIVE":"WAITING FOR LIVE CANDLE DATA",true);
+ else if(d.tradeFresh&&d.bookFresh)setStatus("LIVE · "+symbol,false);
+ else setStatus(d.bookFresh?"DEPTH LIVE · TRADES WAIT":d.tradeFresh?"TRADES LIVE · DEPTH WAIT":"WAITING FOR FEEDS",true);
  updateForecastFlowStatus();
  redraw();
 });
@@ -475,7 +508,13 @@ $("toggleFlow").addEventListener("click",()=>{visibleFlow=!visibleFlow;$("toggle
 document.querySelectorAll("[data-size]").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll("[data-size]").forEach(x=>x.classList.toggle("active",x===b));$("paperSize").value=b.dataset.size;}));
 $("paperLong").addEventListener("click",()=>openPaper(1));$("paperShort").addEventListener("click",()=>openPaper(-1));$("paperClose").addEventListener("click",closePaper);$("paperReset").addEventListener("click",()=>{paper={side:0,size:0,entry:0,realized:0};paperMarks=[];$("paperNote").textContent="Paper state reset in this tab. No exchange order was sent.";updatePaper();});
 window.addEventListener("resize",resizeAll);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&Date.now()-bookLastAt>15000){setStatus("REFRESHING FEEDS",true);redraw();}});
-publishMarketSync();loadMarket();setInterval(()=>{if(lastTradeAt){const age=Math.max(0,Date.now()-lastTradeAt);$("feedAge").textContent=age<1000?"just now":Math.round(age/1000)+"s ago";if(age>15000)setStatus("TRADE FEED STALE",true);}},1000);
+publishMarketSync();loadMarket();setInterval(()=>{const now=Date.now(),candleFresh=klineLastMessageAt>0&&now-klineLastMessageAt<=8000;
+ if(chartReady&&!candleFresh){
+  setStatus(klineLastMessageAt?"CANDLE STREAM STALE · RECONNECTING":"WAITING FOR LIVE CANDLE DATA",true);
+  if(klineSocket&&klineSocket.readyState===WebSocket.OPEN&&klineConnectedAt>0&&now-klineConnectedAt>8000){try{klineSocket.close()}catch(_){}}
+ }
+ if(lastTradeAt){const age=Math.max(0,now-lastTradeAt);$("feedAge").textContent=age<1000?"just now":Math.round(age/1000)+"s ago";if(age>15000&&candleFresh)setStatus("TRADE FEED STALE",true);}
+},1000);
 })();
 </script>
 <script src="/orderflow-panel.js"></script>
