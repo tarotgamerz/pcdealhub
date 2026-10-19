@@ -1,17 +1,10 @@
 import { NextResponse } from "next/server";
-import { isAuthorized } from "../../../../lib/auth";
 import { normalizeDepthSnapshot, summarizeOrderBook } from "../../../../lib/orderbook.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  if (!process.env.TAROTAI_ACCESS_CODE) {
-    return NextResponse.json({ error: "Private access is not configured." }, { status: 503 });
-  }
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
-  }
   const url = new URL(request.url);
   const symbol = String(url.searchParams.get("symbol") || "BTCUSDT").toUpperCase();
   if (!/^[A-Z0-9]{4,20}$/.test(symbol) || !symbol.endsWith("USDT")) {
