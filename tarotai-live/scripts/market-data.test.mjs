@@ -802,13 +802,13 @@ test("redundant visual strategy chart stays hidden and stops its polling loop", 
   assert.ok(futuresDesk.includes("!$('visual-strategy-panel')?.hidden&&!$('drawStrategy').disabled"));
 });
 
-test("primary chart stays intact and execution-routing architecture replaces the duplicate bubble chart", () => {
+test("primary chart stays intact and live virtual order flow replaces the execution map", () => {
   assert.match(futuresDesk, /id="liveMarketChart"/);
-  assert.match(futuresDesk, /class="execution-map-shell"/);
-  for (const stage of ["Trader / Investor", "OMS / EMS", "Retail Broker / DMA", "Prime Broker", "Smart Order Router (SOR)", "Lit Exchanges", "Dark Pools", "OTC / Market Makers", "Clearing House (CCP)", "Central Depository & Settlement"]) {
-    assert.ok(futuresDesk.includes(stage), "execution architecture includes " + stage);
-  }
-  assert.match(futuresDesk, /TarotAI only reaches the exchanges and APIs actually configured/);
+  assert.match(futuresDesk, /class="virtual-orderflow-frame"/);
+  assert.match(futuresDesk, /src="\/virtual\.html"/);
+  assert.match(futuresDesk, /href="\/virtual\.html"/);
+  assert.match(futuresDesk, /LIVE VIRTUAL ORDER FLOW/);
+  assert.doesNotMatch(futuresDesk, /class="execution-map-shell"|class="exec-node/);
   assert.doesNotMatch(futuresDesk, /id="orderflowBubbleChart"|id="orderflowBubbleCanvas"|orderflowChart=window\.LightweightCharts\.createChart/);
   assert.match(futuresDesk, /id="tvOpenExternal"/);
   assert.doesNotMatch(futuresDesk, /id="tradingview-panel"/);
@@ -978,14 +978,14 @@ test("user chart viewport is restored and the retired bubble chart no longer syn
 });
 
 
-test("Futures Lab replaces the duplicate bubble chart with the execution-routing map and preserves live flow feeds", () => {
+test("Futures Lab embeds the live virtual order-flow workspace and preserves the primary chart and feed", () => {
   assert.equal((tradingDeskPage.match(/id="liveMarketChart"/g) || []).length, 1, "the primary price chart remains singular");
-  for (const stage of ["Trader / Investor", "OMS / EMS", "Retail Broker / DMA", "Prime Broker", "Smart Order Router (SOR)", "Lit Exchanges", "Dark Pools", "OTC / Market Makers", "Clearing House (CCP)", "Central Depository & Settlement"]) {
-    assert.ok(tradingDeskPage.includes(stage), "execution map contains " + stage);
-  }
-  assert.ok(tradingDeskPage.includes('class="execution-map-shell"'), "the old chart area is replaced with the architecture map");
-  assert.ok(tradingDeskPage.includes("TarotAI only reaches the exchanges and APIs actually configured"), "traditional venue plumbing is labeled illustrative");
-  for (const obsolete of ['id="orderflowBubbleChart"', 'id="orderflowBubbleCanvas"', 'id="toggleOrderflowBubbles"', "orderflowChart=window.LightweightCharts.createChart", "function syncOrderflowRange(source)"]) {
+  assert.ok(tradingDeskPage.includes('class="virtual-orderflow-frame"'), "the real virtual order-flow workspace is embedded");
+  assert.ok(tradingDeskPage.includes('src="/virtual.html"'), "the embed loads the existing live virtual chart");
+  assert.ok(tradingDeskPage.includes('href="/virtual.html"'), "the full virtual chart remains directly accessible");
+  assert.ok(tradingDeskPage.includes("LIVE VIRTUAL ORDER FLOW"), "the embedded panel is labeled as live order flow");
+  assert.ok(tradingDeskPage.includes("If the feed is stale or unsynchronized"), "stale or unsynchronized feed is not treated as a signal");
+  for (const obsolete of ['class="execution-map-shell"', 'class="exec-node', 'id="orderflowBubbleChart"', 'id="orderflowBubbleCanvas"', 'id="toggleOrderflowBubbles"', "orderflowChart=window.LightweightCharts.createChart", "function syncOrderflowRange(source)"]) {
     assert.ok(!tradingDeskPage.includes(obsolete), "Futures Lab no longer contains " + obsolete);
   }
   assert.ok(tradingDeskPage.includes('id="orderflowPanel"'), "the live order-book metrics panel is retained");
