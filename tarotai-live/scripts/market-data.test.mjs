@@ -802,19 +802,19 @@ test("redundant visual strategy chart stays hidden and stops its polling loop", 
   assert.ok(futuresDesk.includes("!$('visual-strategy-panel')?.hidden&&!$('drawStrategy').disabled"));
 });
 
-test("primary chart remains intact and the order-flow bubble chart is separate, with external TradingView optional", () => {
+test("primary chart stays intact and execution-routing architecture replaces the duplicate bubble chart", () => {
   assert.match(futuresDesk, /id="liveMarketChart"/);
-  assert.match(futuresDesk, /id="orderflowBubbleChart"/);
-  assert.match(futuresDesk, /id="orderflowBubbleCanvas"/);
-  assert.match(futuresDesk, /orderflowChart=window\.LightweightCharts\.createChart\(host/);
-  assert.match(futuresDesk, /orderflowCandleSeries=orderflowChart\.addCandlestickSeries/);
-  assert.match(futuresDesk, /document\.addEventListener\("tarotai:orderflow-update"/);
+  assert.match(futuresDesk, /class="execution-map-shell"/);
+  for (const stage of ["Trader / Investor", "OMS / EMS", "Retail Broker / DMA", "Prime Broker", "Smart Order Router (SOR)", "Lit Exchanges", "Dark Pools", "OTC / Market Makers", "Clearing House (CCP)", "Central Depository & Settlement"]) {
+    assert.ok(futuresDesk.includes(stage), "execution architecture includes " + stage);
+  }
+  assert.match(futuresDesk, /TarotAI only reaches the exchanges and APIs actually configured/);
+  assert.doesNotMatch(futuresDesk, /id="orderflowBubbleChart"|id="orderflowBubbleCanvas"|orderflowChart=window\.LightweightCharts\.createChart/);
   assert.match(futuresDesk, /id="tvOpenExternal"/);
   assert.doesNotMatch(futuresDesk, /id="tradingview-panel"/);
   assert.match(futuresDesk, /id="visual-strategy-panel" hidden/);
   assert.match(futuresDesk, /attachChartNavigation\(byId\("liveMarketChart"\)\)/);
-  assert.match(futuresDesk, /attachChartNavigation\(byId\("orderflowBubbleChart"\)\)/);
-  assert.doesNotMatch(futuresDesk, /attachChartNavigation\(byId\("tvSyncedChart"\)\)/);
+  assert.doesNotMatch(futuresDesk, /attachChartNavigation\(byId\("tvSyncedChart"\)/);
 });
 
 
@@ -968,39 +968,31 @@ test("live quote EMA updates are incremental and avoid full-history setData per 
   assert.match(futuresDesk, /if\(isClosed\)\{analyze\(\);runContinuousAgentCycle\(\);\}/);
 });
 
-test("user chart viewport is restored and time range synchronization covers both charts", () => {
+test("user chart viewport is restored and the retired bubble chart no longer syncs or recenters it", () => {
   assert.match(futuresDesk, /else if\(rangeBefore\)\{try\{chart\.timeScale\(\)\.setVisibleLogicalRange\(rangeBefore\)/);
   assert.match(futuresDesk, /if\(chart&&!followLive&&rangeBefore\)chart\.timeScale\(\)\.setVisibleLogicalRange\(rangeBefore\)/);
   assert.match(futuresDesk, /Math\.abs\(event\.clientX-start\.x\)>2\|\|Math\.abs\(event\.clientY-start\.y\)>2/);
   assert.match(futuresDesk, /byId\("liveGoLive"\)\.addEventListener\("click",\(\)=>setLiveFollow\(true\)\)/);
   assert.match(futuresDesk, /id="liveMarketChart"/);
-  assert.match(futuresDesk, /id="orderflowBubbleChart"/);
-  assert.match(futuresDesk, /function syncOrderflowRange\(source\)/);
-  assert.match(futuresDesk, /syncOrderflowRange\("main"\)/);
+  assert.doesNotMatch(futuresDesk, /orderflowBubbleChart|function syncOrderflowRange\(source\)|syncOrderflowRange\("main"\)/);
 });
 
 
-test("Futures Lab keeps the primary chart and adds a separate live order-flow bubble chart", () => {
+test("Futures Lab replaces the duplicate bubble chart with the execution-routing map and preserves live flow feeds", () => {
   assert.equal((tradingDeskPage.match(/id="liveMarketChart"/g) || []).length, 1, "the primary price chart remains singular");
-  assert.equal((tradingDeskPage.match(/id="orderflowBubbleChart"/g) || []).length, 1, "a distinct order-flow chart exists");
-  assert.equal((tradingDeskPage.match(/id="orderflowBubbleCanvas"/g) || []).length, 1, "bubble marks have a dedicated transparent overlay");
-  assert.doesNotMatch(tradingDeskPage, /id="orderflowHeatmapCanvas"/, "order-flow bubbles are no longer painted over the primary chart");
-  assert.ok(tradingDeskPage.includes('id="toggleOrderflowBubbles"'), "bubble visibility can be toggled independently");
-  assert.ok(tradingDeskPage.includes("orderflowChart=window.LightweightCharts.createChart(host"), "the order-flow visualization owns a second chart instance");
-  assert.ok(tradingDeskPage.includes("orderflowCandleSeries=orderflowChart.addCandlestickSeries"), "the bubble view has its own candle coordinate system");
-  assert.ok(tradingDeskPage.includes("orderflowCandleSeries.setData(candleData)"), "the second chart receives the same verified candle history");
-  assert.ok(tradingDeskPage.includes("orderflowCandleSeries.update(plotCandle(bar))"), "live forming candles update the second chart");
-  assert.ok(tradingDeskPage.includes("orderflowChart.timeScale().timeToCoordinate"), "bubble timestamps map to the second chart's time scale");
-  assert.ok(tradingDeskPage.includes("orderflowCandleSeries.priceToCoordinate"), "trade prices and book levels map to the second chart's price scale");
-  assert.ok(tradingDeskPage.includes("orderflowTape=new Map()"), "real trades are deduplicated and retained for the rolling chart tape");
-  assert.ok(tradingDeskPage.includes('const radius=Math.max(1.9,Math.min(5.2,1.9+ratio*2.6))'), "trade bubbles stay small instead of obscuring the candles");
-  assert.ok(tradingDeskPage.includes('context.fillStyle="#9b83ff"'), "executed volume bubbles use a purple fill");
-  assert.ok(tradingDeskPage.includes('context.strokeStyle=sideColor'), "bubble outlines distinguish buyer- and seller-initiated trades");
-  assert.ok(tradingDeskPage.includes("function syncOrderflowRange(source)"), "the separate chart can synchronize its time viewport with the primary chart");
-  assert.ok(tradingDeskPage.includes('document.addEventListener("tarotai:orderflow-update"'), "the chart consumes live order-book/trade events");
+  for (const stage of ["Trader / Investor", "OMS / EMS", "Retail Broker / DMA", "Prime Broker", "Smart Order Router (SOR)", "Lit Exchanges", "Dark Pools", "OTC / Market Makers", "Clearing House (CCP)", "Central Depository & Settlement"]) {
+    assert.ok(tradingDeskPage.includes(stage), "execution map contains " + stage);
+  }
+  assert.ok(tradingDeskPage.includes('class="execution-map-shell"'), "the old chart area is replaced with the architecture map");
+  assert.ok(tradingDeskPage.includes("TarotAI only reaches the exchanges and APIs actually configured"), "traditional venue plumbing is labeled illustrative");
+  for (const obsolete of ['id="orderflowBubbleChart"', 'id="orderflowBubbleCanvas"', 'id="toggleOrderflowBubbles"', "orderflowChart=window.LightweightCharts.createChart", "function syncOrderflowRange(source)"]) {
+    assert.ok(!tradingDeskPage.includes(obsolete), "Futures Lab no longer contains " + obsolete);
+  }
+  assert.ok(tradingDeskPage.includes('id="orderflowPanel"'), "the live order-book metrics panel is retained");
   assert.ok(orderflowPanelScript.includes("function scheduleRender()"), "websocket updates call a defined throttled renderer");
-  assert.ok(orderflowPanelScript.includes('new CustomEvent("tarotai:orderflow-update"'), "the market-data panel publishes live flow data");
+  assert.ok(orderflowPanelScript.includes('new CustomEvent("tarotai:orderflow-update"'), "the shared market-data panel still publishes observed flow for /virtual");
   assert.ok(orderflowPanelScript.includes("price, qty, quote:"), "trades preserve real exchange price and quantity");
+  assert.ok(orderflowPanelScript.includes("bookAgeMs, tradeAgeMs"), "flow events preserve independent depth and trade feed ages");
   assert.ok(orderflowPanelScript.includes("wss://fstream.binance.com/public/stream?streams="), "the book uses the Futures public depth stream");
   assert.ok(orderflowPanelScript.includes("wss://fstream.binance.com/market/stream?streams="), "trades use the Futures market aggregate-trade stream");
 });

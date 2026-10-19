@@ -320,11 +320,11 @@
   function render() {
     const now = Date.now();
     const liveTrades = trades.filter((trade) => now - trade.time <= 60_000 && now >= trade.time - 5000);
+    publishChartFlow(now, liveTrades);
     let buy = 0, sell = 0;
     for (const trade of liveTrades) {
       if (trade.quote > 0) buy += trade.quote; else sell += -trade.quote;
     }
-    publishChartFlow(now, liveTrades);
     if (lastTakerMessageAt && now - lastTakerMessageAt <= 15000) {
       els.takerSplit.textContent = fmtMoney(buy) + " / " + fmtMoney(sell);
       const total = buy + sell;
