@@ -111,7 +111,7 @@
 const $=id=>document.getElementById(id);
 const els={symbol:$("symbolPicker"),interval:$("intervalPicker"),status:$("feedStatus"),pill:$("feedPill"),last:$("lastPrice"),bidAsk:$("bidAsk"),imbalance:$("depthImbalance"),delta:$("sessionDelta"),age:$("feedAge"),footprint:$("footprintCanvas"),bubble:$("bubbleOverlay"),profile:$("liquidityProfileCanvas"),volume:$("volumeCanvas"),cvd:$("cvdCanvas"),note:$("footprintNote")};
 const intervalMs={"1m":60000,"3m":180000,"5m":300000,"15m":900000,"1h":3600000,"4h":14400000,"1d":86400000};
-const higherIntervalFor={"1m":"15m","3m":"15m","5m":"1h","15m":"4h","1h":"1d"};
+const higherIntervalFor={"1m":"15m","3m":"15m","5m":"1h","15m":"4h","1h":"1d","4h":"1d"};
 let symbol="BTCUSDT",interval="1m",candles=[],flow={symbol:"",asOf:0,bookFresh:false,tradeFresh:false,mid:null,bids:[],asks:[],trades:[]};
 let tradeStore=new Map(),cvdHistory=[],lastTradeAt=0,lastTradePrice=NaN,bookLastAt=0,klineSocket=null,chart=null,candleSeries=null,volumeSeries=null;
 let visibleFlow=true,chartReady=false,fetchGeneration=0,paper={side:0,size:0,entry:0,realized:0},paperMarks=[];
