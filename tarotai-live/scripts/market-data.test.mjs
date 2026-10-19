@@ -39,7 +39,7 @@ test("order-flow page may be embedded by the same-origin trading desk only", () 
   assert.match(nextConfig, /Content-Security-Policy/);
   assert.match(nextConfig, /frame-ancestors/);
   assert.doesNotMatch(nextConfig, /X-Frame-Options.*DENY/);
-  assert.match(tradingDeskPage, /id="virtual-orderflow-frame"/);
+  assert.match(tradingDeskPage, /class="virtual-orderflow-frame"/);
 });
 
 test("market feeds use production public endpoints, never demo or testnet prices", () => {
