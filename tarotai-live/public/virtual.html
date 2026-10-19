@@ -38,8 +38,8 @@
   <div class="brand">TAROTAI <b>FLOW</b><small>VIRTUAL MARKET WORKSPACE</small></div>
   <div class="market-title"><div class="symbol-mark">◎</div><div><div class="market-name" id="marketTitle">BTCUSDT · PERPETUAL</div><div class="market-sub">USDⓈ-M Futures · public market data</div></div></div>
   <div class="top-controls">
-    <select class="control" id="symbolPicker" aria-label="Market symbol"><option value="BTCUSDT">BTCUSDT</option><option value="ETHUSDT">ETHUSDT</option><option value="SOLUSDT">SOLUSDT</option><option value="BNBUSDT">BNBUSDT</option></select>
-    <select class="control" id="intervalPicker" aria-label="Chart timeframe"><option value="1m">1 minute</option><option value="3m">3 minutes</option><option value="5m">5 minutes</option><option value="15m">15 minutes</option><option value="1h">1 hour</option></select>
+    <select class="control" id="symbolPicker" aria-label="Market symbol"><option value="BTCUSDT">BTCUSDT</option><option value="ETHUSDT">ETHUSDT</option><option value="SOLUSDT">SOLUSDT</option><option value="BNBUSDT">BNBUSDT</option><option value="XRPUSDT">XRPUSDT</option><option value="DOGEUSDT">DOGEUSDT</option></select>
+    <select class="control" id="intervalPicker" aria-label="Chart timeframe"><option value="1m">1 minute</option><option value="3m">3 minutes</option><option value="5m">5 minutes</option><option value="15m">15 minutes</option><option value="1h">1 hour</option><option value="4h">4 hours</option></select>
     <span class="pill stale" id="feedPill"><i class="dot"></i><span id="feedStatus">CONNECTING</span></span>
     <button class="topbutton" id="toggleFlow" type="button" aria-pressed="true">Hide bubbles</button>
   </div>
@@ -458,12 +458,14 @@ document.addEventListener("tarotai:orderflow-update",event=>{
  updateForecastFlowStatus();
  redraw();
 });
-els.symbol.addEventListener("change",loadMarket);els.interval.addEventListener("change",loadMarket);
+function publishMarketSync(){if(window.parent!==window){window.parent.postMessage({type:"tarotai:sync-market",symbol,interval},location.origin);}}
+window.addEventListener("message",event=>{if(event.source!==window.parent||event.origin!==location.origin||!event.data||event.data.type!=="tarotai:sync-market")return;const d=event.data;const nextSymbol=String(d.symbol||"").toUpperCase(),nextInterval=String(d.interval||"");let changed=false;if(Array.from(els.symbol.options).some(o=>o.value===nextSymbol)&&els.symbol.value!==nextSymbol){els.symbol.value=nextSymbol;changed=true;}if(Array.from(els.interval.options).some(o=>o.value===nextInterval)&&els.interval.value!==nextInterval){els.interval.value=nextInterval;changed=true;}if(changed)loadMarket();});
+els.symbol.addEventListener("change",()=>{publishMarketSync();loadMarket();});els.interval.addEventListener("change",()=>{publishMarketSync();loadMarket();});
 $("toggleFlow").addEventListener("click",()=>{visibleFlow=!visibleFlow;$("toggleFlow").textContent=visibleFlow?"Hide bubbles":"Show bubbles";$("toggleFlow").setAttribute("aria-pressed",String(visibleFlow));$("bubbleStage").classList.toggle("flow-hidden",!visibleFlow);redraw();});
 document.querySelectorAll("[data-size]").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll("[data-size]").forEach(x=>x.classList.toggle("active",x===b));$("paperSize").value=b.dataset.size;}));
 $("paperLong").addEventListener("click",()=>openPaper(1));$("paperShort").addEventListener("click",()=>openPaper(-1));$("paperClose").addEventListener("click",closePaper);$("paperReset").addEventListener("click",()=>{paper={side:0,size:0,entry:0,realized:0};paperMarks=[];$("paperNote").textContent="Paper state reset in this tab. No exchange order was sent.";updatePaper();});
 window.addEventListener("resize",resizeAll);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&Date.now()-bookLastAt>15000){setStatus("REFRESHING FEEDS",true);redraw();}});
-loadMarket();setInterval(()=>{if(lastTradeAt){const age=Math.max(0,Date.now()-lastTradeAt);$("feedAge").textContent=age<1000?"just now":Math.round(age/1000)+"s ago";if(age>15000)setStatus("TRADE FEED STALE",true);}},1000);
+publishMarketSync();loadMarket();setInterval(()=>{if(lastTradeAt){const age=Math.max(0,Date.now()-lastTradeAt);$("feedAge").textContent=age<1000?"just now":Math.round(age/1000)+"s ago";if(age>15000)setStatus("TRADE FEED STALE",true);}},1000);
 })();
 </script>
 <script src="/orderflow-panel.js"></script>
