@@ -4,6 +4,17 @@ import { z } from "zod";
 
 export const maxDuration = 120;
 
+// Bound external I/O so a stalled provider cannot hold a request indefinitely.
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit = {}, timeoutMs = 12_000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 const ownerContext = `Owner working context:
 - Communication: direct, friendly, simple WhatsApp-style explanations; proactive execution; avoid repeated questions when context is already known.
 - Study: CA/CMA/B.Com Hons with Economics; practical examples help.
@@ -16,9 +27,9 @@ function cleanMessages(value: unknown) {
   if (!Array.isArray(value)) return [];
   return value
     .filter((m: any) => m && (m.role === "user" || m.role === "assistant" || m.role === "system"))
-    .map((m: any) => ({ role: m.role, content: String(m.content ?? "") }))
+    .map((m: any) => ({ role: m.role, content: String(m.content ?? "").slice(0, 12_000) }))
     .filter((m) => m.content.length > 0)
-    .slice(-40);
+    .slice(-30);
 }
 
 export async function POST(request: Request) {
@@ -30,7 +41,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
     const messages = cleanMessages(body?.messages);
-    const memory = Array.isArray(body?.memory) ? body.memory.slice(0, 30) : [];
+    const memory = Array.isArray(body?.memory) ? body.memory.slice(0, 20).map((m: any) => ({ key: String(m?.key ?? "").slice(0, 120), value: String(m?.value ?? "").slice(0, 800) })) : [];
     if (!messages.length) return Response.json({ error: "messages is required" }, { status: 400 });
 
     const modelId = process.env.TAROTAI_MODEL || "openai/gpt-5.5";
@@ -50,7 +61,7 @@ export async function POST(request: Request) {
         if (!key) return { type: "web_search", status: "unavailable", message: "Live web search is not configured." };
         const payload: any = { query, numResults: 6, contents: { text: { maxCharacters: 3500 } } };
         if (recencyDays && recencyDays > 0) payload.startPublishedDate = new Date(Date.now() - recencyDays * 86400000).toISOString();
-        const r = await fetch("https://api.exa.ai/search", { method: "POST", headers: { Authorization: \`Bearer \${key}\`, "Content-Type": "application/json" }, body: JSON.stringify(payload), cache: "no-store" });
+        const r = await fetchWithTimeout("https://api.exa.ai/search", { method: "POST", headers: { Authorization: \`Bearer \${key}\`, "Content-Type": "application/json" }, body: JSON.stringify(payload), cache: "no-store" }, 12_000);
         if (!r.ok) return { type: "web_search", status: "error", message: \`Search provider HTTP \${r.status}\` };
         const d = await r.json();
         return { type: "web_search", status: "ok", results: (d.results || []).map((x: any) => ({ title: x.title, url: x.url, snippet: String(x.text || "").slice(0, 1200), publishedDate: x.publishedDate || null })) };
@@ -61,7 +72,7 @@ export async function POST(request: Request) {
       description: "Read a known public webpage URL and return visible text.",
       inputSchema: z.object({ url: z.string().url() }),
       execute: async ({ url }) => {
-        const r = await fetch(url, { headers: { "User-Agent": "tarotai/1.0" }, cache: "no-store" });
+        const r = await fetchWithTimeout(url, { headers: { "User-Agent": "tarotai/1.0" }, cache: "no-store" }, 12_000);
         if (!r.ok) return { type: "read_webpage", status: "error", url, message: \`HTTP \${r.status}\` };
         const html = await r.text();
         const text = html.replace(/<script[\\s\\S]*?<\\/script>/gi, " ").replace(/<style[\\s\\S]*?<\\/style>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\\s+/g, " ").trim();
@@ -77,7 +88,7 @@ export async function POST(request: Request) {
         if (!allowed.has(permission)) return { type: "permission", status: "needs_attention", permission, capability, action, message: \`Permission '${permission}' is not enabled.\` };
         const endpoint = process.env.TAROTAI_TOOL_EXECUTOR_URL;
         if (!endpoint) return { type: "executor", status: "unavailable", message: "No authorized task executor is connected." };
-        const r = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json", ...(process.env.TAROTAI_TOOL_EXECUTOR_TOKEN ? { Authorization: \`Bearer \${process.env.TAROTAI_TOOL_EXECUTOR_TOKEN}\` } : {}) }, body: JSON.stringify({ capability, action, arguments: args }), cache: "no-store" });
+        const r = await fetchWithTimeout(endpoint, { method: "POST", headers: { "Content-Type": "application/json", ...(process.env.TAROTAI_TOOL_EXECUTOR_TOKEN ? { Authorization: \`Bearer \${process.env.TAROTAI_TOOL_EXECUTOR_TOKEN}\` } : {}) }, body: JSON.stringify({ capability, action, arguments: args }), cache: "no-store" }, 20_000);
         const data = await r.json().catch(() => ({ message: "Executor returned non-JSON output." }));
         return { type: "executor", status: r.ok ? "ok" : "error", capability, action, payload: data };
       }
