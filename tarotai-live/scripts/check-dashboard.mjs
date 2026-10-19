@@ -7,8 +7,8 @@ const htmlByPage = new Map();
 for (const page of pages) {
   const html = readFileSync(new URL("../public/" + page, import.meta.url), "utf8");
   htmlByPage.set(page, html);
-  const scripts = [...html.matchAll(/<script\\b([^>]*)>([\\s\\S]*?)<\\/script>/gi)]
-    .filter((match) => !/\\bsrc\\s*=/.test(match[1]))
+  const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)]
+    .filter((match) => !/\bsrc\s*=/.test(match[1]))
     .map((match) => match[2])
     .filter((script) => script.trim().length > 0);
   if (!scripts.length) {
