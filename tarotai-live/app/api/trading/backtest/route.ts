@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAuthorized } from "../../../../lib/auth";
-import { getIntervalMs, runSmaCrossoverBacktest, validateBacktestCandles } from "../../../../lib/trading-backtest.mjs";
+import { assessBacktestEvidence, getIntervalMs, runSmaCrossoverBacktest, validateBacktestCandles } from "../../../../lib/trading-backtest.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -170,6 +170,7 @@ export async function POST(request: Request) {
         warning: (results as { closedTrades: number }).closedTrades < 10 ? "Fewer than 10 closed trades; metrics are highly uncertain." : null
       };
     });
+    const evidenceAssessment = assessBacktestEvidence(test, holdoutSlices);
     const stepMs = getIntervalMs(interval)!;
     return NextResponse.json({
       mode: "RESEARCH_ONLY_NO_ORDERS",
@@ -182,7 +183,7 @@ export async function POST(request: Request) {
         leverage: 1, positionSizing: "100% of current simulated equity, unlevered; illustrative only",
         costsApplied: "adverse slippage and fees on entry and exit", data: "exchange OHLC candles; closed candles only"
       },
-      results: overall, train, test, holdoutSlices,
+      results: overall, train, test, holdoutSlices, evidenceAssessment,
       caveats: [
         "Research baseline only. No live or testnet order is placed.",
         "Next-bar-open fills avoid same-candle-close look-ahead, but real spreads, market impact, funding, liquidation, and exchange-specific execution are not fully simulated.",
