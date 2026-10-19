@@ -83,3 +83,8 @@ test("initial local order book bridges the REST snapshot at lastUpdateId plus on
   assert.match(orderflowPanelSource, /const firstRequiredUpdateId = book\.lastUpdateId \+ 1/);
   assert.match(orderflowPanelSource, /Number\(first\.U\) <= firstRequiredUpdateId && Number\(first\.u\) >= firstRequiredUpdateId/);
 });
+
+
+test("browser order-book snapshot fetch has a hard timeout", () => {
+  assert.match(orderflowPanelSource, /signal: AbortSignal\.timeout\(6500\)/);
+});
