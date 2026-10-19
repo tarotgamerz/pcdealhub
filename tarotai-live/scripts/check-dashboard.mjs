@@ -46,6 +46,17 @@ for (const page of pages) {
     if (!html.includes("No exchange order was sent.")) {
       throw new Error("Virtual chart must clearly label paper-only order actions.");
     }
+    if (!html.includes("function scheduleKlineReconnect") ||
+        !html.includes("Math.min(30000,1000*Math.pow(2,Math.min(klineReconnectAttempts,5)))")) {
+      throw new Error("Virtual chart must use bounded exponential backoff for candle-stream reconnects.");
+    }
+    if (!html.includes("CANDLE STREAM STALE") || !html.includes("WAITING FOR LIVE CANDLE DATA") ||
+        !html.includes("klineSocket.readyState===WebSocket.OPEN")) {
+      throw new Error("Virtual chart must detect and surface a stalled candle stream independently of other feeds.");
+    }
+    if (!html.includes("redrawFrame=requestAnimationFrame")) {
+      throw new Error("Virtual chart redraws must be coalesced to prevent redundant canvas work.");
+    }
   }
   console.log(page + " inline JavaScript syntax check passed");
 }
