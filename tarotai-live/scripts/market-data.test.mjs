@@ -978,14 +978,14 @@ test("user chart viewport is restored and the retired bubble chart no longer syn
 });
 
 
-test("Futures Lab replaces the duplicate bubble chart with the execution-routing map and preserves live flow feeds", () => {
+test("Futures Lab embeds the live virtual order-flow workspace and preserves the primary chart and feed", () => {
   assert.equal((tradingDeskPage.match(/id="liveMarketChart"/g) || []).length, 1, "the primary price chart remains singular");
-  for (const stage of ["Trader / Investor", "OMS / EMS", "Retail Broker / DMA", "Prime Broker", "Smart Order Router (SOR)", "Lit Exchanges", "Dark Pools", "OTC / Market Makers", "Clearing House (CCP)", "Central Depository & Settlement"]) {
-    assert.ok(tradingDeskPage.includes(stage), "execution map contains " + stage);
-  }
-  assert.ok(tradingDeskPage.includes('class="execution-map-shell"'), "the old chart area is replaced with the architecture map");
-  assert.ok(tradingDeskPage.includes("TarotAI only reaches the exchanges and APIs actually configured"), "traditional venue plumbing is labeled illustrative");
-  for (const obsolete of ['id="orderflowBubbleChart"', 'id="orderflowBubbleCanvas"', 'id="toggleOrderflowBubbles"', "orderflowChart=window.LightweightCharts.createChart", "function syncOrderflowRange(source)"]) {
+  assert.ok(tradingDeskPage.includes('class="virtual-orderflow-frame"'), "the real virtual order-flow workspace is embedded");
+  assert.ok(tradingDeskPage.includes('src="/virtual.html"'), "the embed loads the existing live virtual chart");
+  assert.ok(tradingDeskPage.includes('href="/virtual.html"'), "the full virtual chart remains directly accessible");
+  assert.ok(tradingDeskPage.includes("LIVE VIRTUAL ORDER FLOW"), "the embedded panel is labeled as live order flow");
+  assert.ok(tradingDeskPage.includes("If the feed is stale or unsynchronized"), "stale or unsynchronized feed is not treated as a signal");
+  for (const obsolete of ['class="execution-map-shell"', "Trader / Investor", "Smart Order Router (SOR)", 'id="orderflowBubbleChart"', 'id="orderflowBubbleCanvas"', 'id="toggleOrderflowBubbles"', "orderflowChart=window.LightweightCharts.createChart", "function syncOrderflowRange(source)"]) {
     assert.ok(!tradingDeskPage.includes(obsolete), "Futures Lab no longer contains " + obsolete);
   }
   assert.ok(tradingDeskPage.includes('id="orderflowPanel"'), "the live order-book metrics panel is retained");
