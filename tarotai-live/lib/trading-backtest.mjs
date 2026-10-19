@@ -143,3 +143,81 @@ export function runSmaCrossoverBacktest(candles, {
 export function getIntervalMs(interval) {
   return INTERVAL_MS[interval] ?? null;
 }
+
+
+const EVIDENCE_THRESHOLDS = Object.freeze({
+  minimumHoldoutTrades: 30,
+  minimumTradesPerSlice: 10,
+  minimumProfitFactor: 1.2,
+  maximumHoldoutDrawdownPct: 15,
+  minimumPositiveSlices: 2
+});
+
+/**
+ * Conservative research gate for out-of-sample backtests. Passing only permits
+ * paper forward-testing; it never authorizes exchange orders or proves future profit.
+ */
+export function assessBacktestEvidence(testResults, holdoutSlices) {
+  const slices = Array.isArray(holdoutSlices) ? holdoutSlices : [];
+  const validSlices = slices.filter(s => s && s.results && Number.isFinite(s.results.closedTrades));
+  const positiveSlices = validSlices.filter(s =>
+    s.results.closedTrades >= EVIDENCE_THRESHOLDS.minimumTradesPerSlice &&
+    Number.isFinite(s.results.netReturnPct) && s.results.netReturnPct > 0
+  ).length;
+  const underSampledSlices = slices.filter(s =>
+    !s || !s.results || !Number.isFinite(s.results.closedTrades) ||
+    s.results.closedTrades < EVIDENCE_THRESHOLDS.minimumTradesPerSlice
+  ).length;
+  const sampleAdequate = Number.isFinite(testResults?.closedTrades) &&
+    testResults.closedTrades >= EVIDENCE_THRESHOLDS.minimumHoldoutTrades &&
+    slices.length === 3 && underSampledSlices === 0;
+
+  const metricsPass = sampleAdequate &&
+    Number.isFinite(testResults.netReturnPct) && testResults.netReturnPct > 0 &&
+    Number.isFinite(testResults.profitFactor) &&
+    testResults.profitFactor >= EVIDENCE_THRESHOLDS.minimumProfitFactor &&
+    Number.isFinite(testResults.maxDrawdownPct) &&
+    testResults.maxDrawdownPct <= EVIDENCE_THRESHOLDS.maximumHoldoutDrawdownPct &&
+    positiveSlices >= EVIDENCE_THRESHOLDS.minimumPositiveSlices;
+
+  let status = "INSUFFICIENT_EVIDENCE";
+  if (sampleAdequate && !metricsPass) status = "DO_NOT_ADVANCE";
+  if (metricsPass) status = "PAPER_FORWARD_TEST_ONLY";
+
+  const reasons = [];
+  if (!Number.isFinite(testResults?.closedTrades) || testResults.closedTrades < EVIDENCE_THRESHOLDS.minimumHoldoutTrades) {
+    reasons.push("Holdout needs at least 30 closed trades; fewer trades are too weak to judge.");
+  }
+  if (underSampledSlices > 0 || slices.length !== 3) {
+    reasons.push("Each of the three chronological holdout slices needs at least 10 closed trades.");
+  }
+  if (sampleAdequate && !(Number.isFinite(testResults.netReturnPct) && testResults.netReturnPct > 0)) {
+    reasons.push("Net holdout return after configured fees and slippage is not positive.");
+  }
+  if (sampleAdequate && !(Number.isFinite(testResults.profitFactor) && testResults.profitFactor >= EVIDENCE_THRESHOLDS.minimumProfitFactor)) {
+    reasons.push("Holdout profit factor is below 1.2 or cannot be calculated.");
+  }
+  if (sampleAdequate && !(Number.isFinite(testResults.maxDrawdownPct) && testResults.maxDrawdownPct <= EVIDENCE_THRESHOLDS.maximumHoldoutDrawdownPct)) {
+    reasons.push("Estimated holdout drawdown exceeds 15% or cannot be calculated.");
+  }
+  if (sampleAdequate && positiveSlices < EVIDENCE_THRESHOLDS.minimumPositiveSlices) {
+    reasons.push("Fewer than two of three holdout slices are positive after configured costs.");
+  }
+  if (metricsPass) reasons.push("Thresholds met for paper forward-testing only; this is not proof of profitability and does not authorize live orders.");
+
+  return {
+    status,
+    mayStartPaperForwardTest: metricsPass,
+    mayPlaceLiveOrders: false,
+    thresholds: EVIDENCE_THRESHOLDS,
+    observed: {
+      holdoutClosedTrades: Number.isFinite(testResults?.closedTrades) ? testResults.closedTrades : null,
+      holdoutNetReturnPct: Number.isFinite(testResults?.netReturnPct) ? testResults.netReturnPct : null,
+      holdoutProfitFactor: Number.isFinite(testResults?.profitFactor) ? testResults.profitFactor : null,
+      holdoutMaxDrawdownPct: Number.isFinite(testResults?.maxDrawdownPct) ? testResults.maxDrawdownPct : null,
+      positiveHoldoutSlices: positiveSlices,
+      holdoutSlices: slices.length
+    },
+    reasons
+  };
+}
