@@ -985,7 +985,7 @@ test("Futures Lab embeds the live virtual order-flow workspace and preserves the
   assert.ok(tradingDeskPage.includes('href="/virtual.html"'), "the full virtual chart remains directly accessible");
   assert.ok(tradingDeskPage.includes("LIVE VIRTUAL ORDER FLOW"), "the embedded panel is labeled as live order flow");
   assert.ok(tradingDeskPage.includes("If the feed is stale or unsynchronized"), "stale or unsynchronized feed is not treated as a signal");
-  for (const obsolete of ['class="execution-map-shell"', "Trader / Investor", "Smart Order Router (SOR)", 'id="orderflowBubbleChart"', 'id="orderflowBubbleCanvas"', 'id="toggleOrderflowBubbles"', "orderflowChart=window.LightweightCharts.createChart", "function syncOrderflowRange(source)"]) {
+  for (const obsolete of ['class="execution-map-shell"', 'class="exec-node', 'id="orderflowBubbleChart"', 'id="orderflowBubbleCanvas"', 'id="toggleOrderflowBubbles"', "orderflowChart=window.LightweightCharts.createChart", "function syncOrderflowRange(source)"]) {
     assert.ok(!tradingDeskPage.includes(obsolete), "Futures Lab no longer contains " + obsolete);
   }
   assert.ok(tradingDeskPage.includes('id="orderflowPanel"'), "the live order-book metrics panel is retained");
