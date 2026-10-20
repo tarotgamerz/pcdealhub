@@ -60,7 +60,10 @@ const authRequired = [
   'httpOnly: true',
   'secure: true',
   'sameSite: "strict"',
-  "value.trim()"
+  "value.trim()",
+  "AUTH_STORE_TIMEOUT_MS = 1200",
+  "withAuthStoreTimeout(redis.get",
+  "withAuthStoreTimeout(redis.incr"
 ];
 const consoleLoginRequired = [
   "credentials:'same-origin'",
