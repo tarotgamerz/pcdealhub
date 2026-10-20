@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 const route = readFileSync("app/api/chat/route.ts", "utf8");
 const auth = readFileSync("app/api/auth/route.ts", "utf8");
 const consoleUi = readFileSync("public/console.html", "utf8");
+const performanceRoute = readFileSync("app/api/performance/analyze/route.ts", "utf8");
 const agentsUi = readFileSync("public/agents.html", "utf8");
 const tradingDeskUi = readFileSync("public/trading-desk.html", "utf8");
 const health = readFileSync("app/api/health/route.ts", "utf8");
@@ -89,6 +90,18 @@ const teamCoordinationRequired = [
   "tradingDataWarning='Market data fetch failed: '",
   "tradingDataWarning?'Agents finished, but '+tradingDataWarning"
 ];
+const providerReviewRequired = [
+  'process.env.GEMINI_MODEL || "gemini-3.8-flash"',
+  '"gemini-3.6-flash"',
+  '"https://api.x.ai/v1/responses"',
+  'process.env.OPENROUTER_GROK_MODEL || "x-ai/grok-4.7"',
+  'b.mode === "trading-agent-review"',
+  "reviewContext is required",
+  "if (!openRouterKey) return lastError;",
+  "if (!analyses.length)",
+  "automatic_changes_applied: false",
+  "if (!isAuthorized(request))"
+];
 const healthRequired = [
   'hasOpenRouterKey: Boolean(process.env.OPENROUTER_API_KEY)',
   'hasExa: Boolean(process.env.EXA_API_KEY)',
@@ -97,6 +110,7 @@ const healthRequired = [
 
 const missing = required.filter((needle) => !route.includes(needle));
 const missingAuth = authRequired.filter((needle) => !auth.includes(needle));
+const missingProviderReview = providerReviewRequired.filter((needle) => !performanceRoute.includes(needle));
 const missingConsoleLogin = consoleLoginRequired.filter((needle) => !consoleUi.includes(needle));
 const missingAgentsLogin = agentsLoginRequired.filter((needle) => !agentsUi.includes(needle));
 const missingTradingDeskLogin = tradingDeskLoginRequired.filter((needle) => !tradingDeskUi.includes(needle));
@@ -129,10 +143,11 @@ const missingAudit = auditRequired.filter((needle) => !audit.includes(needle));
 const missingDependency = dependencyRequired.filter((needle) => !packageJson.includes(needle));
 const presentForbidden = forbidden.filter((needle) => route.includes(needle));
 
-if (missing.length || missingAuth.length || missingConsoleLogin.length || missingAgentsLogin.length || missingTradingDeskLogin.length || missingTeamCoordination.length || missingHealth.length || missingDocuments.length || missingDocumentExtractor.length || missingDocumentBundling.length || missingMemory.length || missingState.length || missingApps.length || missingVision.length || missingAudit.length || missingDependency.length || presentForbidden.length) {
+if (missing.length || missingAuth.length || missingProviderReview.length || missingConsoleLogin.length || missingAgentsLogin.length || missingTradingDeskLogin.length || missingTeamCoordination.length || missingHealth.length || missingDocuments.length || missingDocumentExtractor.length || missingDocumentBundling.length || missingMemory.length || missingState.length || missingApps.length || missingVision.length || missingAudit.length || missingDependency.length || presentForbidden.length) {
   console.error("TarotAI runtime contract failed.");
   if (missing.length) console.error("Missing chat/tool contract:", missing);
   if (missingAuth.length) console.error("Missing auth contract:", missingAuth);
+  if (missingProviderReview.length) console.error("Missing Gemini/Grok review contract:", missingProviderReview);
   if (missingConsoleLogin.length) console.error("Missing console sign-in contract:", missingConsoleLogin);
   if (missingAgentsLogin.length) console.error("Missing agent workspace sign-in contract:", missingAgentsLogin);
   if (missingTradingDeskLogin.length) console.error("Missing trading desk sign-in contract:", missingTradingDeskLogin);
