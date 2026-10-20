@@ -1,6 +1,6 @@
 import unittest
 
-from performance_optimizer import OptimizerRequest, _heuristic_issues
+from services.performance_optimizer import OptimizerRequest, _heuristic_issues
 
 
 class PerformanceOptimizerTests(unittest.TestCase):
