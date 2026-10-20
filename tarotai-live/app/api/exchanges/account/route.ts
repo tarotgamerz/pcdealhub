@@ -84,7 +84,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const balanceResult = await binanceGet("https://fapi.binance.com", "/fapi/v3/balance", apiKey, secret);
+    const balanceResult = await binanceGet("https://fapi.binance.com", "/fapi/v3/balance", apiKey, apiSecret);
     const payload = balanceResult.payload;
     if (!balanceResult.response.ok || !Array.isArray(payload)) {
       const detail = payload && typeof payload === "object" ? payload as BinanceObject : {};
@@ -141,7 +141,7 @@ export async function GET(request: Request) {
         "https://api.binance.com",
         "/sapi/v1/account/apiRestrictions",
         apiKey,
-        secret
+        apiSecret
       );
       apiKeyPermissionHttpStatus = permissionResult.response.status;
       const permissionPayload = permissionResult.payload as BinanceObject | null;
