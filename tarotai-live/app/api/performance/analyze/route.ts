@@ -50,7 +50,7 @@ async function runGemini(system: string, prompt: string): Promise<ProviderResult
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return { provider: "gemini", error: "GEMINI_API_KEY is not configured." };
 
-  const preferred = (process.env.GEMINI_MODEL || "gemini-3.8-flash").trim();
+  const preferred = (process.env.GEMINI_MODEL || "gemini-3.6-flash").trim();
   // Gemini 2.5 Flash has been retired for new API users; 3.6 is the compatibility fallback
   // for temporary 3.8 overloads or model-level failures.
   const models = [...new Set([preferred, "gemini-3.8-flash", "gemini-3.6-flash"])]
@@ -66,7 +66,7 @@ async function runGemini(system: string, prompt: string): Promise<ProviderResult
           method: "POST",
           headers: { "Content-Type": "application/json" },
           cache: "no-store",
-          signal: AbortSignal.timeout(12_000),
+          signal: AbortSignal.timeout(15_000),
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: system }] },
             contents: [{ role: "user", parts: [{ text: prompt }] }],
@@ -112,7 +112,7 @@ async function runGrok(system: string, prompt: string): Promise<ProviderResult |
         method: "POST",
         headers: { Authorization: "Bearer " + directKey, "Content-Type": "application/json" },
         cache: "no-store",
-        signal: AbortSignal.timeout(12_000),
+        signal: AbortSignal.timeout(8_000),
         body: JSON.stringify({ model, instructions: system, input: prompt, max_output_tokens: 1800, text: { format: { type: "json_object" } } })
       });
       const data: any = await readJson(response);
@@ -142,7 +142,7 @@ async function runGrok(system: string, prompt: string): Promise<ProviderResult |
         "X-Title": "TarotAI Gemini-Grok Trading Review"
       },
       cache: "no-store",
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(25_000),
       body: JSON.stringify({
         model,
         messages: [{ role: "system", content: system }, { role: "user", content: prompt }],
