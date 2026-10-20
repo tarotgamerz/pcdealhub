@@ -45,10 +45,18 @@ const forbidden = [
 ];
 
 const authRequired = [
-  'authenticated:isAuthorized(req)',
-  'if(!expected)return NextResponse.json',
-  'TAROTAI_ACCESS_CODE',
-  'accessCodeConfigured:Boolean(secret())'
+  'authenticated: isAuthorized(request)',
+  'if (!expected)',
+  'process.env.TAROTAI_ACCESS_CODE',
+  'accessCodeConfigured: Boolean(secret())',
+  '"Cache-Control": "no-store, private"',
+  'MAX_FAILED_ATTEMPTS = 8',
+  'LOCKOUT_SECONDS = 15 * 60',
+  'timingSafeEqual(actualBytes, expectedBytes)',
+  'response.cookies.set(COOKIE',
+  'httpOnly: true',
+  'secure: true',
+  'sameSite: "strict"'
 ];
 const healthRequired = [
   'hasOpenRouterKey: Boolean(process.env.OPENROUTER_API_KEY)',
