@@ -160,7 +160,7 @@ export async function POST(request: Request) {
 
   await clearFailures(key);
   const payload = Buffer.from(JSON.stringify({
-    sub: "owner",
+    sub:"owner",
     exp: Date.now() + 8 * 60 * 60 * 1000,
     nonce: randomUUID()
   })).toString("base64url");
