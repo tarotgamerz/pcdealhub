@@ -70,7 +70,7 @@ async function runGemini(system: string, prompt: string): Promise<ProviderResult
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: system }] },
             contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.15, maxOutputTokens: 1800 }
+            generationConfig: { temperature: 0.15, maxOutputTokens: 1800, responseMimeType: "application/json" }
           })
         }
       );
@@ -113,7 +113,7 @@ async function runGrok(system: string, prompt: string): Promise<ProviderResult |
         headers: { Authorization: "Bearer " + directKey, "Content-Type": "application/json" },
         cache: "no-store",
         signal: AbortSignal.timeout(12_000),
-        body: JSON.stringify({ model, instructions: system, input: prompt, max_output_tokens: 1800 })
+        body: JSON.stringify({ model, instructions: system, input: prompt, max_output_tokens: 1800, text: { format: { type: "json_object" } } })
       });
       const data: any = await readJson(response);
       const result = grokText(data);
@@ -147,7 +147,8 @@ async function runGrok(system: string, prompt: string): Promise<ProviderResult |
         model,
         messages: [{ role: "system", content: system }, { role: "user", content: prompt }],
         temperature: 0.15,
-        max_tokens: 1800
+        max_tokens: 1800,
+        response_format: { type: "json_object" }
       })
     });
     const data: any = await readJson(response);
