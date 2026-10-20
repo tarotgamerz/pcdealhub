@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { isAuthorized } from "../../../../lib/auth";
-import { assessBacktestEvidence, getIntervalMs, runSmaCrossoverBacktest, validateBacktestCandles } from "../../../../lib/trading-backtest.mjs";
+import { assessBacktestEvidence, getIntervalMs, runSmaCrossoverBacktest, validateBacktestCandles, validateFundingRates } from "../../../../lib/trading-backtest.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,6 +12,8 @@ const INTERVALS: Record<string, Record<string, string>> = {
 };
 
 type Candle = { time: number; open: number; high: number; low: number; close: number; volume: number; closeTime: number };
+type FundingRate = { time: number; rate: number; markPrice: number };
+
 async function fetchHistory(venue: string, symbol: string, interval: string, limit: number): Promise<{candles:Candle[];sourceHost:string}> {
   const stepMs = getIntervalMs(interval);
   if (!stepMs) throw new Error("Unsupported interval");
@@ -102,6 +104,78 @@ async function fetchHistory(venue: string, symbol: string, interval: string, lim
   throw new Error(lastError);
 }
 
+/**
+ * Downloads complete Binance USDⓈ-M realized funding history over the candle
+ * window. A page cap prevents a long lookback from creating unbounded requests.
+ * Binance returns a mark price associated with each funding fee charge.
+ */
+async function fetchBinanceFundingHistory(symbol: string, startTime: number, endTime: number): Promise<{rates:FundingRate[];sourceHost:string;pages:number}> {
+  if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || startTime <= 0 || endTime < startTime) {
+    throw new Error("Invalid candle time range for funding history");
+  }
+  const collected = new Map<number, FundingRate>();
+  const limit = 1000;
+  const maxPages = 12;
+  let cursor = Math.floor(startTime);
+  let pages = 0;
+  let complete = false;
+
+  while (pages < maxPages && cursor <= endTime) {
+    const endpoint = new URL("https://fapi.binance.com/fapi/v1/fundingRate");
+    endpoint.searchParams.set("symbol", symbol);
+    endpoint.searchParams.set("startTime", String(cursor));
+    endpoint.searchParams.set("endTime", String(Math.floor(endTime)));
+    endpoint.searchParams.set("limit", String(limit));
+
+    const response = await fetch(endpoint, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(5000),
+      headers: { "User-Agent": "TarotAI-Backtest-FundingResearch" }
+    });
+    const payload: unknown = await response.json().catch(() => null);
+    if (!response.ok || !Array.isArray(payload)) {
+      const detail = payload && typeof payload === "object" ? payload as Record<string, unknown> : {};
+      throw new Error(typeof detail.msg === "string" ? detail.msg.slice(0, 180) : "Binance funding history request failed (HTTP " + response.status + ")");
+    }
+    pages += 1;
+    const rows = payload as Array<Record<string, unknown>>;
+    if (rows.length === 0) {
+      complete = true;
+      break;
+    }
+
+    let maxTimestamp = 0;
+    for (const row of rows) {
+      const time = Number(row.fundingTime);
+      if (!Number.isFinite(time) || time <= 0) throw new Error("Binance funding history contained an invalid timestamp");
+      maxTimestamp = Math.max(maxTimestamp, time);
+      if (time < startTime || time > endTime) continue;
+      const rate = Number(row.fundingRate);
+      const markPrice = Number(row.markPrice);
+      if (!Number.isFinite(rate) || !Number.isFinite(markPrice) || markPrice <= 0) {
+        throw new Error("Binance funding history omitted a valid realized rate or settlement mark price");
+      }
+      const existing = collected.get(time);
+      if (existing && (existing.rate !== rate || existing.markPrice !== markPrice)) {
+        throw new Error("Binance funding history returned conflicting data for one settlement time");
+      }
+      collected.set(time, { time, rate, markPrice });
+    }
+
+    if (rows.length < limit || maxTimestamp >= endTime) {
+      complete = true;
+      break;
+    }
+    const nextCursor = Math.floor(maxTimestamp) + 1;
+    if (nextCursor <= cursor) throw new Error("Binance funding history pagination did not advance");
+    cursor = nextCursor;
+  }
+
+  if (!complete) throw new Error("Funding history exceeded the safe paging bound; results cannot qualify for paper forward testing");
+  const rates = validateFundingRates(Array.from(collected.values()).sort((a,b) => a.time - b.time));
+  return { rates, sourceHost: "fapi.binance.com", pages };
+}
+
 export async function POST(request: Request) {
   if (!process.env.TAROTAI_ACCESS_CODE) {
     return NextResponse.json({ error: "Private access is not configured; set TAROTAI_ACCESS_CODE and redeploy." }, { status: 503 });
@@ -151,7 +225,23 @@ export async function POST(request: Request) {
     if (candles.length < Math.max(60, slow + 10) || split - slow < 3 || candles.length - split < 3) {
       return NextResponse.json({ error: "Not enough closed history for a useful chronological 70/30 split. Increase the candle limit or reduce the slow SMA period.", requestedVenue: venue, venue: resolvedVenue, sourceHost, symbol, candles: candles.length, minimumUsefulHistory: Math.max(60, Math.ceil((slow + 3) / 0.7)) }, { status: 422 });
     }
-    const common = { fastPeriod: fast, slowPeriod: slow, feeBps, slippageBps };
+
+    let fundingHistory: {rates:FundingRate[];sourceHost:string;pages:number} | null = null;
+    let fundingHistoryError: string | null = null;
+    if (resolvedVenue === "binance") {
+      try {
+        fundingHistory = await fetchBinanceFundingHistory(symbol, candles[0].time, candles[candles.length - 1].closeTime);
+      } catch (error) {
+        fundingHistoryError = error instanceof Error ? error.message.slice(0, 250) : "Binance funding history could not be verified";
+      }
+    } else {
+      fundingHistoryError = "Historical funding costs are not yet integrated for the resolved " + resolvedVenue + " venue; profitability evidence remains blocked.";
+    }
+    const fundingHistoryVerified = fundingHistory !== null;
+    const common = {
+      fastPeriod: fast, slowPeriod: slow, feeBps, slippageBps,
+      ...(fundingHistoryVerified ? { fundingRates: fundingHistory!.rates } : {})
+    };
     const overall = runSmaCrossoverBacktest(candles, { ...common, startIndex: slow } as any);
     const train = runSmaCrossoverBacktest(candles, { ...common, startIndex: slow, endIndex: split } as any);
     const test = runSmaCrossoverBacktest(candles, { ...common, startIndex: split, endIndex: candles.length } as any);
@@ -172,7 +262,8 @@ export async function POST(request: Request) {
     });
     const evidenceAssessment = assessBacktestEvidence(
       test as unknown as { closedTrades: number; netReturnPct: number; profitFactor: number | null; maxDrawdownPct: number },
-      holdoutSlices as unknown as Array<{ results: { closedTrades: number; netReturnPct: number } | null }>
+      holdoutSlices as unknown as Array<{ results: { closedTrades: number; netReturnPct: number } | null }>,
+      { fundingHistoryVerified }
     );
     const stepMs = getIntervalMs(interval)!;
     return NextResponse.json({
@@ -181,16 +272,28 @@ export async function POST(request: Request) {
       requestedVenue: venue, venue: resolvedVenue, sourceHost, symbol, interval, candles: candles.length, splitIndex: split,
       history: { firstClosedCandleTime: candles[0].time, lastClosedCandleTime: candles[candles.length - 1].time, lastCandleAgeMs: Date.now() - candles[candles.length - 1].time, candleIntervalMs: stepMs, unfinishedCandlesExcluded: true },
       strategy: { type: "simple moving-average crossover", fastPeriod: fast, slowPeriod: slow, signalCalculatedOn: "closed candle", executionAssumption: "next candle open" },
+      fundingHistory: {
+        status: fundingHistoryVerified ? "VERIFIED" : "UNVERIFIED",
+        sourceHost: fundingHistory?.sourceHost ?? null,
+        records: fundingHistory?.rates.length ?? null,
+        pages: fundingHistory?.pages ?? null,
+        startTime: candles[0].time,
+        endTime: candles[candles.length - 1].closeTime,
+        error: fundingHistoryError
+      },
       assumptions: {
-        feeBpsPerSide: feeBps, slippageBpsPerSide: slippageBps, fundingCostsIncluded: false,
+        feeBpsPerSide: feeBps, slippageBpsPerSide: slippageBps, fundingCostsIncluded: fundingHistoryVerified,
+        fundingMethod: fundingHistoryVerified ? "Realized Binance USDⓈ-M funding rates and exchange-reported settlement mark prices; transfers applied only while the simulated position was open." : "Not included because historical funding data could not be verified.",
         leverage: 1, positionSizing: "100% of current simulated equity, unlevered; illustrative only",
-        costsApplied: "adverse slippage and fees on entry and exit", data: "exchange OHLC candles; closed candles only"
+        costsApplied: "adverse slippage, fees on entry and exit, and realized funding when verified", data: "exchange OHLC candles; closed candles only"
       },
       results: overall, train, test, holdoutSlices, evidenceAssessment,
       caveats: [
         "Research baseline only. No live or testnet order is placed.",
-        "Next-bar-open fills avoid same-candle-close look-ahead, but real spreads, market impact, funding, liquidation, and exchange-specific execution are not fully simulated.",
-        "Maximum drawdown estimates intratrade mark-to-market loss from adverse candle highs/lows, fees, and slippage; the separate closed-trade drawdown is also reported. OHLC candles cannot reconstruct exact intrabar price order, and funding, liquidity shocks, and liquidation are not simulated.",
+        "Next-bar-open fills avoid same-candle-close look-ahead, but real spreads, market impact, liquidation and exchange-specific execution are not fully simulated.",
+        "Funding events at exit timestamps are assigned to the previous position; events exactly at entry timestamps are excluded because OHLC cannot establish settlement/order sequencing.",
+        "Maximum drawdown estimates intratrade mark-to-market loss from adverse candle highs/lows, fees, slippage and included funding transfers; OHLC candles cannot reconstruct the exact intrabar path.",
+        ...(fundingHistoryVerified ? [] : ["Funding costs are not verified for this data source; the evidence gate blocks promotion to paper forward testing."]),
         "The 70/30 split is chronological. Do not tune periods on the test segment; preserve a further untouched period for final confirmation.",
         "The three sequential slices split the 30% holdout to expose regime sensitivity; do not use slice results to retune parameters. Each slice with fewer than 10 trades is low-confidence.",
         "Treat the holdout as weak evidence when trade count is small; seek many more trades across different market regimes and symbols.",
