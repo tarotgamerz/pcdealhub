@@ -8,10 +8,11 @@ Configure these in the TarotAI Vercel project's **server-side** environment sett
 
 - `GEMINI_API_KEY` — Google AI Studio API key (required for Gemini)
 - `GEMINI_MODEL` — optional; defaults to `gemini-2.5-flash`
-- `XAI_API_KEY` — xAI API key (required for direct Grok access)
-- `GROK_MODEL` — optional; defaults to `grok-3-mini`
+- `XAI_API_KEY` — optional xAI API key for direct Grok access
+- `OPENROUTER_API_KEY` — existing OpenRouter key can be used for Grok if `XAI_API_KEY` is not set
+- `GROK_MODEL` — optional; defaults to `grok-3-mini` for direct xAI, or `x-ai/grok-3-mini` through OpenRouter
 
-Do not put provider keys in HTML, client JavaScript, Git, or a public environment variable. Never paste secrets into chat. At least one provider key must be configured for analysis; both are called in parallel when both keys are present, and a single provider can still return a result if the other fails.
+Do not put provider keys in HTML, client JavaScript, Git, or a public environment variable. Never paste secrets into chat. At least one provider must be configured for analysis; Gemini and Grok are called in parallel when both are available, and a single provider can still return a result if the other fails. The existing `OPENROUTER_API_KEY` is sufficient to enable Grok via OpenRouter, so a separate xAI key is optional.
 
 ## Telemetry collected
 
