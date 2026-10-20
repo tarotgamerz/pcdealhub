@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import { findSimilarCases } from "../lib/market-patterns.mjs";
 
 const source = readFileSync(new URL("../app/api/exchanges/market/route.ts", import.meta.url), "utf8");
+const tradingAgentRoute = readFileSync(new URL("../app/api/trading/agents/route.ts", import.meta.url), "utf8");
 const consolePage = readFileSync(new URL("../public/console.html", import.meta.url), "utf8");
 const agentPage = readFileSync(new URL("../public/agents.html", import.meta.url), "utf8");
 const chatRoute = readFileSync(new URL("../app/api/chat/route.ts", import.meta.url), "utf8");
@@ -1044,4 +1045,14 @@ test("virtual order-flow workspace overlays conditional next-move projections an
   assert.ok(virtualPage.includes("coverageLabel") && virtualPage.includes("s observed taker delta"), "flow confirmation reports the actual observed tape coverage");
   assert.ok(virtualPage.includes("Heuristic confirmation only, not a calibrated probability"), "flow confirmation is not presented as a calibrated prediction probability");
   assert.ok(orderflowPanelScript.includes("bookAgeMs, tradeAgeMs"), "order-flow publisher exposes independent feed ages");
+});
+
+
+test("deterministic trading fallback matches the server's hard risk and drift caps", () => {
+  assert.ok(tradingAgentRoute.includes("riskPct<=1&&Number.isFinite(distance)"), "fallback sizing must not exceed 1% risk");
+  assert.ok(tradingAgentRoute.includes("Number(body.riskPct)<=1?Number(body.riskPct):null"), "agent context must reject risk above 1%");
+  assert.ok(tradingAgentRoute.includes("drift>.0025"), "fallback must veto entry drift above 0.25%");
+  assert.ok(tradingAgentRoute.includes("within 0.25%; never chase"), "fallback explanation must state the enforced threshold");
+  assert.ok(!tradingAgentRoute.includes("riskPct<=2"), "no fallback path may imply a 2% risk ceiling");
+  assert.ok(!tradingAgentRoute.includes("drift>.01"), "no fallback path may use a 1% entry-drift threshold");
 });
