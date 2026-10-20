@@ -1084,7 +1084,7 @@ $('closePaperBtn').addEventListener('click',async()=>{const id=$('closeTradeId')
     try{
       const localStudy=window.TarotAIMarketPatterns?.findSimilarCases(closed,currentInterval,{horizon:6,maxExamples:8,maxDistance:0.34});
       if(localStudy)renderHistoricalStudy(localStudy);
-      const response=await fetch("/api/trading/agents",{method:"POST",cache:"no-store",credentials:"same-origin",headers:{"Content-Type":"application/json"},signal:AbortSignal.timeout(40000),
+      const response=await fetch("/api/trading/agents",{method:"POST",cache:"no-store",credentials:"same-origin",headers:{"Content-Type":"application/json"},signal:AbortSignal.timeout(55000),
         body:JSON.stringify({symbol:currentSymbol,interval:currentInterval,venue:marketVenue,roles:selections,livePrice:Number(rows[rows.length-1]?.close),paperEquity:Number(byId("livePaperBalance")?.value),riskPct:Number(byId("livePaperRisk")?.value),paperLedger:(Array.isArray(window.tarotaiPaperLedger)?window.tarotaiPaperLedger:[]).slice(-20).map(t=>({id:t.id,status:t.status,symbol:t.symbol,side:t.side,quantity:t.quantity,fillPrice:t.fillPrice,stopPrice:t.stopPrice,targetPrice:t.targetPrice,pnlNet:t.pnlNet,createdAt:t.createdAt,closedAt:t.closedAt,parentTradeId:t.parentTradeId}))})});
       const data=await response.json().catch(()=>({}));
       if(Array.isArray(data.results)){renderLiveAgentResults(data.results);appendAiReviewToDiscussion(data.results,data.market||{symbol:currentSymbol,interval:currentInterval,lastClosedCandleTime:new Date(closed[closed.length-1].time).toISOString()});}
