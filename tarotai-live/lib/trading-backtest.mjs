@@ -15,10 +15,6 @@ export function validateBacktestCandles(candles) {
   return true;
 }
 
-/**
- * Validates realized funding events fetched from an exchange. Each event uses
- * the exchange funding timestamp, realized rate, and mark price at settlement.
- */
 export function validateFundingRates(fundingRates) {
   if (!Array.isArray(fundingRates)) throw new Error("Funding history must be an array");
   let previousTime = 0;
@@ -37,15 +33,12 @@ export function validateFundingRates(fundingRates) {
   });
 }
 
-/** Funding PnL as a fraction of entry notional/equity for an unlevered linear perp. */
 export function calculateFundingPnlFraction(side, fundingRate, markPrice, entryPrice) {
   if (!["LONG", "SHORT"].includes(side) ||
       ![fundingRate, markPrice, entryPrice].every(Number.isFinite) ||
       markPrice <= 0 || entryPrice <= 0) {
     throw new Error("Invalid funding-PnL inputs");
   }
-  // A positive funding rate is paid by longs and received by shorts; negative
-  // rates reverse the transfer. Mark-price notional scales the transfer.
   return -(side === "LONG" ? 1 : -1) * fundingRate * markPrice / entryPrice;
 }
 
@@ -100,7 +93,7 @@ function summarizeTrades(trades, equity, maxDrawdown, closedTradeMaxDrawdown, ca
     fundingCostsIncluded,
     fundingPnlPctSum: Number(trades.reduce((sum, trade) => sum + (trade.fundingPnlPct || 0), 0).toFixed(4)),
     fundingEventsCharged: trades.reduce((sum, trade) => sum + (trade.fundingEventsCharged || 0), 0),
-    drawdownMethod: "Mark-to-market estimate using adverse candle highs/lows, adverse exit slippage, entry/exit fees, and funding transfers at reported settlement marks; OHLC cannot reveal the full intrabar path.",
+    drawdownMethod: "Mark-to-market estimate using adverse high/low candle extremes, adverse exit slippage, entry/exit fees, and funding transfers at reported settlement marks; OHLC cannot reveal the full intrabar path.",
     firstCandleTime: first?.time ?? null,
     lastCandleTime: last?.time ?? null,
     recentTrades: trades.slice(-20).map(t => ({
@@ -146,9 +139,6 @@ export function runSmaCrossoverBacktest(candles, {
     if (peak > 0) maxDrawdown = Math.max(maxDrawdown, (peak - markedEquity) / peak);
   };
 
-  // Funding events at an exit boundary are charged to the previous position;
-  // events exactly at an entry boundary are excluded because settlement/order
-  // sequencing cannot be reconstructed reliably from OHLC bars.
   const applyFundingThrough = (timestamp) => {
     if (!fundingCostsIncluded) return;
     while (fundingIndex < validatedFundingRates.length && validatedFundingRates[fundingIndex].time <= timestamp) {
@@ -185,8 +175,6 @@ export function runSmaCrossoverBacktest(candles, {
     positionFundingPnl = 0; positionFundingEvents = 0;
   };
 
-  // Drawdown uses closed candles' adverse extremes and only funding known by
-  // that candle's time. This is still an OHLC estimate, not tick-level replay.
   const markIntratradeDrawdown = (candle) => {
     if (!candle) return;
     applyFundingThrough(candle.time);
@@ -203,8 +191,7 @@ export function runSmaCrossoverBacktest(candles, {
     updateDrawdownAtEquity(markedEquity(adversePrice));
   };
 
-  // A signal is known only after candle i closes, so every entry/exit executes
-  // at candle i+1's open. This deliberately avoids same-close look-ahead fills.
+  // Signal is known only after the candle closes, so entries/exits use the next bar open.
   for (let i = start; i < end - 1; i++) {
     markIntratradeDrawdown(candles[i]);
     if (fast[i] == null || slow[i] == null || fast[i - 1] == null || slow[i - 1] == null) continue;
@@ -241,10 +228,6 @@ const EVIDENCE_THRESHOLDS = Object.freeze({
   minimumPositiveSlices: 2
 });
 
-/**
- * Conservative research gate for out-of-sample backtests. Passing only permits
- * paper forward-testing; it never authorizes exchange orders or proves future profit.
- */
 export function assessBacktestEvidence(testResults, holdoutSlices, { fundingHistoryVerified = false } = {}) {
   const slices = Array.isArray(holdoutSlices) ? holdoutSlices : [];
   const validSlices = slices.filter(s => s && s.results && Number.isFinite(s.results.closedTrades));
