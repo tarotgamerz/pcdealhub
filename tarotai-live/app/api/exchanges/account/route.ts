@@ -1,6 +1,7 @@
 import { createHmac } from "node:crypto";
 import { NextResponse } from "next/server";
 import { isAuthorized } from "../../../../lib/auth";
+import { parseApiKeyPermissions } from "../../../../lib/binance-api-permissions.mjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,9 +18,9 @@ function signedQuery(secret: string): URLSearchParams {
   return params;
 }
 
-async function binanceGet(path: string, apiKey: string, secret: string) {
+async function binanceGet(baseUrl: string, path: string, apiKey: string, secret: string) {
   const params = signedQuery(secret);
-  const response = await fetch("https://fapi.binance.com" + path + "?" + params.toString(), {
+  const response = await fetch(baseUrl + path + "?" + params.toString(), {
     method: "GET",
     headers: { "X-MBX-APIKEY": apiKey, Accept: "application/json" },
     cache: "no-store",
@@ -31,7 +32,7 @@ async function binanceGet(path: string, apiKey: string, secret: string) {
 
 /**
  * Authenticated, production USDⓈ-M Futures account verification.
- * Signed GET requests only. This endpoint never submits, modifies, or cancels orders.
+ * Uses signed GET requests only. This endpoint never submits, modifies, or cancels orders.
  */
 export async function GET(request: Request) {
   const headers = { "Cache-Control": "no-store" };
@@ -65,8 +66,8 @@ export async function GET(request: Request) {
   }
 
   try {
-    // This reports the Futures account's trade-enabled state without attempting an order.
-    const accountResult = await binanceGet("/fapi/v3/account", apiKey, apiSecret);
+    // Account-level status and balances come from the production USDⓈ-M Futures API.
+    const accountResult = await binanceGet("https://fapi.binance.com", "/fapi/v3/account", apiKey, apiSecret);
     const account = accountResult.payload as BinanceObject | null;
     if (!accountResult.response.ok || !account || typeof account !== "object" || typeof account.canTrade !== "boolean") {
       return NextResponse.json(
@@ -83,7 +84,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const balanceResult = await binanceGet("/fapi/v3/balance", apiKey, apiSecret);
+    const balanceResult = await binanceGet("https://fapi.binance.com", "/fapi/v3/balance", apiKey, secret);
     const payload = balanceResult.payload;
     if (!balanceResult.response.ok || !Array.isArray(payload)) {
       const detail = payload && typeof payload === "object" ? payload as BinanceObject : {};
@@ -127,6 +128,48 @@ export async function GET(request: Request) {
       );
     }
 
+    // Check this API key's permissions explicitly. Failure of this additional
+    // endpoint does not erase successful account connectivity, but it must
+    // leave key permission status unknown rather than assume a capability.
+    let apiKeyPermissions: ReturnType<typeof parseApiKeyPermissions> = null;
+    let apiKeyPermissionStatus: "verified" | "unavailable" = "unavailable";
+    let apiKeyPermissionHttpStatus: number | null = null;
+    let apiKeyPermissionExchangeCode: number | null = null;
+    let apiKeyPermissionError: string | null = null;
+    try {
+      const permissionResult = await binanceGet(
+        "https://api.binance.com",
+        "/sapi/v1/account/apiRestrictions",
+        apiKey,
+        secret
+      );
+      apiKeyPermissionHttpStatus = permissionResult.response.status;
+      const permissionPayload = permissionResult.payload as BinanceObject | null;
+      if (permissionResult.response.ok) {
+        apiKeyPermissions = parseApiKeyPermissions(permissionPayload);
+      } else {
+        apiKeyPermissionExchangeCode = typeof permissionPayload?.code === "number" ? permissionPayload.code : null;
+      }
+      if (apiKeyPermissions) {
+        apiKeyPermissionStatus = "verified";
+      } else {
+        apiKeyPermissionError = "Binance did not return a valid API-key permission response.";
+      }
+    } catch {
+      apiKeyPermissionError = "The API-key permission check timed out or could not reach Binance.";
+    }
+
+    const permissionWarnings: string[] = [];
+    if (apiKeyPermissions?.enableWithdrawals === true) {
+      permissionWarnings.push("This API key has withdrawals enabled; disable withdrawals for TarotAI.");
+    }
+    if (apiKeyPermissions?.ipRestrict === false) {
+      permissionWarnings.push("This API key is not IP-restricted; restrict it to a trusted server egress IP where feasible.");
+    }
+    if (apiKeyPermissions?.enableFutures === true) {
+      permissionWarnings.push("The configured read-only key has Futures trading permission enabled; use a separate key for future execution.");
+    }
+
     return NextResponse.json(
       {
         connected: true,
@@ -136,8 +179,17 @@ export async function GET(request: Request) {
         accountCanTrade: account.canTrade,
         accountCanDeposit: typeof account.canDeposit === "boolean" ? account.canDeposit : null,
         accountCanWithdraw: typeof account.canWithdraw === "boolean" ? account.canWithdraw : null,
+        apiKeyPermissionStatus,
+        apiKeyPermissionHttpStatus,
+        apiKeyPermissionExchangeCode,
+        apiKeyPermissionError,
+        apiKeyPermissions,
+        apiKeyPermissionWarnings: permissionWarnings,
+        apiKeyFuturesTradingPermissionEnabled: apiKeyPermissions?.enableFutures ?? null,
+        apiKeyWithdrawalsEnabled: apiKeyPermissions?.enableWithdrawals ?? null,
+        apiKeyIpRestricted: apiKeyPermissions?.ipRestrict ?? null,
         tradingCapabilityVerified: false,
-        tradingCapabilityNote: "Account connectivity is verified, but API-key order permission is not proven by a read-only request. No test or live order was submitted.",
+        tradingCapabilityNote: "API-key permissions are reported separately from account connectivity. No test or live order was submitted, and production order placement remains disabled.",
         balances,
         orderPlacement: false
       },
