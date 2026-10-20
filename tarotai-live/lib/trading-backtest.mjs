@@ -191,7 +191,7 @@ export function runSmaCrossoverBacktest(candles, {
     updateDrawdownAtEquity(markedEquity(adversePrice));
   };
 
-  // Signal is known only after the candle closes, so entries/exits use the next bar open.
+  // A signal is known only after candle i closes, so every entry/exit executes at candle i+1's open.
   for (let i = start; i < end - 1; i++) {
     markIntratradeDrawdown(candles[i]);
     if (fast[i] == null || slow[i] == null || fast[i - 1] == null || slow[i - 1] == null) continue;
