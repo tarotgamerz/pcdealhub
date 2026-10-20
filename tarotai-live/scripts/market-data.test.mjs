@@ -330,7 +330,9 @@ test("historical backtest uses closed production candles and next-bar execution"
   assert.match(backtestRoute, /c\.closeTime < Date\.now\(\)/);
   assert.match(backtestRoute, /runSmaCrossoverBacktest/);
   assert.match(backtestRoute, /startIndex: split/);
-  assert.match(backtestRoute, /fundingCostsIncluded: false/);
+  assert.match(backtestRoute, /fundingCostsIncluded: fundingHistoryVerified/);
+  assert.match(backtestRoute, /Verified historical funding-rate history/);
+  assert.match(backtestRoute, /mayPlaceLiveOrders: false/);
   assert.match(backtestEngine, /const fillCandle = candles\[i \+ 1\]/);
   assert.match(backtestEngine, /at candle i\+1's open/);
 });
