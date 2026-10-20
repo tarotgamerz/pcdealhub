@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>TarotAI · Account & Live Readiness</title>
+<style>
+:root{color-scheme:dark;--bg:#080c12;--panel:#101722;--line:#263444;--text:#eaf0f7;--muted:#91a0b2;--green:#71e6b0;--red:#ff838e;--gold:#f2cc75;--blue:#9bc5ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 80% 0,#1a2b40 0,transparent 45%),var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}.wrap{max-width:900px;margin:0 auto;padding:24px 16px 56px}.top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:20px}.brand{font-weight:900;letter-spacing:.08em}.brand span{color:var(--green)}a{color:var(--blue)}button{font:inherit;cursor:pointer;border:1px solid #34475d;background:#172332;color:var(--text);border-radius:9px;padding:9px 12px}.primary{background:var(--green);color:#07120e;border-color:var(--green);font-weight:800}.panel{border:1px solid var(--line);background:rgba(16,23,34,.92);border-radius:14px;padding:17px;margin:12px 0}.heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}.heading h2{margin:0;font-size:18px}.muted{color:var(--muted)}.status{display:inline-flex;align-items:center;gap:7px;border:1px solid #35465a;border-radius:99px;padding:4px 9px;font-size:12px}.status.ok{color:var(--green);border-color:#285c47}.status.bad{color:var(--red);border-color:#65333a}.status.warn{color:var(--gold);border-color:#66562f}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:15px}.field{padding:11px;border:1px solid #273749;border-radius:9px;background:#0b1119;min-width:0}.field small{display:block;color:var(--muted);font-size:11px;margin-bottom:4px}.field strong{overflow-wrap:anywhere}.list{padding-left:20px}.list li{margin:7px 0}.err{border:1px solid #68343b;background:#251419;border-radius:9px;padding:11px;color:#ffc2c6;margin-top:12px;overflow-wrap:anywhere}.notice{border-left:3px solid var(--gold);padding:9px 12px;background:#1c190f;color:#e4d5a9;border-radius:0 8px 8px 0;margin-top:12px}.actions{display:flex;gap:8px;flex-wrap:wrap}.loading{opacity:.7}.hidden{display:none!important}footer{color:var(--muted);font-size:12px;margin-top:22px}@media(max-width:580px){.wrap{padding:16px 11px 40px}.panel{padding:13px}.grid{grid-template-columns:1fr}.top{align-items:flex-start}}
+</style>
+</head>
+<body>
+<main class="wrap">
+<header class="top"><div><div class="brand">TAROT<span>AI</span></div><div class="muted">Account connection & live-trading blockers</div></div><div class="actions"><a href="/console.html">Back to TarotAI</a><button id="refresh" class="primary">Refresh checks</button></div></header>
+<section class="panel">
+ <div class="heading"><div><h2>Binance USDⓈ-M account</h2><div class="muted">Read-only verification. No orders will be placed.</div></div><span id="account-status" class="status warn">Not checked</span></div>
+ <div id="account-message" class="muted" style="margin-top:12px">Checking account connectivity and API-key permissions…</div>
+ <div class="grid" id="account-grid"></div>
+ <div id="account-error" class="err hidden"></div>
+</section>
+<section class="panel">
+ <div class="heading"><div><h2>Live-trading readiness</h2><div class="muted">Diagnostics only. This page cannot enable live orders.</div></div><span id="readiness-status" class="status warn">Not checked</span></div>
+ <div id="readiness-message" class="muted" style="margin-top:12px">Checking production safeguards…</div>
+ <ul id="blockers" class="list"></ul>
+ <div class="grid" id="readiness-grid"></div>
+ <div id="readiness-error" class="err hidden"></div>
+ <div class="notice">Live order submission remains disabled in this release, even if a diagnostic check reports no blockers.</div>
+</section>
+<section id="login-help" class="panel hidden"><h2>Sign-in required</h2><p>This check uses TarotAI’s private session cookie. Open TarotAI, sign in with your access code, then return here in the same browser.</p><a href="/console.html">Open TarotAI sign-in</a></section>
+<footer>Only safe status fields are shown here. Account balances, API keys and API secrets are intentionally not displayed. Never paste credentials into chat.</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+function status(id,text,kind){const el=$(id);el.textContent=text;el.className='status '+(kind||'warn')}
+function fields(id,items){$(id).innerHTML=items.map(([label,value])=>'<div class="field"><small>'+esc(label)+'</small><strong>'+esc(value===null||value===undefined?'Unknown':String(value))+'</strong></div>').join('')}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function showError(id,message){const el=$(id);if(message){el.textContent=message;el.classList.remove('hidden')}else{el.textContent='';el.classList.add('hidden')}}
+async function fetchJson(url){const r=await fetch(url,{method:'GET',cache:'no-store',credentials:'same-origin',headers:{accept:'application/json'}});const d=await r.json().catch(()=>({error:'Server returned a non-JSON response.'}));return {ok:r.ok,status:r.status,data:d}}
+async function load(){
+ $('refresh').disabled=true;$('refresh').textContent='Checking…';document.body.classList.add('loading');showError('account-error','');showError('readiness-error','');$('login-help').classList.add('hidden');
+ const [a,r]=await Promise.allSettled([fetchJson('/api/exchanges/account'),fetchJson('/api/trading/live-readiness')]);
+ let authNeeded=false;
+ if(a.status==='fulfilled'){
+  const {ok,status:code,data:d}=a.value;
+  if(code===401||code===503&&/access|authenticat/i.test(d.error||''))authNeeded=true;
+  if(ok&&d.connected){
+   status('account-status','Connected','ok');
+   $('account-message').textContent='Binance account endpoint responded successfully. This verifies connectivity only; it does not prove that live trading is safe or enabled.';
+   fields('account-grid',[
+    ['Account can trade',d.accountCanTrade],
+    ['API-key permissions',d.apiKeyPermissionStatus],
+    ['Futures permission on this key',d.apiKeyFuturesTradingPermissionEnabled],
+    ['Withdrawals enabled',d.apiKeyWithdrawalsEnabled],
+    ['IP restriction enabled',d.apiKeyIpRestricted],
+    ['Order placement',d.orderPlacement===false?'Disabled':'Not verified']
+   ]);
+   if(d.apiKeyPermissionError)showError('account-error','Account connected, but API-key permissions could not be verified: '+d.apiKeyPermissionError);
+  }else{
+   status('account-status',code===401?'Sign-in required':'Check failed','bad');
+   $('account-message').textContent='The account connection was not verified.';
+   fields('account-grid',[['HTTP status',code],['Exchange code',d.exchangeCode??'Not provided'],['Order placement','Disabled']]);
+   showError('account-error',d.error||'Request failed with HTTP '+code+'.');
+  }
+ }else{status('account-status','Request failed','bad');showError('account-error',String(a.reason||'Request failed'))}
+ if(r.status==='fulfilled'){
+  const {ok,status:code,data:d}=r.value;
+  if(code===401||code===503&&/access|authenticat/i.test(d.error||''))authNeeded=true;
+  if(ok){
+   status('readiness-status',d.status||'Checked',d.status==='BLOCKED'?'bad':'warn');
+   $('readiness-message').textContent='Readiness diagnostic completed at '+(d.checkedAt||'unknown time')+'.';
+   $('blockers').innerHTML=(Array.isArray(d.blockers)?d.blockers:[]).map(x=>'<li>'+esc(x.replaceAll('_',' '))+'</li>').join('')||'<li>No diagnostic blockers reported.</li>';
+   fields('readiness-grid',[
+    ['Separate trading credentials configured',d.tradingCredentialsConfigured],
+    ['Live-trading feature flag',d.liveTradingFeatureFlagEnabled],
+    ['Global emergency stop engaged',d.globalEmergencyStopEngaged],
+    ['Production order adapter implemented',d.liveOrderAdapterImplemented],
+    ['Protective exits verified',d.protectiveExitAutomationVerified],
+    ['Profitability evidence approved',d.strategyEvidenceApproved],
+    ['Can place live orders',d.canPlaceLiveOrders]
+   ]);
+  }else{
+   status('readiness-status','Check failed','bad');$('readiness-message').textContent='Could not read readiness diagnostics.';
+   fields('readiness-grid',[['HTTP status',code],['Can place live orders','No']]);
+   showError('readiness-error',d.error||'Request failed with HTTP '+code+'.');
+  }
+ }else{status('readiness-status','Request failed','bad');showError('readiness-error',String(r.reason||'Request failed'))}
+ if(authNeeded)$('login-help').classList.remove('hidden');
+ document.body.classList.remove('loading');$('refresh').disabled=false;$('refresh').textContent='Refresh checks';
+}
+$('refresh').addEventListener('click',load);load();
+</script>
+</body></html>
