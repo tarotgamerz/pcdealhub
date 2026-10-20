@@ -728,6 +728,11 @@ test("Binance live chart renders automatic support, resistance, trendlines and s
 
 
 test("live quote fallback uses the selected venue and blocks stale prices", () => {
+  assert.match(liveQuoteRoute, /fapi\.binance\.com\/fapi\/v2\/ticker\/price/);
+  assert.match(liveQuoteRoute, /const timestamp = Number\(payload\?\.time\)/);
+  assert.match(liveQuoteRoute, /payload\?\.symbol !== symbol/);
+  assert.match(liveQuoteRoute, /ageMs < -1500 \|\| ageMs > 3000/);
+  assert.doesNotMatch(liveQuoteRoute, /timestamp: Date\.now\(\), ageMs: 0/);
   assert.match(liveQuoteRoute, /api\/v5\/market\/ticker/);
   assert.match(liveQuoteRoute, /new Set\(\["BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT"\]\)/);
   assert.match(liveQuoteRoute, /ageMs > 3000/);
