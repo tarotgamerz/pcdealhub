@@ -148,7 +148,7 @@ export async function POST(request: Request) {
   const value = body && typeof body === "object" && !Array.isArray(body)
     ? (body as Record<string, unknown>).code
     : undefined;
-  const supplied = typeof value === "string" && value.length <= 256 ? value : "";
+  const supplied = typeof value === "string" && value.length <= 256 ? value.trim() : "";
   const actualBytes = Buffer.from(supplied);
   const expectedBytes = Buffer.from(expected);
   const matches = actualBytes.length === expectedBytes.length && timingSafeEqual(actualBytes, expectedBytes);
