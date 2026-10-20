@@ -518,5 +518,115 @@ publishMarketSync();loadMarket();setInterval(()=>{const now=Date.now(),candleFre
 })();
 </script>
 <script src="/orderflow-panel.js"></script>
+
+<script>
+/* Private owner-session performance telemetry. Sends measurements only; never changes chart settings. */
+(function(){
+  "use strict";
+  if (window.__tarotaiPerfTelemetryInstalled) return;
+  window.__tarotaiPerfTelemetryInstalled = true;
+  var originalFetch = window.fetch.bind(window);
+  var frameTimes = [], lastFrame = 0, lastExternalFetchMs = null, lastDataAt = performance.now();
+  var errors = [], updates = 0, lastReport = 0, fps = 0, frameTime = null, dropped = 0;
+  function addError(value) { if (errors.length < 20) errors.push(String(value || "Chart runtime error").slice(0, 240)); }
+  window.addEventListener("error", function(e){ addError(e.message || "Window error"); });
+  window.addEventListener("unhandledrejection", function(e){ addError(e.reason && e.reason.message || "Unhandled promise rejection"); });
+  window.fetch = async function(input, init) {
+    var url = typeof input === "string" ? input : (input && input.url) || "";
+    if (url.indexOf("/api/performance/analyze") >= 0) return originalFetch(input, init);
+    var started = performance.now();
+    try {
+      var response = await originalFetch(input, init);
+      lastExternalFetchMs = Math.round(performance.now() - started);
+      lastDataAt = performance.now();
+      if (!response.ok && url.indexOf("binance") >= 0) addError("Market-data request returned HTTP " + response.status);
+      return response;
+    } catch (e) {
+      lastExternalFetchMs = Math.round(performance.now() - started);
+      addError("Fetch failed: " + (e && e.message || "network error"));
+      throw e;
+    }
+  };
+  function tick(now) {
+    if (lastFrame) {
+      var dt = now - lastFrame;
+      frameTimes.push(dt);
+      if (dt > 50) dropped++;
+      if (frameTimes.length > 120) frameTimes.shift();
+      if (frameTimes.length) {
+        var sum = frameTimes.reduce(function(a,b){ return a+b; }, 0);
+        frameTime = sum / frameTimes.length;
+        fps = frameTime > 0 ? 1000 / frameTime : 0;
+      }
+    }
+    lastFrame = now;
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+  function report() {
+    var now = Date.now();
+    if (document.visibilityState !== "visible" || now - lastReport < 55000) return;
+    lastReport = now;
+    var host = document.getElementById("bubbleChart");
+    var stage = document.getElementById("bubbleStage");
+    var hasCanvas = !!(host && host.querySelector("canvas"));
+    var status = !host || !stage ? "unknown" : (hasCanvas && host.clientWidth > 0 && host.clientHeight > 0 ? "ok" : "blank");
+    if (host && host.querySelector("canvas") && !host.querySelector("canvas").isConnected) status = "frozen";
+    var symbol = document.getElementById("symbolPicker");
+    var interval = document.getElementById("intervalPicker");
+    var payload = {
+      chart: {
+        chart_type: "candlestick-with-order-flow",
+        symbol: symbol && symbol.value || null,
+        timeframe: interval && interval.value || null,
+        renderer_status: status,
+        error_messages: errors.slice(-10),
+        visible_candles: null
+      },
+      execution_speeds: {
+        frame_time_ms: frameTime === null ? null : Math.round(frameTime * 100) / 100,
+        fps: fps ? Math.round(fps * 10) / 10 : null,
+        render_time_ms: frameTime === null ? null : Math.round(frameTime * 100) / 100,
+        data_to_render_ms: Math.round(performance.now() - lastDataAt),
+        api_latency_ms: lastExternalFetchMs,
+        dropped_frames: dropped,
+        chart_update_count: updates
+      },
+      recent_events: errors.slice(-5)
+    };
+    originalFetch("/api/performance/analyze", {
+      method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload), cache: "no-store"
+    }).then(async function(response) {
+      if (response.status === 401 || response.status === 503) return;
+      var data = await response.json().catch(function(){ return null; });
+      var panel = document.getElementById("perfAnalysisStatus");
+      if (!panel) {
+        panel = document.createElement("div");
+        panel.id = "perfAnalysisStatus";
+        panel.style.cssText = "position:fixed;right:12px;bottom:12px;z-index:9999;max-width:min(360px,90vw);padding:9px 12px;border:1px solid #2a3b50;border-radius:8px;background:#0b1119;color:#cbd5e1;font:11px/1.45 system-ui;box-shadow:0 8px 24px #0008";
+        panel.setAttribute("aria-live","polite");
+        document.body.appendChild(panel);
+      }
+      if (data && data.analyses) {
+        panel.textContent = "Performance AI · " + data.analyses.map(function(x){ return x.provider; }).join(" + ") + " · " + (data.provider_errors && data.provider_errors.length ? "partial" : "connected");
+      } else if (data && data.error) {
+        panel.textContent = "Performance AI · " + data.error;
+      } else {
+        panel.textContent = "Performance AI · response received";
+      }
+    }).catch(function(){ /* keep chart running if analysis service is unavailable */ });
+    errors = [];
+  }
+  var observer = new MutationObserver(function(){ updates++; });
+  function observeChart() {
+    var host = document.getElementById("bubbleChart");
+    if (host) observer.observe(host, { childList: true, subtree: true, attributes: true });
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", observeChart, { once: true }); else observeChart();
+  setInterval(report, 10000);
+})();
+</script>
+
 </body>
 </html>
