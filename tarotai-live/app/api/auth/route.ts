@@ -7,7 +7,22 @@ export const runtime = "nodejs";
 const COOKIE = "tarotai_session";
 const MAX_FAILED_ATTEMPTS = 8;
 const LOCKOUT_SECONDS = 15 * 60;
+const AUTH_STORE_TIMEOUT_MS = 1200;
 const secret = () => process.env.TAROTAI_ACCESS_CODE || "";
+
+async function withAuthStoreTimeout<T>(operation: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("Authentication rate-limit store timed out.")), AUTH_STORE_TIMEOUT_MS);
+      })
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
 
 type LocalFailure = { count: number; expiresAt: number };
 const localFailures = new Map<string, LocalFailure>();
@@ -71,7 +86,7 @@ function redisClient() {
 async function failureCount(key: string) {
   try {
     const redis = redisClient();
-    if (redis) return Number((await redis.get<string | number>(key)) || 0);
+    if (redis) return Number((await withAuthStoreTimeout(redis.get<string | number>(key))) || 0);
   } catch {
     // Fail over to an in-process limiter when the shared store is unavailable.
   }
@@ -82,8 +97,8 @@ async function recordFailure(key: string) {
   try {
     const redis = redisClient();
     if (redis) {
-      const count = await redis.incr(key);
-      if (count === 1) await redis.expire(key, LOCKOUT_SECONDS);
+      const count = await withAuthStoreTimeout(redis.incr(key));
+      if (count === 1) await withAuthStoreTimeout(redis.expire(key, LOCKOUT_SECONDS));
       return count;
     }
   } catch {
@@ -96,7 +111,7 @@ async function clearFailures(key: string) {
   localFailures.delete(key);
   try {
     const redis = redisClient();
-    if (redis) await redis.del(key);
+    if (redis) await withAuthStoreTimeout(redis.del(key));
   } catch {
     // A stale counter expires automatically.
   }
