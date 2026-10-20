@@ -74,12 +74,14 @@ const agentsLoginRequired = [
   "credentials:'same-origin'",
   "The code was accepted, but this browser did not retain the secure sign-in session.",
   "const session=await check.json().catch(()=>({}))",
-  "button=form.querySelector('button')"
+  "button=form.querySelector('button')",
+  "$('code').value=''"
 ];
 const tradingDeskLoginRequired = [
   "credentials:'same-origin'",
   "The code was accepted, but this browser did not retain the secure session cookie.",
-  "session.authenticated!==true"
+  "session.authenticated!==true",
+  "$('accessCode').value=''"
 ];
 const teamCoordinationRequired = [
   "TEAM COMMUNICATION SO FAR",
