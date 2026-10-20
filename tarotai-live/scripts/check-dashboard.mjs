@@ -18,6 +18,9 @@ for (const page of pages) {
     new Script(source, { filename: page + ":inline-script-" + (index + 1) });
   }
   if (page === "trading-desk.html") {
+    if (!html.includes("signal:AbortSignal.timeout(55000)") || html.includes("signal:AbortSignal.timeout(40000)")) {
+      throw new Error("The eight-agent request timeout must fit inside the server route budget.");
+    }
     for (const file of ["live-agent-monitor.js", "orderflow-panel.js"]) {
       const source = readFileSync(new URL("../public/" + file, import.meta.url), "utf8");
       new Script(source, { filename: file });
