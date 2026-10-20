@@ -91,7 +91,7 @@ const teamCoordinationRequired = [
   "tradingDataWarning?'Agents finished, but '+tradingDataWarning"
 ];
 const providerReviewRequired = [
-  'process.env.GEMINI_MODEL || "gemini-3.8-flash"',
+  'process.env.GEMINI_MODEL || "gemini-3.6-flash"',
   '"gemini-3.6-flash"',
   '"https://api.x.ai/v1/responses"',
   'process.env.OPENROUTER_GROK_MODEL || "x-ai/grok-4.7"',
