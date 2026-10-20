@@ -4,9 +4,9 @@
   "version": "2.5.0",
   "scripts": {
     "dev": "next dev",
-    "build": "node --test scripts/trading-rules.test.mjs scripts/market-data.test.mjs scripts/documents.test.mjs scripts/trade-readiness-gate.test.mjs scripts/orderbook.test.mjs scripts/paper-approval.test.mjs scripts/paper-position-guard.test.mjs scripts/backtest-evidence.test.mjs && node scripts/check-dashboard.mjs && node scripts/check_tools.mjs && node scripts/audit-dependencies.mjs && next build",
+    "build": "node --test scripts/trading-rules.test.mjs scripts/market-data.test.mjs scripts/documents.test.mjs scripts/trade-readiness-gate.test.mjs scripts/orderbook.test.mjs scripts/paper-approval.test.mjs scripts/paper-position-guard.test.mjs scripts/backtest-evidence.test.mjs scripts/binance-api-permissions.test.mjs && node scripts/check-dashboard.mjs && node scripts/check_tools.mjs && node scripts/audit-dependencies.mjs && next build",
     "start": "next start",
-    "test:trading": "node --test scripts/trading-rules.test.mjs scripts/trade-readiness-gate.test.mjs scripts/orderbook.test.mjs scripts/paper-approval.test.mjs scripts/paper-position-guard.test.mjs scripts/backtest-evidence.test.mjs"
+    "test:trading": "node --test scripts/trading-rules.test.mjs scripts/trade-readiness-gate.test.mjs scripts/orderbook.test.mjs scripts/paper-approval.test.mjs scripts/paper-position-guard.test.mjs scripts/backtest-evidence.test.mjs scripts/binance-api-permissions.test.mjs"
   },
   "dependencies": {
     "next": "15.5.27",
@@ -31,7 +31,6 @@
     "postcss": "8.5.23",
     "sharp": "0.35.5",
     "js-yaml": "4.3.2",
-    "file-type": "21.3.2",
     "fflate": "0.8.3",
     "argparse": "2.0.1",
     "@fastify/busboy": "3.2.2",
