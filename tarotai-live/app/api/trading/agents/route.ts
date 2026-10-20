@@ -141,7 +141,7 @@ function deterministicFallbackReport(role:string,market:any,higherTrend:any,pape
  else if(!stale&&hDown&&shortChecks.filter(Boolean).length>=4&&down){bias="SHORT";entry=last.close;stop=Math.max(entry+av[i]*1.5,Math.max(...recent.map(c=>c.high))+av[i]*.1);target=entry-(stop-entry)*2;rr=2;}
  const liveRaw=Number(body?.livePrice),livePrice=Number.isFinite(liveRaw)&&liveRaw>0?liveRaw:last.close,drift=Number.isFinite(entry)?Math.abs(livePrice-entry)/entry:NaN;
  const equity=Number(paperTradeContext?.paperEquity),riskPct=Number(paperTradeContext?.riskPct),distance=Math.abs(entry-stop);
- const sizingReady=bias!=="WAIT"&&Number.isFinite(equity)&&equity>=100&&Number.isFinite(riskPct)&&riskPct>=.1&&riskPct<=2&&Number.isFinite(distance)&&distance>0;
+ const sizingReady=bias!=="WAIT"&&Number.isFinite(equity)&&equity>=100&&Number.isFinite(riskPct)&&riskPct>=.1&&riskPct<=1&&Number.isFinite(distance)&&distance>0;
  const quantity=sizingReady?Math.min(equity*riskPct/100/distance,equity/entry):NaN;
  const num=(n:number)=>Number.isFinite(n)?n.toPrecision(8):"unavailable";
  const fail=String(providerError||"AI provider unavailable").replace(/sk-or-v1-[A-Za-z0-9_-]+/g,"[redacted key]").replace(/\s+/g," ").slice(0,180);
@@ -166,9 +166,9 @@ function deterministicFallbackReport(role:string,market:any,higherTrend:any,pape
   trigger=sizingReady?"Use the calculated quantity only in paper mode; recalculate if entry or stop changes.":"WAIT; no quantity is approved.";
   veto=bias!=="WAIT"&&!sizingReady;
  } else if(role==="discipline"){
-  reportBias=Number.isFinite(entry)&&(!Number.isFinite(drift)||drift>.01)?"WAIT":bias;evidence="Last server candle "+num(last.close)+"; latest browser quote "+num(livePrice)+"; entry drift "+(Number.isFinite(drift)?(drift*100).toFixed(3)+"%":"not applicable")+".";
-  trigger=bias!=="WAIT"&&Number.isFinite(drift)&&drift<=.01?"Paper entry only while drift remains within 1%; never chase.":"WAIT; require fresh quote and confirmed closed candle.";
-  veto=stale||bias!=="WAIT"&&(!Number.isFinite(drift)||drift>.01);
+  reportBias=Number.isFinite(entry)&&(!Number.isFinite(drift)||drift>.0025)?"WAIT":bias;evidence="Last server candle "+num(last.close)+"; latest browser quote "+num(livePrice)+"; entry drift "+(Number.isFinite(drift)?(drift*100).toFixed(3)+"%":"not applicable")+".";
+  trigger=bias!=="WAIT"&&Number.isFinite(drift)&&drift<=.0025?"Paper entry only while drift remains within 0.25%; never chase.":"WAIT; require fresh quote and confirmed closed candle.";
+  veto=stale||bias!=="WAIT"&&(!Number.isFinite(drift)||drift>.0025);
  } else if(role==="position"){
   const alert=open.some((t:any)=>t.side==="BUY"?livePrice<=Number(t.stop)||livePrice>=Number(t.target):livePrice>=Number(t.stop)||livePrice<=Number(t.target));
   reportBias="WAIT";evidence=open.length?open.length+" open paper position(s) on "+market.symbol+"; live price "+num(livePrice)+".":"No open paper position on "+market.symbol+".";
