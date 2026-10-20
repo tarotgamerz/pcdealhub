@@ -9,9 +9,37 @@ export function validateBacktestCandles(candles) {
       c.high < Math.max(c.open, c.low, c.close) || c.low > Math.min(c.open, c.high, c.close)) {
       throw new Error("Malformed OHLC candle rejected");
     }
+    if (Number.isFinite(c.closeTime) && c.closeTime < c.time) throw new Error("Candle close time precedes open time");
     if (i > 0 && c.time <= candles[i - 1].time) throw new Error("Candles must be strictly chronological");
   }
   return true;
+}
+
+export function validateFundingRates(fundingRates) {
+  if (!Array.isArray(fundingRates)) throw new Error("Funding history must be an array");
+  let previousTime = 0;
+  return fundingRates.map((event) => {
+    const time = Number(event?.time);
+    const rate = Number(event?.rate);
+    const markPrice = Number(event?.markPrice);
+    if (!Number.isFinite(time) || time <= 0 ||
+        !Number.isFinite(rate) ||
+        !Number.isFinite(markPrice) || markPrice <= 0) {
+      throw new Error("Malformed funding-rate event rejected");
+    }
+    if (time <= previousTime) throw new Error("Funding events must be strictly chronological and unique");
+    previousTime = time;
+    return { time, rate, markPrice };
+  });
+}
+
+export function calculateFundingPnlFraction(side, fundingRate, markPrice, entryPrice) {
+  if (!["LONG", "SHORT"].includes(side) ||
+      ![fundingRate, markPrice, entryPrice].every(Number.isFinite) ||
+      markPrice <= 0 || entryPrice <= 0) {
+    throw new Error("Invalid funding-PnL inputs");
+  }
+  return -(side === "LONG" ? 1 : -1) * fundingRate * markPrice / entryPrice;
 }
 
 export function calculateSma(values, period) {
@@ -26,7 +54,7 @@ export function calculateSma(values, period) {
   return out;
 }
 
-function summarizeTrades(trades, equity, maxDrawdown, closedTradeMaxDrawdown, candles, startIndex, endIndex, feeRate, slipRate) {
+function summarizeTrades(trades, equity, maxDrawdown, closedTradeMaxDrawdown, candles, startIndex, endIndex, feeRate, slipRate, fundingRates, fundingCostsIncluded) {
   const wins = trades.filter(t => t.netReturnPct > 0);
   const losses = trades.filter(t => t.netReturnPct < 0);
   const grossWins = wins.reduce((sum, t) => sum + t.netReturnPct, 0);
@@ -34,15 +62,26 @@ function summarizeTrades(trades, equity, maxDrawdown, closedTradeMaxDrawdown, ca
   const first = candles[Math.min(startIndex, candles.length - 1)];
   const last = candles[Math.max(Math.min(endIndex, candles.length) - 1, 0)];
   let buyHoldReturnPct = null;
+  let buyHoldFundingPnlPct = null;
   if (first && last && last.time >= first.time) {
     const entryFill = first.open * (1 + slipRate);
     const exitFill = last.close * (1 - slipRate);
-    buyHoldReturnPct = (entryFill > 0 ? (exitFill / entryFill - 1) - feeRate * (1 + exitFill / entryFill) : 0) * 100;
+    const fundingEvents = fundingCostsIncluded
+      ? fundingRates.filter(event => event.time > first.time && event.time <= (Number.isFinite(last.closeTime) ? last.closeTime : last.time))
+      : [];
+    const fundingPnl = fundingEvents.reduce((sum, event) =>
+      sum + calculateFundingPnlFraction("LONG", event.rate, event.markPrice, entryFill), 0);
+    const priceAndFeeReturn = entryFill > 0
+      ? (exitFill / entryFill - 1) - feeRate * (1 + exitFill / entryFill)
+      : 0;
+    buyHoldFundingPnlPct = Number((fundingPnl * 100).toFixed(4));
+    buyHoldReturnPct = (priceAndFeeReturn + fundingPnl) * 100;
   }
   return {
     equityCurve: trades.slice(-200).map(t => ({ time: t.exitTime, equity: Number(t.equityAfter.toFixed(6)) })),
     netReturnPct: Number(((equity - 1) * 100).toFixed(3)),
     buyHoldReturnPct: Number((buyHoldReturnPct ?? 0).toFixed(3)),
+    buyHoldFundingPnlPct,
     closedTrades: trades.length,
     winRatePct: trades.length ? Number((wins.length / trades.length * 100).toFixed(2)) : 0,
     profitFactor: grossLosses > 0 ? Number((grossWins / grossLosses).toFixed(3)) : (grossWins > 0 ? null : 0),
@@ -51,19 +90,26 @@ function summarizeTrades(trades, equity, maxDrawdown, closedTradeMaxDrawdown, ca
     averageLoserPct: losses.length ? Number((-grossLosses / losses.length).toFixed(4)) : 0,
     maxDrawdownPct: Number((maxDrawdown * 100).toFixed(3)),
     closedTradeMaxDrawdownPct: Number((closedTradeMaxDrawdown * 100).toFixed(3)),
-    drawdownMethod: "Mark-to-market estimate using each candle's adverse high/low, adverse exit slippage, and entry/exit fees; OHLC cannot reveal intrabar order.",
+    fundingCostsIncluded,
+    fundingPnlPctSum: Number(trades.reduce((sum, trade) => sum + (trade.fundingPnlPct || 0), 0).toFixed(4)),
+    fundingEventsCharged: trades.reduce((sum, trade) => sum + (trade.fundingEventsCharged || 0), 0),
+    drawdownMethod: "Mark-to-market estimate using adverse high/low candle extremes, adverse exit slippage, entry/exit fees, and funding transfers at reported settlement marks; OHLC cannot reveal the full intrabar path.",
     firstCandleTime: first?.time ?? null,
     lastCandleTime: last?.time ?? null,
     recentTrades: trades.slice(-20).map(t => ({
       side: t.side, entryTime: t.entryTime, exitTime: t.exitTime,
       entryPrice: Number(t.entryPrice.toFixed(6)), exitPrice: Number(t.exitPrice.toFixed(6)),
-      netReturnPct: Number(t.netReturnPct.toFixed(4)), exitReason: t.exitReason
+      netReturnPct: Number(t.netReturnPct.toFixed(4)),
+      fundingPnlPct: Number((t.fundingPnlPct || 0).toFixed(4)),
+      fundingEventsCharged: t.fundingEventsCharged || 0,
+      exitReason: t.exitReason
     }))
   };
 }
 
 export function runSmaCrossoverBacktest(candles, {
-  fastPeriod = 9, slowPeriod = 21, feeBps = 5, slippageBps = 2, startIndex = null, endIndex = null
+  fastPeriod = 9, slowPeriod = 21, feeBps = 5, slippageBps = 2,
+  startIndex = null, endIndex = null, fundingRates = null
 } = {}) {
   validateBacktestCandles(candles);
   if (!Number.isInteger(fastPeriod) || !Number.isInteger(slowPeriod) || fastPeriod < 2 || slowPeriod <= fastPeriod || slowPeriod > 100) {
@@ -72,6 +118,8 @@ export function runSmaCrossoverBacktest(candles, {
   if (![feeBps, slippageBps].every(Number.isFinite) || feeBps < 0 || feeBps > 50 || slippageBps < 0 || slippageBps > 50) {
     throw new Error("Fees and slippage must be between 0 and 50 basis points per side");
   }
+  const fundingCostsIncluded = Array.isArray(fundingRates);
+  const validatedFundingRates = fundingCostsIncluded ? validateFundingRates(fundingRates) : [];
   const start = startIndex == null ? slowPeriod : Math.max(slowPeriod, Math.floor(startIndex));
   const end = endIndex == null ? candles.length : Math.min(candles.length, Math.floor(endIndex));
   if (start < 0 || end - start < 3) throw new Error("Not enough candles in this backtest window");
@@ -81,45 +129,69 @@ export function runSmaCrossoverBacktest(candles, {
   const slow = calculateSma(closes, slowPeriod);
   const feeRate = feeBps / 10_000;
   const slipRate = slippageBps / 10_000;
-  let side = 0, entryFill = 0, entryTime = 0, equity = 1, peak = 1, maxDrawdown = 0;
+  let side = 0, entryFill = 0, entryTime = 0, positionEntryEquity = 0, equity = 1, peak = 1, maxDrawdown = 0;
+  let positionFundingPnl = 0, positionFundingEvents = 0, fundingIndex = 0;
   let closedTradePeak = 1, closedTradeMaxDrawdown = 0;
   const trades = [];
 
+  const updateDrawdownAtEquity = (markedEquity) => {
+    peak = Math.max(peak, markedEquity);
+    if (peak > 0) maxDrawdown = Math.max(maxDrawdown, (peak - markedEquity) / peak);
+  };
+
+  const applyFundingThrough = (timestamp) => {
+    if (!fundingCostsIncluded) return;
+    while (fundingIndex < validatedFundingRates.length && validatedFundingRates[fundingIndex].time <= timestamp) {
+      const event = validatedFundingRates[fundingIndex++];
+      if (!side || event.time <= entryTime) continue;
+      positionFundingPnl += calculateFundingPnlFraction(side === 1 ? "LONG" : "SHORT", event.rate, event.markPrice, entryFill);
+      positionFundingEvents += 1;
+      const priceReturnAtFunding = side * (event.markPrice / entryFill - 1);
+      const feeReturnAtFunding = feeRate * (1 + event.markPrice / entryFill);
+      const markedEquity = positionEntryEquity * Math.max(0, 1 + priceReturnAtFunding - feeReturnAtFunding + positionFundingPnl);
+      updateDrawdownAtEquity(markedEquity);
+    }
+  };
+
   const closePosition = (marketPrice, time, reason) => {
     if (!side) return;
+    applyFundingThrough(time);
     const exitFill = marketPrice * (1 - side * slipRate);
     const grossReturn = side * (exitFill / entryFill - 1);
-    const netReturn = grossReturn - feeRate * (1 + exitFill / entryFill);
-    trades.push({ side: side === 1 ? "LONG" : "SHORT", entryTime, exitTime: time, entryPrice: entryFill, exitPrice: exitFill, netReturnPct: netReturn * 100, exitReason: reason });
+    const feeReturn = feeRate * (1 + exitFill / entryFill);
+    const netReturn = grossReturn - feeReturn + positionFundingPnl;
+    trades.push({
+      side: side === 1 ? "LONG" : "SHORT",
+      entryTime, exitTime: time, entryPrice: entryFill, exitPrice: exitFill,
+      netReturnPct: netReturn * 100, fundingPnlPct: positionFundingPnl * 100,
+      fundingEventsCharged: positionFundingEvents, exitReason: reason
+    });
     equity *= Math.max(0, 1 + netReturn);
     trades[trades.length - 1].equityAfter = equity;
     closedTradePeak = Math.max(closedTradePeak, equity);
     if (closedTradePeak > 0) closedTradeMaxDrawdown = Math.max(closedTradeMaxDrawdown, (closedTradePeak - equity) / closedTradePeak);
-    peak = Math.max(peak, equity);
-    if (peak > 0) maxDrawdown = Math.max(maxDrawdown, (peak - equity) / peak);
-    side = 0; entryFill = 0; entryTime = 0;
+    updateDrawdownAtEquity(equity);
+    side = 0; entryFill = 0; entryTime = 0; positionEntryEquity = 0;
+    positionFundingPnl = 0; positionFundingEvents = 0;
   };
 
-  // Estimate open-equity drawdown conservatively from each candle's adverse
-  // extreme. This is not tick-level replay and cannot determine the intrabar path.
   const markIntratradeDrawdown = (candle) => {
-    if (!side || !candle) return;
+    if (!candle) return;
+    applyFundingThrough(candle.time);
+    if (!side) return;
     const markedEquity = (marketPrice) => {
       const hypotheticalExitFill = marketPrice * (1 - side * slipRate);
       const grossReturn = side * (hypotheticalExitFill / entryFill - 1);
-      const netReturn = grossReturn - feeRate * (1 + hypotheticalExitFill / entryFill);
-      return equity * Math.max(0, 1 + netReturn);
+      const feeReturn = feeRate * (1 + hypotheticalExitFill / entryFill);
+      return positionEntryEquity * Math.max(0, 1 + grossReturn - feeReturn + positionFundingPnl);
     };
     const favorablePrice = side === 1 ? candle.high : candle.low;
     const adversePrice = side === 1 ? candle.low : candle.high;
-    const favorableEquity = markedEquity(favorablePrice);
-    const adverseEquity = markedEquity(adversePrice);
-    peak = Math.max(peak, favorableEquity);
-    if (peak > 0) maxDrawdown = Math.max(maxDrawdown, (peak - adverseEquity) / peak);
+    updateDrawdownAtEquity(markedEquity(favorablePrice));
+    updateDrawdownAtEquity(markedEquity(adversePrice));
   };
 
-  // A signal is known only after candle i closes, so every entry/exit executes
-  // at candle i+1's open. This deliberately avoids same-close look-ahead fills.
+  // A signal is known only after candle i closes, so every entry/exit executes at candle i+1's open.
   for (let i = start; i < end - 1; i++) {
     markIntratradeDrawdown(candles[i]);
     if (fast[i] == null || slow[i] == null || fast[i - 1] == null || slow[i - 1] == null) continue;
@@ -133,17 +205,20 @@ export function runSmaCrossoverBacktest(candles, {
     side = desired;
     entryFill = fillCandle.open * (1 + side * slipRate);
     entryTime = fillCandle.time;
+    positionEntryEquity = equity;
+    positionFundingPnl = 0;
+    positionFundingEvents = 0;
   }
   const last = candles[end - 1];
   markIntratradeDrawdown(last);
-  closePosition(last.close, last.time, "WINDOW_END");
-  return summarizeTrades(trades, equity, maxDrawdown, closedTradeMaxDrawdown, candles, start, end, feeRate, slipRate);
+  const lastExitTime = Number.isFinite(last.closeTime) ? last.closeTime : last.time;
+  closePosition(last.close, lastExitTime, "WINDOW_END");
+  return summarizeTrades(trades, equity, maxDrawdown, closedTradeMaxDrawdown, candles, start, end, feeRate, slipRate, validatedFundingRates, fundingCostsIncluded);
 }
 
 export function getIntervalMs(interval) {
   return INTERVAL_MS[interval] ?? null;
 }
-
 
 const EVIDENCE_THRESHOLDS = Object.freeze({
   minimumHoldoutTrades: 30,
@@ -153,11 +228,7 @@ const EVIDENCE_THRESHOLDS = Object.freeze({
   minimumPositiveSlices: 2
 });
 
-/**
- * Conservative research gate for out-of-sample backtests. Passing only permits
- * paper forward-testing; it never authorizes exchange orders or proves future profit.
- */
-export function assessBacktestEvidence(testResults, holdoutSlices) {
+export function assessBacktestEvidence(testResults, holdoutSlices, { fundingHistoryVerified = false } = {}) {
   const slices = Array.isArray(holdoutSlices) ? holdoutSlices : [];
   const validSlices = slices.filter(s => s && s.results && Number.isFinite(s.results.closedTrades));
   const positiveSlices = validSlices.filter(s =>
@@ -172,7 +243,7 @@ export function assessBacktestEvidence(testResults, holdoutSlices) {
     testResults.closedTrades >= EVIDENCE_THRESHOLDS.minimumHoldoutTrades &&
     slices.length === 3 && underSampledSlices === 0;
 
-  const metricsPass = sampleAdequate &&
+  const metricsPass = sampleAdequate && fundingHistoryVerified === true &&
     Number.isFinite(testResults.netReturnPct) && testResults.netReturnPct > 0 &&
     Number.isFinite(testResults.profitFactor) &&
     testResults.profitFactor >= EVIDENCE_THRESHOLDS.minimumProfitFactor &&
@@ -191,8 +262,11 @@ export function assessBacktestEvidence(testResults, holdoutSlices) {
   if (underSampledSlices > 0 || slices.length !== 3) {
     reasons.push("Each of the three chronological holdout slices needs at least 10 closed trades.");
   }
+  if (fundingHistoryVerified !== true) {
+    reasons.push("Verified historical funding-rate history is required; missing funding data can overstate perpetual-futures returns.");
+  }
   if (sampleAdequate && !(Number.isFinite(testResults.netReturnPct) && testResults.netReturnPct > 0)) {
-    reasons.push("Net holdout return after configured fees and slippage is not positive.");
+    reasons.push("Net holdout return after configured fees, slippage, and verified funding is not positive.");
   }
   if (sampleAdequate && !(Number.isFinite(testResults.profitFactor) && testResults.profitFactor >= EVIDENCE_THRESHOLDS.minimumProfitFactor)) {
     reasons.push("Holdout profit factor is below 1.2 or cannot be calculated.");
@@ -201,7 +275,7 @@ export function assessBacktestEvidence(testResults, holdoutSlices) {
     reasons.push("Estimated holdout drawdown exceeds 15% or cannot be calculated.");
   }
   if (sampleAdequate && positiveSlices < EVIDENCE_THRESHOLDS.minimumPositiveSlices) {
-    reasons.push("Fewer than two of three holdout slices are positive after configured costs.");
+    reasons.push("Fewer than two of three chronological holdout slices are positive after configured costs.");
   }
   if (metricsPass) reasons.push("Thresholds met for paper forward-testing only; this is not proof of profitability and does not authorize live orders.");
 
@@ -209,6 +283,7 @@ export function assessBacktestEvidence(testResults, holdoutSlices) {
     status,
     mayStartPaperForwardTest: metricsPass,
     mayPlaceLiveOrders: false,
+    fundingHistoryVerified: fundingHistoryVerified === true,
     thresholds: EVIDENCE_THRESHOLDS,
     observed: {
       holdoutClosedTrades: Number.isFinite(testResults?.closedTrades) ? testResults.closedTrades : null,
