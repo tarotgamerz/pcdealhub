@@ -19,7 +19,8 @@ export async function GET(request: Request) {
     {
       ...base,
       aiTransport: "direct-openrouter",
-      buildSource: "github-main",
+      buildSource: process.env.VERCEL_GIT_COMMIT_REF || "unknown",
+      buildCommit: process.env.VERCEL_GIT_COMMIT_SHA || null,
       oidcFeatureEnabled: true,
       hasExa: Boolean(process.env.EXA_API_KEY),
       hasComposio: Boolean(process.env.COMPOSIO_API_KEY),
@@ -29,6 +30,8 @@ export async function GET(request: Request) {
       ),
       hasGatewayKey: Boolean(process.env.AI_GATEWAY_API_KEY),
       hasOpenRouterKey: Boolean(process.env.OPENROUTER_API_KEY),
+      hasGeminiKey: Boolean(process.env.GEMINI_API_KEY),
+      hasXaiKey: Boolean(process.env.XAI_API_KEY),
       documentExtraction: "pdf-docx-pptx-xlsx-text",
       githubWriteEnabled: Boolean(
         process.env.GITHUB_WRITE_TOKEN &&
