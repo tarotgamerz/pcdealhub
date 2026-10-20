@@ -23,5 +23,5 @@ export async function GET(request:Request){
   (async()=>{const apiKey=process.env.XAI_API_KEY;if(!apiKey)return {provider:"grok",error:"XAI_API_KEY missing in Preview."};const model=(process.env.GROK_MODEL||"grok-4.7").trim();try{const r=await fetch("https://api.x.ai/v1/responses",{method:"POST",headers:{"Authorization":"Bearer "+apiKey,"Content-Type":"application/json"},cache:"no-store",signal:AbortSignal.timeout(24000),body:JSON.stringify({model,instructions:system,input:prompt,max_output_tokens:1800,text:{format:{type:"json_object"}}})});const d=await safeJson(r),out=textFromGrok(d);if(r.ok&&out)return {provider:"grok",model,result:out.slice(0,14000)};return {provider:"grok",model,status:r.status,error:clean(d?.error?.message||d?.message||out)};}catch(e){return {provider:"grok",model,error:clean(e)};}})()
  ];
  const results=await Promise.all(tasks);
- return NextResponse.json({probe:"temporary-branch-review",reviewedSourceChars:clipped.length,results},{headers:{"Cache-Control":"no-store, private"}});
+ return NextResponse.json({probe:"temporary-branch-review",reviewedSourceChars:47000,results},{headers:{"Cache-Control":"no-store, private"}});
 }
