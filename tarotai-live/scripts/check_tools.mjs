@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 
 const route = readFileSync("app/api/chat/route.ts", "utf8");
 const auth = readFileSync("app/api/auth/route.ts", "utf8");
+const consoleUi = readFileSync("public/console.html", "utf8");
+const agentsUi = readFileSync("public/agents.html", "utf8");
 const health = readFileSync("app/api/health/route.ts", "utf8");
 const documents = readFileSync("app/api/documents/route.ts", "utf8");
 const memory = readFileSync("app/api/memory/route.ts", "utf8");
@@ -58,6 +60,17 @@ const authRequired = [
   'secure: true',
   'sameSite: "strict"'
 ];
+const consoleLoginRequired = [
+  "credentials:'same-origin'",
+  "The code was accepted, but this browser did not retain the secure sign-in session.",
+  "const session=await check.json().catch(()=>({}))"
+];
+const agentsLoginRequired = [
+  "credentials:'same-origin'",
+  "The code was accepted, but this browser did not retain the secure sign-in session.",
+  "const session=await check.json().catch(()=>({}))",
+  "button=form.querySelector('button')"
+];
 const healthRequired = [
   'hasOpenRouterKey: Boolean(process.env.OPENROUTER_API_KEY)',
   'hasExa: Boolean(process.env.EXA_API_KEY)',
@@ -66,6 +79,8 @@ const healthRequired = [
 
 const missing = required.filter((needle) => !route.includes(needle));
 const missingAuth = authRequired.filter((needle) => !auth.includes(needle));
+const missingConsoleLogin = consoleLoginRequired.filter((needle) => !consoleUi.includes(needle));
+const missingAgentsLogin = agentsLoginRequired.filter((needle) => !agentsUi.includes(needle));
 const documentRequired = [
   'export async function POST',
   'request.formData()',
@@ -94,10 +109,12 @@ const missingAudit = auditRequired.filter((needle) => !audit.includes(needle));
 const missingDependency = dependencyRequired.filter((needle) => !packageJson.includes(needle));
 const presentForbidden = forbidden.filter((needle) => route.includes(needle));
 
-if (missing.length || missingAuth.length || missingHealth.length || missingDocuments.length || missingDocumentExtractor.length || missingDocumentBundling.length || missingMemory.length || missingState.length || missingApps.length || missingVision.length || missingAudit.length || missingDependency.length || presentForbidden.length) {
+if (missing.length || missingAuth.length || missingConsoleLogin.length || missingAgentsLogin.length || missingHealth.length || missingDocuments.length || missingDocumentExtractor.length || missingDocumentBundling.length || missingMemory.length || missingState.length || missingApps.length || missingVision.length || missingAudit.length || missingDependency.length || presentForbidden.length) {
   console.error("TarotAI runtime contract failed.");
   if (missing.length) console.error("Missing chat/tool contract:", missing);
   if (missingAuth.length) console.error("Missing auth contract:", missingAuth);
+  if (missingConsoleLogin.length) console.error("Missing console sign-in contract:", missingConsoleLogin);
+  if (missingAgentsLogin.length) console.error("Missing agent workspace sign-in contract:", missingAgentsLogin);
   if (missingHealth.length) console.error("Missing health contract:", missingHealth);
   if (missingDocuments.length) console.error("Missing document contract:", missingDocuments);
   if (missingDocumentExtractor.length) console.error("Missing document extractor contract:", missingDocumentExtractor);
