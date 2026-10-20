@@ -598,7 +598,7 @@ publishMarketSync();loadMarket();setInterval(()=>{const now=Date.now(),candleFre
       method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload), cache: "no-store"
     }).then(async function(response) {
-      if (response.status === 401 || response.status === 503) return;
+      if (response.status === 401) return;
       var data = await response.json().catch(function(){ return null; });
       var panel = document.getElementById("perfAnalysisStatus");
       if (!panel) {
@@ -609,7 +609,7 @@ publishMarketSync();loadMarket();setInterval(()=>{const now=Date.now(),candleFre
         document.body.appendChild(panel);
       }
       if (data && data.analyses) {
-        panel.textContent = "Performance AI · " + data.analyses.map(function(x){ return x.provider; }).join(" + ") + " · " + (data.provider_errors && data.provider_errors.length ? "partial" : "connected");
+        var summary = data.analyses.map(function(x){ var parsed = null; try { parsed = typeof x.result === "string" ? JSON.parse(x.result) : x.result; } catch (_) {} var rec = parsed && Array.isArray(parsed.recommendations) && parsed.recommendations[0]; return x.provider + (rec && rec.recommendation ? ": " + String(rec.recommendation).slice(0, 120) : " analyzed"); }).join(" · "); panel.textContent = "Performance AI · " + summary + (data.provider_errors && data.provider_errors.length ? " · partial provider failure" : "");
       } else if (data && data.error) {
         panel.textContent = "Performance AI · " + data.error;
       } else {
