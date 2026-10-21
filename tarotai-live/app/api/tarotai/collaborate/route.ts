@@ -111,8 +111,8 @@ export async function POST(request:Request){
           try{draft=await openrouter.complete(systemFor(openrouter,"initial drafter"),directive+"\nDraft a complete responsive React/TypeScript bubble order-flow chart proposal with validated candle/bubble types, bounded trend calculations, accessible mobile layout, and loading/error/empty states. No live order execution.\n\n"+context,1800);}
           catch(e){
             stage("1",openrouter,false,"",safeError(e));
-            try{draft=await gemini.complete(systemFor(gemini,"free-tier fallback drafter"),directive+"\nOpenRouter failed. Draft a complete responsive chart proposal with validated data, bounded trend calculations, loading/error/empty states, and no live execution.\n\n"+context,1800);draftProvider=gemini;}
-            catch(f){stage("1F",gemini,false,"",safeError(f));emit("error",{status:502,error:"OpenRouter draft and configured Gemini free-tier fallback both failed.",roundtable:[]});return;}
+            try{draft=await gemini.complete(systemFor(gemini,"free-tier fallback drafter"),"OpenRouter timed out. Return a compact TypeScript/React proposal only: responsive order-flow bubble canvas; validate finite candle/bubble numbers; clamp bubble radius; handle empty/loading/error states; clean up animation frames; no real orders. Include a short code block and list assumptions. User goal: "+goal+"\nSupplied code (may be partial): "+(code.slice(0,4500)||"none") ,700);draftProvider=gemini;}
+            catch(f){const reason=safeError(f);stage("1F",gemini,false,"",reason);emit("error",{status:502,error:"OpenRouter draft and configured Gemini free-tier fallback both failed. Check the Gemini model ID, API-key validity/quota, and provider latency in server logs; no paid fallback was attempted.",roundtable:[]});return;}
           }
           stage(draftProvider===gemini?"1F":"1",draftProvider,true,draft);
           const reviews=await Promise.allSettled([
