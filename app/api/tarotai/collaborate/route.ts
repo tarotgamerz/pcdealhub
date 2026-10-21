@@ -22,8 +22,8 @@ function isAuthorized(request: Request) {
 
 function redactSecrets(value: string) {
   return value
-    .replace(/\\b(?:sk-[A-Za-z0-9_-]{20,}|xai-[A-Za-z0-9_-]{20,}|AIza[0-9A-Za-z_-]{30,})\\b/g, "[REDACTED_API_KEY]")
-    .replace(/((?:[A-Z0-9_]*(?:KEY|SECRET|TOKEN|PASSWORD|PRIVATE|ACCESS_CODE)[A-Z0-9_]*|apiKey|accessToken)\\s*[:=]\\s*["']?)[^\\s"'\x60,;]+/gi, "$1[REDACTED]");}
+    .replace(/\b(?:sk-[A-Za-z0-9_-]{20,}|xai-[A-Za-z0-9_-]{20,}|AIza[0-9A-Za-z_-]{30,})\b/g, "[REDACTED_API_KEY]")
+    .replace(/((?:[A-Z0-9_]*(?:KEY|SECRET|TOKEN|PASSWORD|PRIVATE|ACCESS_CODE)[A-Z0-9_]*|apiKey|accessToken)\s*[:=]\s*["']?)[^\s"'\x60,;]+/gi, "$1[REDACTED]");}
 
 async function readJsonResponse(response: Response, providerName: string) {
   const raw = await response.text();
