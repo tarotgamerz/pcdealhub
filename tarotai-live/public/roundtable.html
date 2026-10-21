@@ -64,8 +64,19 @@ async function runRoundtable(){
   try{
     var response=await fetch('/api/tarotai/collaborate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({goal:goal,code:code})});
     var raw=await response.text(),data={};try{data=raw?JSON.parse(raw):{}}catch(e){throw new Error(raw.slice(0,500)||('HTTP '+response.status))}
-    if(!response.ok){if(data.roundtable){renderResult({roundtable:data.roundtable,synthesis:'The run stopped before synthesis because fewer than two models responded.',mode:'partial'})}
-      var message=data.error||('Request failed (HTTP '+response.status+')');if(data.missingEnvVars)message+='\nMissing: '+data.missingEnvVars.join(', ');throw new Error(message)}
+    if(!response.ok){
+      var providerFailures=[];
+      if(Array.isArray(data.roundtable)){
+        renderResult({roundtable:data.roundtable,synthesis:'The run stopped before synthesis because fewer than two models responded.',mode:'partial'});
+        data.roundtable.forEach(function(agent){
+          if(agent.error)providerFailures.push(agent.name+' ('+agent.model+'): '+agent.error);
+        });
+      }
+      var message=data.error||('Request failed (HTTP '+response.status+')');
+      if(data.missingEnvVars)message+='\nMissing: '+data.missingEnvVars.join(', ');
+      if(providerFailures.length)message+='\n\nProvider diagnostics:\n'+providerFailures.join('\n');
+      throw new Error(message)
+    }
     renderResult(data);byId('status').textContent='Finished. Review disagreements and verify changes before applying them.';
   }catch(error){byId('error').textContent=error instanceof Error?error.message:'Roundtable request failed.';byId('error').classList.remove('hidden');byId('status').textContent='Run failed. No code was changed or deployed.'}
   finally{byId('run').disabled=false}
