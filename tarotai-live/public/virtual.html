@@ -268,7 +268,7 @@ function drawVolume(){
 function drawCvd(){
  const {ctx,w,h}=resizeCanvas(els.cvd);ctx.clearRect(0,0,w,h);ctx.fillStyle="#080e15";ctx.fillRect(0,0,w,h);const rows=cvdHistory.slice(-500);if(rows.length<2){ctx.fillStyle="#718297";ctx.font="10px system-ui";ctx.fillText("Collecting aggressor delta…",10,20);return;}const vals=rows.map(x=>x.value),lo=Math.min(...vals),hi=Math.max(...vals),range=hi-lo||1;ctx.strokeStyle="#1d2a39";ctx.beginPath();ctx.moveTo(0,h/2);ctx.lineTo(w,h/2);ctx.stroke();ctx.strokeStyle="#9b83ff";ctx.lineWidth=1.7;ctx.beginPath();rows.forEach((r,i)=>{const x=i/(rows.length-1)*w,y=6+(hi-r.value)/range*(h-12);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.stroke();ctx.fillStyle="#b7a8ff";ctx.font="9px ui-monospace,monospace";ctx.fillText(fmt(vals[vals.length-1],0)+" quote USDT",8,12);
 }
-function redraw(){if(!chartReady||redrawFrame)return;redrawFrame=requestAnimationFrame(()=>{redrawFrame=0;if(!chartReady)return;drawBubbles();drawLiquidityProfile();drawVolume();drawCvd();updatePaper();});}
+function redraw(){if(!chartReady||redrawFrame)return;redrawFrame=requestAnimationFrame(()=>{redrawFrame=0;if(!chartReady)return;drawFootprint();drawBubbles();drawLiquidityProfile();drawVolume();drawCvd();updatePaper();});}
 function resizeAll(){if(chart){chart.applyOptions({width:Math.max(1,$("bubbleStage").clientWidth-64),height:$("bubbleStage").clientHeight});}redraw();}
 function updatePaper(){
  const px=Number.isFinite(lastTradePrice)?lastTradePrice:(candles.length?candles[candles.length-1].close:NaN),pos=paper.side===1?"LONG":paper.side===-1?"SHORT":"FLAT";
@@ -507,7 +507,7 @@ els.symbol.addEventListener("change",()=>{publishMarketSync();loadMarket();});el
 $("toggleFlow").addEventListener("click",()=>{visibleFlow=!visibleFlow;$("toggleFlow").textContent=visibleFlow?"Hide bubbles":"Show bubbles";$("toggleFlow").setAttribute("aria-pressed",String(visibleFlow));$("bubbleStage").classList.toggle("flow-hidden",!visibleFlow);redraw();});
 document.querySelectorAll("[data-size]").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll("[data-size]").forEach(x=>x.classList.toggle("active",x===b));$("paperSize").value=b.dataset.size;}));
 $("paperLong").addEventListener("click",()=>openPaper(1));$("paperShort").addEventListener("click",()=>openPaper(-1));$("paperClose").addEventListener("click",closePaper);$("paperReset").addEventListener("click",()=>{paper={side:0,size:0,entry:0,realized:0};paperMarks=[];$("paperNote").textContent="Paper state reset in this tab. No exchange order was sent.";updatePaper();});
-window.addEventListener("resize",resizeAll);document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&Date.now()-bookLastAt>15000){setStatus("REFRESHING FEEDS",true);redraw();}});
+window.addEventListener("resize",resizeAll);if(typeof ResizeObserver!=="undefined"){const layoutObserver=new ResizeObserver(()=>resizeAll());layoutObserver.observe($("bubbleStage"));if(els.footprint.parentElement)layoutObserver.observe(els.footprint.parentElement);}document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&Date.now()-bookLastAt>15000){setStatus("REFRESHING FEEDS",true);redraw();}});
 publishMarketSync();loadMarket();setInterval(()=>{const now=Date.now(),candleFresh=klineLastMessageAt>0&&now-klineLastMessageAt<=8000;
  if(chartReady&&!candleFresh){
   setStatus(klineLastMessageAt?"CANDLE STREAM STALE · RECONNECTING":"WAITING FOR LIVE CANDLE DATA",true);
