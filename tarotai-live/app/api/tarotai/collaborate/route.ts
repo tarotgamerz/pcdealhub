@@ -197,7 +197,7 @@ function getProviders(): { providers: Provider[]; missing: string[] } {
 
   if (!openRouterKey) missing.push("OPENROUTER_API_KEY");
   if (openRouterModels.length < 1) {
-    missing.push("OPENROUTER_FREE_MODELS (at least one model ID ending in :free)");
+    missing.push("OPENROUTER_FREE_MODELS (openrouter/free or a model ID ending in :free)");
   } else if (openRouterModels.some((model) => model !== "openrouter/free" && !model.endsWith(":free"))) {
     missing.push("OPENROUTER_FREE_MODELS (use openrouter/free or model IDs ending in :free)");
   }
