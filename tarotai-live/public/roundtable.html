@@ -24,7 +24,7 @@ main{width:min(1120px,100%);margin:0 auto;padding:22px 16px 50px}.top{display:fl
 <textarea id="goal" class="field">Review the TarotAI trading workspace for concrete bugs, chart rendering/performance issues, API integration risks, and test gaps. Propose only changes supported by the supplied evidence.</textarea>
 <label class="label" for="code" style="margin-top:14px">Relevant source code, error logs, or test output (optional)</label>
 <textarea id="code" class="field codein" placeholder="Paste relevant code or logs here. This page does not automatically read GitHub, Vercel logs, or live website internals. Never paste API keys, tokens, cookies, or trading credentials."></textarea>
-<p class="note">Safe default: Free-only mode uses only OpenRouter models explicitly listed in OPENROUTER_FREE_MODELS with every model ID ending in :free; it does not call Gemini, Grok, or OpenAI. Each run still uses multiple model requests and free-model rate limits may apply. Do not switch to legacy-paid mode on a zero budget. Without supplied code/logs, models must not claim they inspected the repository or live telemetry.</p>
+<p class="note">Free-only network: Gemini 3.8 Flash + Groq GPT-OSS 20B + one OpenRouter model from OPENROUTER_FREE_MODELS (every listed ID must end in :free). The three independent reviews start in parallel, then cross-examine peer reviews, then one provider synthesizes. HTTP 429 retries once after a 1-second buffer; free-tier limits can still fail. No OpenAI/xAI or paid fallback is used. Keep each provider account on its no-cost tier and do not upgrade billing. This page does not apply, compile, or deploy generated code. Without supplied code/logs, models must not claim they inspected the repository or live telemetry.</p>
 <div class="row"><button class="btn primary" id="run" type="button">Run AI Roundtable</button><span class="note" id="status">Ready. Generated code is a proposal only; it is not applied or deployed.</span></div>
 <div id="error" class="error hidden" role="alert"></div>
 </section>
@@ -52,7 +52,7 @@ function renderResult(data){
   byId('result').classList.remove('hidden');byId('synthesisTitle').textContent='Synthesis · '+(data.synthesisBy||'Configured model');
   byId('synthesis').textContent=data.synthesis||'No synthesis returned.';
   if(data.code){byId('codeSection').classList.remove('hidden');byId('codeout').value=data.code}else{byId('codeSection').classList.add('hidden');byId('codeout').value=''}
-  byId('notes').textContent=(data.mode==='three-way'?'Three configured models participated. ':'Two configured models participated; add OPENAI_API_KEY in Vercel for a three-way initial review. ')+(data.notes||[]).join(' ');
+  byId('notes').textContent=(data.mode==='three-way'?'All three free-tier agents returned an initial review. ':'Fewer than three agents returned an initial review; check missing-provider and quota diagnostics. ')+(data.notes||[]).join(' ');
   renderAgents(data);var unavailable=byId('unavailable');unavailable.innerHTML='';
   if(data.unavailable&&data.unavailable.length){var panel=document.createElement('div');panel.className='panel';var heading=document.createElement('h3');heading.textContent='Unavailable providers';panel.appendChild(heading);
     data.unavailable.forEach(function(p){var line=document.createElement('p');line.className='note';line.textContent=p.name+' ('+p.model+'): '+p.error;panel.appendChild(line)});unavailable.appendChild(panel)}
@@ -60,7 +60,7 @@ function renderResult(data){
 async function runRoundtable(){
   var goal=byId('goal').value.trim(),code=byId('code').value;
   if(!goal){byId('error').textContent='Enter a goal first.';byId('error').classList.remove('hidden');return}
-  byId('run').disabled=true;byId('error').classList.add('hidden');byId('result').classList.add('hidden');byId('status').textContent='Running parallel first-pass reviews, cross-examination, and synthesis…';
+  byId('run').disabled=true;byId('error').classList.add('hidden');byId('result').classList.add('hidden');byId('status').textContent='Running three free-tier reviews in parallel, peer cross-examination, and synthesis…';
   try{
     var response=await fetch('/api/tarotai/collaborate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({goal:goal,code:code})});
     var raw=await response.text(),data={};try{data=raw?JSON.parse(raw):{}}catch(e){throw new Error(raw.slice(0,500)||('HTTP '+response.status))}
