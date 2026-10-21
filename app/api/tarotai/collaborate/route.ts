@@ -307,7 +307,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      mode: providers.length >= 3 ? "three-way" : "two-way",
+      mode: successfulInitial.length >= 3 ? "three-way" : "two-way",
       synthesisBy: synthesisProvider.name,
       roundtable: successfulInitial.map((entry) => ({
         name: entry.provider.name,
