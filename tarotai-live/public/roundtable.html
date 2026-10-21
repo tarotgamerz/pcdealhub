@@ -81,7 +81,10 @@ async function runRoundtable(){
     if(event==='stage'){updateStage(data);byId('status').textContent='Received Turn '+(data.turn||'?')+' from '+(data.agent||'agent')+'.';return}
     if(event==='done'){finished=true;renderResult(data);byId('status').textContent='Finished. Review the results and verify any proposed code before applying it.';return}
     if(event==='error'){
+      finished=true;
       if(Array.isArray(data.roundtable))data.roundtable.forEach(updateStage);
+      byId('synthesis').textContent='Run stopped before synthesis. See the provider failure details below.';
+      byId('status').textContent='Run failed. Partial results are preserved; no code was changed or deployed.';
       throw new Error(data.error||('Roundtable failed (HTTP '+(data.status||'unknown')+')'));
     }
   }
