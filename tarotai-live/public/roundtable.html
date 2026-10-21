@@ -43,8 +43,11 @@ function renderAgents(data){
   var target=byId('agents');target.innerHTML='';
   (data.roundtable||[]).forEach(function(agent){
     var card=document.createElement('article');card.className='agent';
-    card.innerHTML='<h3>'+escapeHtml(agent.name)+'</h3><div class="model">'+escapeHtml(agent.model)+'</div><div class="label">Initial review</div><div class="output">'+escapeHtml(agent.initial||agent.error||'No response')+'</div><div class="label" style="margin-top:14px">Cross-examination</div><div class="output">'+escapeHtml(agent.critique||agent.error||'No critique returned')+'</div>';
+    var stage=agent.turn?'Turn '+agent.turn:'Provider status';
+    var body=agent.text||agent.initial||agent.critique||'No response returned.';
+    card.innerHTML='<h3>'+escapeHtml(agent.agent||agent.name||'Unnamed agent')+'</h3><div class="model">'+escapeHtml(stage+' · '+(agent.model||'model not reported'))+'</div><div class="label">Result</div><div class="output">'+escapeHtml(body)+'</div>';
     if(agent.error){var note=document.createElement('p');note.className='note';note.textContent='Provider note: '+agent.error;card.appendChild(note)}
+    if(agent.ok===false){card.style.borderColor='var(--danger)'}
     target.appendChild(card);
   });
 }
@@ -52,7 +55,10 @@ function renderResult(data){
   byId('result').classList.remove('hidden');byId('synthesisTitle').textContent='Synthesis · '+(data.synthesisBy||'Configured model');
   byId('synthesis').textContent=data.synthesis||'No synthesis returned.';
   if(data.code){byId('codeSection').classList.remove('hidden');byId('codeout').value=data.code}else{byId('codeSection').classList.add('hidden');byId('codeout').value=''}
-  byId('notes').textContent=(data.mode==='three-way'?'All three free-tier agents returned an initial review. ':'Fewer than three agents returned an initial review; check missing-provider and quota diagnostics. ')+(data.notes||[]).join(' ');
+  var stages=data.roundtable||[];var failed=stages.filter(function(stage){return stage.ok===false||Boolean(stage.error)}).length;
+  var summary=data.mode==='three-turn-reflection'?'Three-turn reflection workflow. ':data.mode==='partial'?'Partial run; the workflow stopped before synthesis. ':'Free-only roundtable status. ';
+  if(failed)summary+=failed+' stage/provider failure(s) are listed below. ';else if(data.ok)summary+='All reported stages completed, but generated code still requires independent build and security tests. ';
+  byId('notes').textContent=summary+(data.notes||[]).join(' ');
   renderAgents(data);var unavailable=byId('unavailable');unavailable.innerHTML='';
   if(data.unavailable&&data.unavailable.length){var panel=document.createElement('div');panel.className='panel';var heading=document.createElement('h3');heading.textContent='Unavailable providers';panel.appendChild(heading);
     data.unavailable.forEach(function(p){var line=document.createElement('p');line.className='note';line.textContent=p.name+' ('+p.model+'): '+p.error;panel.appendChild(line)});unavailable.appendChild(panel)}
@@ -60,7 +66,7 @@ function renderResult(data){
 async function runRoundtable(){
   var goal=byId('goal').value.trim(),code=byId('code').value;
   if(!goal){byId('error').textContent='Enter a goal first.';byId('error').classList.remove('hidden');return}
-  byId('run').disabled=true;byId('error').classList.add('hidden');byId('result').classList.add('hidden');byId('status').textContent='Running three free-tier reviews in parallel, peer cross-examination, and synthesis…';
+  byId('run').disabled=true;byId('error').classList.add('hidden');byId('result').classList.add('hidden');byId('status').textContent='Running the free-only, three-turn reflection workflow. A slow provider may time out; no paid fallback is used…';
   try{
     var response=await fetch('/api/tarotai/collaborate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({goal:goal,code:code})});
     var raw=await response.text(),data={};try{data=raw?JSON.parse(raw):{}}catch(e){throw new Error(raw.slice(0,500)||('HTTP '+response.status))}
