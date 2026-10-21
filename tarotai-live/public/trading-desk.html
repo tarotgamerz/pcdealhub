@@ -1504,5 +1504,5 @@ function syncToFlow(){if(!frame.contentWindow)return;frame.contentWindow.postMes
 window.addEventListener("message",event=>{if(event.source!==frame.contentWindow||event.origin!==location.origin||!event.data||event.data.type!=="tarotai:sync-market")return;const data=event.data;let symbolChanged=false,intervalChanged=false;if(Array.from(symbol.options).some(o=>o.value===data.symbol)&&symbol.value!==data.symbol){symbol.value=data.symbol;symbolChanged=true;}if(Array.from(interval.options).some(o=>o.value===data.interval)&&interval.value!==data.interval){interval.value=data.interval;intervalChanged=true;}if(symbolChanged)symbol.dispatchEvent(new Event("change"));else if(intervalChanged)interval.dispatchEvent(new Event("change"));});
 frame.addEventListener("load",syncToFlow);symbol.addEventListener("change",()=>setTimeout(syncToFlow,0));interval.addEventListener("change",()=>setTimeout(syncToFlow,0));setTimeout(syncToFlow,500);
 })();
-</script><script src="/live-agent-monitor.js"></script><script src="/orderflow-panel.js"></script>
+</script><script src="/live-agent-monitor.js"></script><script src="/orderflow-panel.js"></script><script src="/ai-intelligence-panel.js"></script>
 </body></html>
