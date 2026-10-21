@@ -22,7 +22,7 @@ type Review = {
 const MAX_BODY_CHARS = 50_000;
 const MAX_CODE_CHARS = 24_000;
 const MAX_GOAL_CHARS = 6_000;
-const PROVIDER_TIMEOUT_MS = 8_000;
+const PROVIDER_TIMEOUT_MS = 7_000;
 const RETRY_BUFFER_MS = 1_000;
 
 class ProviderHttpError extends Error {
@@ -63,11 +63,7 @@ async function postJson(
     });
 
     if (response.status === 429 && attempt === 0) {
-      const retryHeader = Number(response.headers.get("retry-after") || "");
-      const retryDelay = Number.isFinite(retryHeader) && retryHeader > 0
-        ? Math.max(RETRY_BUFFER_MS, Math.min(retryHeader * 1000, 3_000))
-        : RETRY_BUFFER_MS;
-      await sleep(retryDelay);
+      await sleep(RETRY_BUFFER_MS);
       continue;
     }
 
