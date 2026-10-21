@@ -24,7 +24,7 @@ main{width:min(1120px,100%);margin:0 auto;padding:22px 16px 50px}.top{display:fl
 <textarea id="goal" class="field">Review the TarotAI trading workspace for concrete bugs, chart rendering/performance issues, API integration risks, and test gaps. Propose only changes supported by the supplied evidence.</textarea>
 <label class="label" for="code" style="margin-top:14px">Relevant source code, error logs, or test output (optional)</label>
 <textarea id="code" class="field codein" placeholder="Paste relevant code or logs here. This page does not automatically read GitHub, Vercel logs, or live website internals. Never paste API keys, tokens, cookies, or trading credentials."></textarea>
-<p class="note">Free-only network: Gemini 3.8 Flash + Groq GPT-OSS 20B + OpenRouter's dynamic openrouter/free router (or a specific model ID ending in :free). The router chooses only available free variants, avoiding a hard-coded endpoint that can become unavailable. The three independent reviews start in parallel, then cross-examine peer reviews, then one provider synthesizes. Provider timeout is 14 seconds; HTTP 429 retries once after a 1-second buffer. Free-tier quotas can still fail. No OpenAI/xAI or paid fallback is used. Keep each provider account on its no-cost tier and do not upgrade billing. This page does not apply, compile, or deploy generated code. Without supplied code/logs, models must not claim they inspected the repository or live telemetry.</p>
+<p class="note">Free-only network: Gemini 3.8 Flash + Groq GPT-OSS 20B + OpenRouter's dynamic openrouter/free router (or a specific model ID ending in :free). The router chooses only available free variants, avoiding a hard-coded endpoint that can become unavailable. The three independent reviews start in parallel, then cross-examine peer reviews, then one provider synthesizes. Provider calls have a 14-second cutoff; completed agent stages stream as they finish. HTTP 429 retries once. Free-tier quotas and timeouts can still fail. A configured Gemini free-tier fallback may be attempted; no paid fallback is used. Keep each provider account on its no-cost tier and do not upgrade billing. This page does not apply, compile, or deploy generated code. Without supplied code/logs, models must not claim they inspected the repository or live telemetry.</p>
 <div class="row"><button class="btn primary" id="run" type="button">Run AI Roundtable</button><span class="note" id="status">Ready. Generated code is a proposal only; it is not applied or deployed.</span></div>
 <div id="error" class="error hidden" role="alert"></div>
 </section>
@@ -66,26 +66,51 @@ function renderResult(data){
 async function runRoundtable(){
   var goal=byId('goal').value.trim(),code=byId('code').value;
   if(!goal){byId('error').textContent='Enter a goal first.';byId('error').classList.remove('hidden');return}
-  byId('run').disabled=true;byId('error').classList.add('hidden');byId('result').classList.add('hidden');byId('status').textContent='Running the free-only, three-turn reflection workflow. A slow provider may time out; no paid fallback is used…';
-  try{
-    var response=await fetch('/api/tarotai/collaborate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({goal:goal,code:code})});
-    var raw=await response.text(),data={};try{data=raw?JSON.parse(raw):{}}catch(e){throw new Error(raw.slice(0,500)||('HTTP '+response.status))}
-    if(!response.ok){
-      var providerFailures=[];
-      if(Array.isArray(data.roundtable)){
-        renderResult({roundtable:data.roundtable,synthesis:'The run stopped before synthesis because fewer than two models responded.',mode:'partial'});
-        data.roundtable.forEach(function(agent){
-          if(agent.error)providerFailures.push(agent.name+' ('+agent.model+'): '+agent.error);
-        });
-      }
-      var message=data.error||('Request failed (HTTP '+response.status+')');
-      if(data.missingEnvVars)message+='\nMissing: '+data.missingEnvVars.join(', ');
-      if(providerFailures.length)message+='\n\nProvider diagnostics:\n'+providerFailures.join('\n');
-      throw new Error(message)
+  byId('run').disabled=true;byId('error').classList.add('hidden');byId('result').classList.remove('hidden');
+  byId('synthesis').textContent='Waiting for the first agent stage…';byId('agents').innerHTML='';byId('notes').textContent='';
+  byId('status').textContent='Connecting to the free-only Roundtable stream…';
+  var stages=[],finished=false;
+  function updateStage(stage){
+    var key=String(stage.turn||'');
+    var i=stages.findIndex(function(x){return String(x.turn||'')===key});
+    if(i>=0)stages[i]=Object.assign({},stages[i],stage);else stages.push(stage);
+    renderResult({mode:'partial',roundtable:stages,synthesis:'Agents are working. Completed stages appear here as they arrive.',notes:['Live stage updates · '+stages.length+' stage result(s) received.']});
+  }
+  function handleEvent(event,data){
+    if(event==='status'){byId('status').textContent=data.message||'Roundtable running…';return}
+    if(event==='stage'){updateStage(data);byId('status').textContent='Received Turn '+(data.turn||'?')+' from '+(data.agent||'agent')+'.';return}
+    if(event==='done'){finished=true;renderResult(data);byId('status').textContent='Finished. Review the results and verify any proposed code before applying it.';return}
+    if(event==='error'){
+      if(Array.isArray(data.roundtable))data.roundtable.forEach(updateStage);
+      throw new Error(data.error||('Roundtable failed (HTTP '+(data.status||'unknown')+')'));
     }
-    renderResult(data);byId('status').textContent='Finished. Review disagreements and verify changes before applying them.';
-  }catch(error){byId('error').textContent=error instanceof Error?error.message:'Roundtable request failed.';byId('error').classList.remove('hidden');byId('status').textContent='Run failed. No code was changed or deployed.'}
-  finally{byId('run').disabled=false}
+  }
+  try{
+    var response=await fetch('/api/tarotai/collaborate',{method:'POST',headers:{'content-type':'application/json','accept':'text/event-stream'},body:JSON.stringify({goal:goal,code:code})});
+    var contentType=response.headers.get('content-type')||'';
+    if(!contentType.includes('text/event-stream')){
+      var failure=await response.json().catch(function(){return {error:'Unexpected response from Roundtable.'}});
+      if(!response.ok)throw new Error(failure.error||('Request failed (HTTP '+response.status+')'));
+      renderResult(failure);finished=true;return;
+    }
+    if(!response.body)throw new Error('Streaming is unavailable in this browser. Please retry or use a current browser.');
+    var reader=response.body.getReader(),decoder=new TextDecoder(),buffer='';
+    while(true){
+      var part=await reader.read();if(part.done)break;
+      buffer+=decoder.decode(part.value,{stream:true});
+      var blocks=buffer.split(/\r?\n\r?\n/);buffer=blocks.pop()||'';
+      for(var i=0;i<blocks.length;i++){
+        var lines=blocks[i].split(/\r?\n/),event='message',dataLines=[];
+        lines.forEach(function(line){if(line.indexOf('event:')===0)event=line.slice(6).trim();else if(line.indexOf('data:')===0)dataLines.push(line.slice(5).trim())});
+        if(dataLines.length){var payload;try{payload=JSON.parse(dataLines.join('\n'))}catch(e){continue}handleEvent(event,payload)}
+      }
+    }
+    if(!finished)throw new Error('The stream ended before the Roundtable sent its final result. The stages already shown are preserved.');
+  }catch(error){
+    byId('error').textContent=error instanceof Error?error.message:'Roundtable request failed.';
+    byId('error').classList.remove('hidden');
+    byId('status').textContent='Run incomplete. Review any stages received above; no code was changed or deployed.';
+  }finally{byId('run').disabled=false}
 }
 byId('run').addEventListener('click',runRoundtable);
 byId('copy').addEventListener('click',async function(){try{await navigator.clipboard.writeText(byId('codeout').value);byId('status').textContent='Proposed code copied. It has not been tested or applied.'}catch(e){byId('status').textContent='Clipboard access failed; select and copy the code from the text area.'}});
