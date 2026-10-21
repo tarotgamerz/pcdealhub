@@ -54,7 +54,7 @@ function getProviders(): Provider[] {
 
   const geminiKey = process.env.GEMINI_API_KEY;
   if (geminiKey) {
-    const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+    const model = process.env.GEMINI_MODEL || "gemini-3.8-flash";
     providers.push({
       name: "Gemini",
       model,
