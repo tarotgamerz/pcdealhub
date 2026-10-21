@@ -87,24 +87,33 @@ function getProviders(): Provider[] {
       model,
       complete: async (system, prompt, maxTokens = 1800) => {
         const data = await postJson(
-          "https://api.x.ai/v1/chat/completions",
+          "https://api.x.ai/v1/responses",
           { Authorization: `Bearer ${grokKey}` },
           {
             model,
-            messages: [
+            input: [
               { role: "system", content: system },
               { role: "user", content: prompt },
             ],
-            temperature: 0.2,
-            max_tokens: maxTokens,
+            max_output_tokens: maxTokens,
+            store: false,
           },
           "Grok"
         );
-        const text = data?.choices?.[0]?.message?.content;
-        if (typeof text !== "string" || !text.trim()) {
+        const text = (Array.isArray(data?.output) ? data.output : [])
+          .flatMap((item: any) =>
+            item?.type === "message" && Array.isArray(item?.content)
+              ? item.content
+                  .filter((part: any) => part?.type === "output_text" && typeof part?.text === "string")
+                  .map((part: any) => part.text)
+              : []
+          )
+          .join("\n")
+          .trim();
+        if (!text) {
           throw new Error("Grok returned no text. Check the configured model and key permissions.");
         }
-        return text.trim();
+        return text;
       },
     });
   }
