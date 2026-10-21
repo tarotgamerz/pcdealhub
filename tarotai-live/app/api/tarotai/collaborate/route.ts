@@ -51,6 +51,46 @@ async function postJson(url: string, headers: Record<string, string>, body: unkn
 
 function getProviders(): Provider[] {
   const providers: Provider[] = [];
+  // Safe-by-default: use only explicitly configured OpenRouter free models.
+  // Paid/other-provider calls require an intentional environment opt-in.
+  const mode = process.env.TAROTAI_ROUNDTABLE_MODE || "free-only";
+  if (mode !== "legacy-paid") {
+    const key = process.env.OPENROUTER_API_KEY;
+    const models = (process.env.OPENROUTER_FREE_MODELS || "")
+      .split(",")
+      .map((model) => model.trim())
+      .filter(Boolean);
+
+    if (!key || models.length < 2 || models.some((model) => !model.endsWith(":free"))) {
+      return providers;
+    }
+
+    return models.slice(0, 4).map((model, index) => ({
+      name: `OpenRouter Free ${index + 1}`,
+      model,
+      complete: async (system: string, prompt: string, maxTokens = 1800) => {
+        const data = await postJson(
+          "https://openrouter.ai/api/v1/chat/completions",
+          { Authorization: `Bearer ${key}`, "X-Title": "TarotAI Roundtable" },
+          {
+            model,
+            messages: [
+              { role: "system", content: system },
+              { role: "user", content: prompt },
+            ],
+            temperature: 0.2,
+            max_tokens: maxTokens,
+          },
+          `OpenRouter Free ${index + 1}`
+        );
+        const text = data?.choices?.[0]?.message?.content;
+        if (typeof text !== "string" || !text.trim()) {
+          throw new Error(`OpenRouter model ${model} returned no text.`);
+        }
+        return text.trim();
+      },
+    }));
+  }
 
   const geminiKey = process.env.GEMINI_API_KEY;
   if (geminiKey) {
@@ -180,7 +220,7 @@ function buildContext(goal: string, code: string) {
 
 export async function POST(request: Request) {
   if (!process.env.TAROTAI_ACCESS_CODE) {
-    return NextResponse.json({ error: "Roundtable disabled: configure TAROTAI_ACCESS_CODE before enabling paid model calls." }, { status: 503 });
+    return NextResponse.json({ error: "Roundtable disabled: configure TAROTAI_ACCESS_CODE before enabling model calls." }, { status: 503 });
   }
   if (!isWorkspaceAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -209,8 +249,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: `Code/log context is too long. Limit: ${MAX_CODE_CHARS} characters.` }, { status: 413 });
     }
 
+    const mode = process.env.TAROTAI_ROUNDTABLE_MODE || "free-only";
     const providers = getProviders();
     if (providers.length < 2) {
+      if (mode !== "legacy-paid") {
+        return NextResponse.json({
+          error: "Free-only mode is active. Configure OPENROUTER_API_KEY and at least two comma-separated OPENROUTER_FREE_MODELS IDs ending in :free. No other provider APIs were called.",
+          configuredProviders: [],
+          requiredEnvVars: ["OPENROUTER_API_KEY", "OPENROUTER_FREE_MODELS (at least two model IDs ending in :free)"],
+          mode: "free-only",
+        }, { status: 503 });
+      }
       const configured = providers.map((provider) => provider.name);
       return NextResponse.json({
         error: "The roundtable needs at least two configured model API keys.",
@@ -335,6 +384,7 @@ export async function POST(request: Request) {
       synthesis,
       code: parseCodeBlock(synthesis),
       notes: [
+        mode === "legacy-paid" ? "Legacy provider mode was explicitly enabled; provider API usage may be billable." : "Free-only mode: only OpenRouter model IDs ending in :free were eligible; Gemini, Grok, and OpenAI endpoints were not called.",
         "Initial reviews ran in parallel; cross-examination and synthesis ran in follow-up stages.",
         "Generated code has not been applied, compiled, tested, or deployed.",
         code ? "Review was limited to the source/log context supplied with this request." : "No source code or runtime logs were supplied; this roundtable did not inspect the live site or repository.",
