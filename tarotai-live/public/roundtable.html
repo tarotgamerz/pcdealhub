@@ -24,7 +24,7 @@ main{width:min(1120px,100%);margin:0 auto;padding:22px 16px 50px}.top{display:fl
 <textarea id="goal" class="field">Review the TarotAI trading workspace for concrete bugs, chart rendering/performance issues, API integration risks, and test gaps. Propose only changes supported by the supplied evidence.</textarea>
 <label class="label" for="code" style="margin-top:14px">Relevant source code, error logs, or test output (optional)</label>
 <textarea id="code" class="field codein" placeholder="Paste relevant code or logs here. This page does not automatically read GitHub, Vercel logs, or live website internals. Never paste API keys, tokens, cookies, or trading credentials."></textarea>
-<p class="note">Each full run makes one first-pass API call per configured model in parallel, one cross-examination call per successful reviewer, and one synthesis call. Provider usage may be billable. OpenAI participates only if OPENAI_API_KEY is configured in Vercel. Without supplied code/logs, the models must not claim they inspected the repository or live telemetry.</p>
+<p class="note">Free-only network: Gemini 3.8 Flash + Groq GPT-OSS 20B + OpenRouter's dynamic openrouter/free router (or a specific model ID ending in :free). The router chooses only available free variants, avoiding a hard-coded endpoint that can become unavailable. The three independent reviews start in parallel, then cross-examine peer reviews, then one provider synthesizes. Provider calls have a 14-second cutoff; completed agent stages stream as they finish. HTTP 429 retries once. Free-tier quotas and timeouts can still fail. A configured Gemini free-tier fallback may be attempted; no paid fallback is used. Keep each provider account on its no-cost tier and do not upgrade billing. This page does not apply, compile, or deploy generated code. Without supplied code/logs, models must not claim they inspected the repository or live telemetry.</p>
 <div class="row"><button class="btn primary" id="run" type="button">Run AI Roundtable</button><span class="note" id="status">Ready. Generated code is a proposal only; it is not applied or deployed.</span></div>
 <div id="error" class="error hidden" role="alert"></div>
 </section>
@@ -43,8 +43,11 @@ function renderAgents(data){
   var target=byId('agents');target.innerHTML='';
   (data.roundtable||[]).forEach(function(agent){
     var card=document.createElement('article');card.className='agent';
-    card.innerHTML='<h3>'+escapeHtml(agent.name)+'</h3><div class="model">'+escapeHtml(agent.model)+'</div><div class="label">Initial review</div><div class="output">'+escapeHtml(agent.initial||agent.error||'No response')+'</div><div class="label" style="margin-top:14px">Cross-examination</div><div class="output">'+escapeHtml(agent.critique||agent.error||'No critique returned')+'</div>';
+    var stage=agent.turn?'Turn '+agent.turn:'Provider status';
+    var body=agent.text||agent.initial||agent.critique||'No response returned.';
+    card.innerHTML='<h3>'+escapeHtml(agent.agent||agent.name||'Unnamed agent')+'</h3><div class="model">'+escapeHtml(stage+' · '+(agent.model||'model not reported'))+'</div><div class="label">Result</div><div class="output">'+escapeHtml(body)+'</div>';
     if(agent.error){var note=document.createElement('p');note.className='note';note.textContent='Provider note: '+agent.error;card.appendChild(note)}
+    if(agent.ok===false){card.style.borderColor='var(--danger)'}
     target.appendChild(card);
   });
 }
@@ -52,7 +55,10 @@ function renderResult(data){
   byId('result').classList.remove('hidden');byId('synthesisTitle').textContent='Synthesis · '+(data.synthesisBy||'Configured model');
   byId('synthesis').textContent=data.synthesis||'No synthesis returned.';
   if(data.code){byId('codeSection').classList.remove('hidden');byId('codeout').value=data.code}else{byId('codeSection').classList.add('hidden');byId('codeout').value=''}
-  byId('notes').textContent=(data.mode==='three-way'?'Three configured models participated. ':'Two configured models participated; add OPENAI_API_KEY in Vercel for a three-way initial review. ')+(data.notes||[]).join(' ');
+  var stages=data.roundtable||[];var failed=stages.filter(function(stage){return stage.ok===false||Boolean(stage.error)}).length;
+  var summary=data.mode==='three-turn-reflection'?'Three-turn reflection workflow. ':data.mode==='partial'?'Partial run; the workflow stopped before synthesis. ':'Free-only roundtable status. ';
+  if(failed)summary+=failed+' stage/provider failure(s) are listed below. ';else if(data.ok)summary+='All reported stages completed, but generated code still requires independent build and security tests. ';
+  byId('notes').textContent=summary+(data.notes||[]).join(' ');
   renderAgents(data);var unavailable=byId('unavailable');unavailable.innerHTML='';
   if(data.unavailable&&data.unavailable.length){var panel=document.createElement('div');panel.className='panel';var heading=document.createElement('h3');heading.textContent='Unavailable providers';panel.appendChild(heading);
     data.unavailable.forEach(function(p){var line=document.createElement('p');line.className='note';line.textContent=p.name+' ('+p.model+'): '+p.error;panel.appendChild(line)});unavailable.appendChild(panel)}
@@ -60,26 +66,54 @@ function renderResult(data){
 async function runRoundtable(){
   var goal=byId('goal').value.trim(),code=byId('code').value;
   if(!goal){byId('error').textContent='Enter a goal first.';byId('error').classList.remove('hidden');return}
-  byId('run').disabled=true;byId('error').classList.add('hidden');byId('result').classList.add('hidden');byId('status').textContent='Running parallel first-pass reviews, cross-examination, and synthesis…';
-  try{
-    var response=await fetch('/api/tarotai/collaborate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({goal:goal,code:code})});
-    var raw=await response.text(),data={};try{data=raw?JSON.parse(raw):{}}catch(e){throw new Error(raw.slice(0,500)||('HTTP '+response.status))}
-    if(!response.ok){
-      var providerFailures=[];
-      if(Array.isArray(data.roundtable)){
-        renderResult({roundtable:data.roundtable,synthesis:'The run stopped before synthesis because fewer than two models responded.',mode:'partial'});
-        data.roundtable.forEach(function(agent){
-          if(agent.error)providerFailures.push(agent.name+' ('+agent.model+'): '+agent.error);
-        });
-      }
-      var message=data.error||('Request failed (HTTP '+response.status+')');
-      if(data.missingEnvVars)message+='\nMissing: '+data.missingEnvVars.join(', ');
-      if(providerFailures.length)message+='\n\nProvider diagnostics:\n'+providerFailures.join('\n');
-      throw new Error(message)
+  byId('run').disabled=true;byId('error').classList.add('hidden');byId('result').classList.remove('hidden');
+  byId('synthesis').textContent='Waiting for the first agent stage…';byId('agents').innerHTML='';byId('notes').textContent='';
+  byId('status').textContent='Connecting to the free-only Roundtable stream…';
+  var stages=[],finished=false;
+  function updateStage(stage){
+    var key=String(stage.turn||'');
+    var i=stages.findIndex(function(x){return String(x.turn||'')===key});
+    if(i>=0)stages[i]=Object.assign({},stages[i],stage);else stages.push(stage);
+    renderResult({mode:'partial',roundtable:stages,synthesis:'Agents are working. Completed stages appear here as they arrive.',notes:['Live stage updates · '+stages.length+' stage result(s) received.']});
+  }
+  function handleEvent(event,data){
+    if(event==='status'){byId('status').textContent=data.message||'Roundtable running…';return}
+    if(event==='stage'){updateStage(data);byId('status').textContent='Received Turn '+(data.turn||'?')+' from '+(data.agent||'agent')+'.';return}
+    if(event==='done'){finished=true;renderResult(data);byId('status').textContent='Finished. Review the results and verify any proposed code before applying it.';return}
+    if(event==='error'){
+      finished=true;
+      if(Array.isArray(data.roundtable))data.roundtable.forEach(updateStage);
+      byId('synthesis').textContent='Run stopped before synthesis. See the provider failure details below.';
+      byId('status').textContent='Run failed. Partial results are preserved; no code was changed or deployed.';
+      throw new Error(data.error||('Roundtable failed (HTTP '+(data.status||'unknown')+')'));
     }
-    renderResult(data);byId('status').textContent='Finished. Review disagreements and verify changes before applying them.';
-  }catch(error){byId('error').textContent=error instanceof Error?error.message:'Roundtable request failed.';byId('error').classList.remove('hidden');byId('status').textContent='Run failed. No code was changed or deployed.'}
-  finally{byId('run').disabled=false}
+  }
+  try{
+    var response=await fetch('/api/tarotai/collaborate',{method:'POST',headers:{'content-type':'application/json','accept':'text/event-stream'},body:JSON.stringify({goal:goal,code:code})});
+    var contentType=response.headers.get('content-type')||'';
+    if(!contentType.includes('text/event-stream')){
+      var failure=await response.json().catch(function(){return {error:'Unexpected response from Roundtable.'}});
+      if(!response.ok)throw new Error(failure.error||('Request failed (HTTP '+response.status+')'));
+      renderResult(failure);finished=true;return;
+    }
+    if(!response.body)throw new Error('Streaming is unavailable in this browser. Please retry or use a current browser.');
+    var reader=response.body.getReader(),decoder=new TextDecoder(),buffer='';
+    while(true){
+      var part=await reader.read();if(part.done)break;
+      buffer+=decoder.decode(part.value,{stream:true});
+      var blocks=buffer.split(/\r?\n\r?\n/);buffer=blocks.pop()||'';
+      for(var i=0;i<blocks.length;i++){
+        var lines=blocks[i].split(/\r?\n/),event='message',dataLines=[];
+        lines.forEach(function(line){if(line.indexOf('event:')===0)event=line.slice(6).trim();else if(line.indexOf('data:')===0)dataLines.push(line.slice(5).trim())});
+        if(dataLines.length){var payload;try{payload=JSON.parse(dataLines.join('\n'))}catch(e){continue}handleEvent(event,payload)}
+      }
+    }
+    if(!finished)throw new Error('The stream ended before the Roundtable sent its final result. The stages already shown are preserved.');
+  }catch(error){
+    byId('error').textContent=error instanceof Error?error.message:'Roundtable request failed.';
+    byId('error').classList.remove('hidden');
+    byId('status').textContent='Run incomplete. Review any stages received above; no code was changed or deployed.';
+  }finally{byId('run').disabled=false}
 }
 byId('run').addEventListener('click',runRoundtable);
 byId('copy').addEventListener('click',async function(){try{await navigator.clipboard.writeText(byId('codeout').value);byId('status').textContent='Proposed code copied. It has not been tested or applied.'}catch(e){byId('status').textContent='Clipboard access failed; select and copy the code from the text area.'}});
