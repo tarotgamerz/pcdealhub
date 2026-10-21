@@ -14,11 +14,16 @@ const MAX_CODE_CHARS = 24_000;
 const MAX_GOAL_CHARS = 6_000;
 
 function isAuthorized(request: Request) {
-  if (!process.env.TAROTAI_ACCESS_CODE) return true;
+  if (!process.env.TAROTAI_ACCESS_CODE) return false;
   return (request.headers.get("cookie") || "")
     .split(";")
     .some((part) => part.trim() === "tarotai_session=authorized");
 }
+
+function redactSecrets(value: string) {
+  return value
+    .replace(/\\b(?:sk-[A-Za-z0-9_-]{20,}|xai-[A-Za-z0-9_-]{20,}|AIza[0-9A-Za-z_-]{30,})\\b/g, "[REDACTED_API_KEY]")
+    .replace(/((?:[A-Z0-9_]*(?:KEY|SECRET|TOKEN|PASSWORD|PRIVATE|ACCESS_CODE)[A-Z0-9_]*|apiKey|accessToken)\\s*[:=]\\s*["']?)[^\\s"'\x60,;]+/gi, "$1[REDACTED]");}
 
 async function readJsonResponse(response: Response, providerName: string) {
   const raw = await response.text();
@@ -169,6 +174,9 @@ function buildContext(goal: string, code: string) {
 }
 
 export async function POST(request: Request) {
+  if (!process.env.TAROTAI_ACCESS_CODE) {
+    return NextResponse.json({ error: "Roundtable disabled: configure TAROTAI_ACCESS_CODE before enabling paid model calls." }, { status: 503 });
+  }
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -181,8 +189,10 @@ export async function POST(request: Request) {
     }
 
     const body = rawBody ? JSON.parse(rawBody) : {};
-    const goal = typeof body?.goal === "string" ? body.goal.trim() : "";
-    const code = typeof body?.code === "string" ? body.code.trim() : "";
+    const rawGoal = typeof body?.goal === "string" ? body.goal.trim() : "";
+    const rawCode = typeof body?.code === "string" ? body.code.trim() : "";
+    const goal = redactSecrets(rawGoal);
+    const code = redactSecrets(rawCode);
 
     if (!goal) {
       return NextResponse.json({ error: "Add a goal for the roundtable first." }, { status: 400 });
