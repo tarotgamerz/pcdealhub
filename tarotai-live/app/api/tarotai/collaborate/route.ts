@@ -22,16 +22,18 @@ type Review = {
 const MAX_BODY_CHARS = 50_000;
 const MAX_CODE_CHARS = 24_000;
 const MAX_GOAL_CHARS = 6_000;
-const PROVIDER_TIMEOUT_MS = 7_000;
+const PROVIDER_TIMEOUT_MS = 14_000;
 const RETRY_BUFFER_MS = 1_000;
 
 class ProviderHttpError extends Error {
   status: number;
   retryAfter: string | null;
-  constructor(status: number, retryAfter: string | null) {
+  detail: string;
+  constructor(status: number, retryAfter: string | null, detail = "") {
     super("HTTP " + status);
     this.status = status;
     this.retryAfter = retryAfter;
+    this.detail = detail;
   }
 }
 
@@ -68,7 +70,19 @@ async function postJson(
     }
 
     if (!response.ok) {
-      throw new ProviderHttpError(response.status, response.headers.get("retry-after"));
+      const rawError = await response.text().catch(() => "");
+      let providerDetail = "";
+      try {
+        const errorData = rawError ? JSON.parse(rawError) : {};
+        providerDetail = String(errorData?.error?.message || errorData?.message || "");
+      } catch {
+        providerDetail = "";
+      }
+      providerDetail = redactSecrets(providerDetail)
+        .replace(/https?:\/\/\S+/gi, "[provider URL]")
+        .replace(/[\r\n\t]+/g, " ")
+        .slice(0, 180);
+      throw new ProviderHttpError(response.status, response.headers.get("retry-after"), providerDetail);
     }
 
     const raw = await response.text();
@@ -149,7 +163,7 @@ function getProviders(): { providers: Provider[]; missing: string[] } {
           {
             systemInstruction: { parts: [{ text: system }] },
             contents: [{ role: "user", parts: [{ text: prompt }] }],
-            generationConfig: { temperature: 0.2, maxOutputTokens: maxTokens },
+            generationConfig: { temperature: 0.2, maxOutputTokens: maxTokens, thinkingConfig: { thinkingLevel: "low" } },
           },
           "Gemini"
         );
@@ -184,11 +198,11 @@ function getProviders(): { providers: Provider[]; missing: string[] } {
   if (!openRouterKey) missing.push("OPENROUTER_API_KEY");
   if (openRouterModels.length < 1) {
     missing.push("OPENROUTER_FREE_MODELS (at least one model ID ending in :free)");
-  } else if (openRouterModels.some((model) => !model.endsWith(":free"))) {
-    missing.push("OPENROUTER_FREE_MODELS (every model ID must end in :free)");
+  } else if (openRouterModels.some((model) => model !== "openrouter/free" && !model.endsWith(":free"))) {
+    missing.push("OPENROUTER_FREE_MODELS (use openrouter/free or model IDs ending in :free)");
   }
 
-  if (openRouterKey && openRouterModels.length > 0 && openRouterModels.every((model) => model.endsWith(":free"))) {
+  if (openRouterKey && openRouterModels.length > 0 && openRouterModels.every((model) => model === "openrouter/free" || model.endsWith(":free"))) {
     providers.push(
       openAiStyleProvider(
         "openrouter",
@@ -234,7 +248,7 @@ function buildContext(goal: string, code: string) {
 function safeProviderError(error: unknown) {
   if (error instanceof ProviderHttpError) {
     if (error.status === 429) return "HTTP 429 free-tier rate limit; one retry was attempted.";
-    return "Provider request failed with HTTP " + error.status + ".";
+    return "Provider request failed with HTTP " + error.status + (error.detail ? ": " + error.detail : ".");
   }
   if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
     return "Provider timed out after " + Math.round(PROVIDER_TIMEOUT_MS / 1000) + " seconds.";
@@ -428,7 +442,7 @@ export async function POST(request: Request) {
       notes: [
         "The three configured free-tier providers ran simultaneous independent first-pass reviews.",
         "Successful agents then cross-examined the other agents' proposals concurrently before one synthesis call.",
-        "Only Gemini 3.8 Flash, Groq openai/gpt-oss-20b, and the configured OpenRouter model ending in :free are used. There is no OpenAI, xAI/Grok, paid-model, or paid-provider fallback.",
+        "Only Gemini 3.8 Flash, Groq openai/gpt-oss-20b, and OpenRouter openrouter/free or a configured :free model are used. There is no OpenAI, xAI/Grok, paid-model, or paid-provider fallback.",
         "HTTP 429 is retried once after at least a 1-second buffer; free-tier quotas can still be exhausted and a provider can remain unavailable.",
         "Keep every provider account on its no-cost tier. This endpoint does not enable paid plans, but account-level billing settings are controlled by each provider.",
         "Generated code is advisory only; this endpoint does not write files, place trades, compile code, or deploy changes.",
