@@ -62,10 +62,10 @@ async function runRoundtable(){
   if(!goal){byId('error').textContent='Enter a goal first.';byId('error').classList.remove('hidden');return}
   byId('run').disabled=true;byId('error').classList.add('hidden');byId('result').classList.add('hidden');byId('status').textContent='Running parallel first-pass reviews, cross-examination, and synthesis…';
   try{
-    var response=await fetch('/api/tarotai/collaborate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({goal:goal,code:code)});
+    var response=await fetch('/api/tarotai/collaborate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({goal:goal,code:code})});
     var raw=await response.text(),data={};try{data=raw?JSON.parse(raw):{}}catch(e){throw new Error(raw.slice(0,500)||('HTTP '+response.status))}
     if(!response.ok){if(data.roundtable){renderResult({roundtable:data.roundtable,synthesis:'The run stopped before synthesis because fewer than two models responded.',mode:'partial'})}
-      var message=data.error||('Request failed (HTTP '+response.status+');');if(data.missingEnvVars)message+='\nMissing: '+data.missingEnvVars.join(', ');throw new Error(message)}
+      var message=data.error||('Request failed (HTTP '+response.status+')');if(data.missingEnvVars)message+='\nMissing: '+data.missingEnvVars.join(', ');throw new Error(message)}
     renderResult(data);byId('status').textContent='Finished. Review disagreements and verify changes before applying them.';
   }catch(error){byId('error').textContent=error instanceof Error?error.message:'Roundtable request failed.';byId('error').classList.remove('hidden');byId('status').textContent='Run failed. No code was changed or deployed.'}
   finally{byId('run').disabled=false}
