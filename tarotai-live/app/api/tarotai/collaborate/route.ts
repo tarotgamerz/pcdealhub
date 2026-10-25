@@ -3,7 +3,7 @@ export const runtime = "edge";
 type ProviderId = "gemini" | "groq" | "openrouter";
 type Provider = { id: ProviderId; name: string; model: string; specialty: string; complete: (system: string, prompt: string, maxTokens?: number) => Promise<string> };
 type Emitter = (event: string, data: unknown) => void;
-const MAX_BODY_CHARS = 50_000, MAX_CODE_CHARS = 24_000, MAX_GOAL_CHARS = 6_000, PROVIDER_TIMEOUT_MS = 14_000;
+const MAX_BODY_CHARS = 50_000, MAX_CODE_CHARS = 24_000, MAX_GOAL_CHARS = 6_000, PROVIDER_TIMEOUT_MS = 22_000;
 
 class ProviderHttpError extends Error {
   constructor(public status: number, public detail = "") { super("HTTP " + status); }
@@ -144,7 +144,7 @@ export async function POST(request:Request){
             {turn:"2C",agent:gemini.name,model:gemini.model,ok:true,text:repair},
             {turn:"3A",agent:groq.name,model:groq.model,ok:!!security,text:security,error:finals[0].status==="rejected"?safeError(finals[0].reason):""},
             {turn:"3B",agent:openrouter.name,model:openrouter.model,ok:!!visual,text:visual,error:finals[1].status==="rejected"?safeError(finals[1].reason):""}
-          ],synthesis,code:codeMatch?.[1]?.trim()||"",notes:["Completed agent stages are streamed as they finish; model tokens themselves are not streamed.","OpenRouter timeout can still occur; the configured Gemini provider is the free-tier fallback. Gemini 1.5 Flash is not hard-coded as a possibly retired model.","HTTP 429 is retried once. Quotas and timeouts remain provider limits; no paid fallback is used.","Generated code is advisory and is not compiled, applied, deployed, or executed by this endpoint."]});
+          ],synthesis,code:codeMatch?.[1]?.trim()||"",notes:["Completed agent stages are streamed as they finish; model tokens themselves are not streamed.","OpenRouter timeout can still occur; the configured Gemini provider is the free-tier fallback. The configured Gemini API model is gemini-3.8-flash; verify the official model catalog before changing it.","HTTP 429 is retried once. Quotas and timeouts remain provider limits; no paid fallback is used.","Generated code is advisory and is not compiled, applied, deployed, or executed by this endpoint."]});
         }catch(e){emit("error",{status:e instanceof ProviderHttpError?e.status:500,error:safeError(e)});}
         finally{if(!closed){try{controller.close()}catch{}closed=true;}}
       })();
