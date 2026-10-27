@@ -43,6 +43,7 @@ class MainActivity : Activity() {
     private val appUrl = "https://tarotai-core.vercel.app"
     private val allowedHost = "tarotai-core.vercel.app"
     private var initialLoadPending = true
+    private var mainFrameFailed = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -177,12 +178,14 @@ class MainActivity : Activity() {
             }
 
             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                mainFrameFailed = false
                 pageProgress.progress = 0
                 pageProgress.visibility = View.VISIBLE
                 if (initialLoadPending) showLoading()
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
+                if (mainFrameFailed) return
                 initialLoadPending = false
                 pageProgress.visibility = View.GONE
                 statusPanel.visibility = View.GONE
@@ -194,6 +197,7 @@ class MainActivity : Activity() {
                 error: WebResourceError
             ) {
                 if (request.isForMainFrame) {
+                    mainFrameFailed = true
                     initialLoadPending = false
                     showError(
                         "TarotAI couldn't load",
@@ -212,6 +216,7 @@ class MainActivity : Activity() {
                 errorResponse: android.webkit.WebResourceResponse
             ) {
                 if (request.isForMainFrame && errorResponse.statusCode >= 500) {
+                    mainFrameFailed = true
                     initialLoadPending = false
                     showError(
                         "TarotAI is temporarily unavailable",
@@ -234,6 +239,8 @@ class MainActivity : Activity() {
     }
 
     private fun loadApp() {
+        mainFrameFailed = false
+        initialLoadPending = true
         if (!hasValidatedNetwork()) {
             showError(
                 "You're offline",
