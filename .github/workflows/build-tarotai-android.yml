@@ -111,17 +111,17 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Publish latest APK as a GitHub Release
+      - name: Copy APK into the Vercel-served public directory
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/feat/tarotai-openrouter-free-only'
-        uses: softprops/action-gh-release@v2
+        run: |
+          set -euo pipefail
+          install -D -m 0644 TarotAI.apk tarotai-live/public/TarotAI.apk
+
+      - name: Commit APK for Vercel deployment
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/feat/tarotai-openrouter-free-only'
+        uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          tag_name: tarotai-android-${{ github.run_number }}
-          name: TarotAI Android build ${{ github.run_number }}
-          target_commitish: ${{ github.sha }}
-          make_latest: true
-          generate_release_notes: true
-          body: |
-            TarotAI Android personal-use APK.
-            The app securely opens the TarotAI HTTPS web service; it contains no exchange API keys.
-            Check the build summary for whether a stable release signing key was configured.
-          files: TarotAI.apk
+          commit_message: "Publish latest TarotAI APK to Vercel"
+          file_pattern: "tarotai-live/public/TarotAI.apk"
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "41898282+github-actions[bot]@users.noreply.github.com"
