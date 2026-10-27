@@ -8,6 +8,7 @@ on:
       - ".github/workflows/build-tarotai-android.yml"
       - "android-shell/**"
       - "tarotai-live/app/download/**"
+      - "tarotai-live/public/console.html"
   pull_request:
     branches:
       - "feat/tarotai-openrouter-free-only"
@@ -15,6 +16,7 @@ on:
       - ".github/workflows/build-tarotai-android.yml"
       - "android-shell/**"
       - "tarotai-live/app/download/**"
+      - "tarotai-live/public/console.html"
   workflow_dispatch:
 
 permissions:
@@ -25,7 +27,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  verify-web:
+    name: Verify TarotAI Next.js app
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: tarotai-live
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: tarotai-live/package.json
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Run tests and production build
+        env:
+          CI: "true"
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npm run build
+
   build:
+    needs: [verify-web]
     name: Build TarotAI APK
     runs-on: ubuntu-latest
     timeout-minutes: 25
