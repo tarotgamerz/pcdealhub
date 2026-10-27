@@ -3,7 +3,7 @@ name: Build and publish TarotAI Android APK
 on:
   push:
     branches:
-      - "feat/tarotai-openrouter-free-only"
+      - "feat/binance-production-readonly-account"
     paths:
       - ".github/workflows/build-tarotai-android.yml"
       - "android-shell/**"
@@ -11,7 +11,7 @@ on:
       - "tarotai-live/public/console.html"
   pull_request:
     branches:
-      - "feat/tarotai-openrouter-free-only"
+      - "feat/binance-production-readonly-account"
     paths:
       - ".github/workflows/build-tarotai-android.yml"
       - "android-shell/**"
@@ -112,13 +112,13 @@ jobs:
           retention-days: 14
 
       - name: Copy APK into the Vercel-served public directory
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/feat/tarotai-openrouter-free-only'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/feat/binance-production-readonly-account'
         run: |
           set -euo pipefail
           install -D -m 0644 TarotAI.apk tarotai-live/public/TarotAI.apk
 
       - name: Commit APK for Vercel deployment
-        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/feat/tarotai-openrouter-free-only'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/feat/binance-production-readonly-account'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "Publish latest TarotAI APK to Vercel"
