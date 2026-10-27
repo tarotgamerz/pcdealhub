@@ -1,0 +1,127 @@
+name: Build and publish TarotAI Android APK
+
+on:
+  push:
+    branches:
+      - "feat/binance-production-readonly-account"
+    paths:
+      - ".github/workflows/build-tarotai-android.yml"
+      - "android-shell/**"
+      - "tarotai-live/app/download/**"
+      - "tarotai-live/public/console.html"
+  pull_request:
+    branches:
+      - "feat/binance-production-readonly-account"
+    paths:
+      - ".github/workflows/build-tarotai-android.yml"
+      - "android-shell/**"
+      - "tarotai-live/app/download/**"
+      - "tarotai-live/public/console.html"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tarotai-android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-web:
+    name: Verify TarotAI Next.js app
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: tarotai-live
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: tarotai-live/package.json
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Run tests and production build
+        env:
+          CI: "true"
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npm run build
+
+  build:
+    needs: [verify-web]
+    name: Build TarotAI APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle 8.13
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+
+      - name: Build APK
+        working-directory: android-shell
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          APP_VERSION_CODE: ${{ github.run_number }}
+          APP_VERSION_NAME: 0.1.${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          if [ -n "${ANDROID_KEYSTORE_BASE64:-}" ] &&
+             [ -n "${ANDROID_KEY_ALIAS:-}" ] &&
+             [ -n "${ANDROID_KEYSTORE_PASSWORD:-}" ] &&
+             [ -n "${ANDROID_KEY_PASSWORD:-}" ]; then
+            printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/tarotai-release.jks"
+            export ANDROID_KEYSTORE_PATH="$RUNNER_TEMP/tarotai-release.jks"
+            gradle --no-daemon --stacktrace -PAPP_VERSION_CODE="$APP_VERSION_CODE" -PAPP_VERSION_NAME="$APP_VERSION_NAME" assembleRelease
+            cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/TarotAI.apk"
+            echo "Built a release APK using the configured private signing key." >> "$GITHUB_STEP_SUMMARY"
+          else
+            gradle --no-daemon --stacktrace -PAPP_VERSION_CODE="$APP_VERSION_CODE" -PAPP_VERSION_NAME="$APP_VERSION_NAME" assembleDebug
+            cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/TarotAI.apk"
+            echo "Built a debug-signed APK. For seamless future updates, configure the four Android signing secrets described in android-shell/README.md. A different signing key requires uninstall/reinstall." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload APK build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: TarotAI-Android-APK
+          path: TarotAI.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Copy APK into the Vercel-served public directory
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/feat/binance-production-readonly-account'
+        run: |
+          set -euo pipefail
+          install -D -m 0644 TarotAI.apk tarotai-live/public/TarotAI.apk
+
+      - name: Commit APK for Vercel deployment
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/feat/binance-production-readonly-account'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Publish latest TarotAI APK to Vercel"
+          file_pattern: "tarotai-live/public/TarotAI.apk"
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "41898282+github-actions[bot]@users.noreply.github.com"
