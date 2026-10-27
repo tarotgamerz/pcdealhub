@@ -1,6 +1,4 @@
-const APK_URL =
-  "https://github.com/tarotgamerz/pcdealhub/releases/latest/download/TarotAI.apk";
-const RELEASES_URL = "https://github.com/tarotgamerz/pcdealhub/releases";
+const APK_URL = "/TarotAI.apk";
 
 export const metadata = {
   title: "TarotAI for Android",
@@ -90,14 +88,10 @@ export default function DownloadPage() {
           install an APK published under the official TarotAI repository below.
         </p>
         <div style={{ borderTop: "1px solid #283443", marginTop: 26, paddingTop: 18 }}>
-          <a href={RELEASES_URL} style={{ color: "#9cc1ff", textDecoration: "none", fontWeight: 650 }}>
-            View APK releases and build notes →
-          </a>
           <p style={{ color: "#718096", fontSize: 12, lineHeight: 1.6, marginTop: 12 }}>
-            If the APK is not published yet, open the release page to check the
-            first build status. Never enter exchange API keys anywhere except
-            the official TarotAI app/backend flow; APK builds do not contain
-            your exchange secrets.
+            The installer downloads directly from the TarotAI website. The app
+            requires an internet connection and does not contain exchange API
+            keys or provider secrets.
           </p>
           <a href="https://tarotai-core.vercel.app/" style={{ color: "#aab6c4", fontSize: 13 }}>
             Back to TarotAI
