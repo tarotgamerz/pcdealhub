@@ -20,6 +20,10 @@
 .feature-drawer-logo{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#72e6b0,#6fa8ff);color:#061018;font-weight:900;font-size:19px}
 .feature-drawer-title{font-size:18px;font-weight:800;letter-spacing:-.03em}
 .feature-drawer-sub{font-size:11px;color:#8e9aaa}
+.feature-search-label{display:block;margin:16px 8px 6px;color:#7d8da0;font-size:10px;font-weight:800;letter-spacing:.13em}
+.feature-search{display:block;width:calc(100% - 12px);margin:0 6px 10px;padding:11px 12px;border:1px solid #2a3948;border-radius:10px;background:#080f17;color:#edf2f7;outline:none}
+.feature-search:focus{border-color:#72e6b0;box-shadow:0 0 0 2px rgba(114,230,176,.13)}
+.feature-item[hidden],.feature-group-label[hidden]{display:none!important}
 .feature-drawer-close{margin-left:auto;border:1px solid #263544;border-radius:9px;background:#0c131b;color:#cbd7e3;width:34px;height:34px;font-size:20px}
 .feature-group-label{margin:18px 8px 7px;color:#7d8da0;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.15em}
 .feature-item{display:flex;align-items:center;gap:11px;text-decoration:none;color:#cbd5e0;padding:11px 10px;border:1px solid transparent;border-radius:10px;margin:3px 0;transition:background .15s,border-color .15s}
@@ -334,10 +338,43 @@ function ensureFeatureMenu(){
     overlay.id='feature-menu-overlay';
     overlay.className='feature-overlay';
     overlay.setAttribute('role','presentation');
-    overlay.innerHTML='<nav class="feature-drawer" role="dialog" aria-modal="true" aria-label="TarotAI features"><div class="feature-drawer-head"><div class="feature-drawer-logo">T</div><div><div class="feature-drawer-title">tarotai</div><div class="feature-drawer-sub">Choose an agent or workspace</div></div><button class="feature-drawer-close" type="button" aria-label="Close menu">×</button></div><div class="feature-group-label">AI agents</div><a class="feature-item" data-mode="chat" href="/console.html?mode=chat"><span class="feature-icon">✳</span><span><span class="feature-item-main">Chat Agent</span><span class="feature-item-desc">General assistant and conversation</span></span><span class="feature-item-tag">Chat</span></a><a class="feature-item" href="/console.html?mode=trading"><span class="feature-icon">↗</span><span><span class="feature-item-main">Trading Agent</span><span class="feature-item-desc">Market analysis, setup planning and risk review</span></span><span class="feature-item-tag">Agent</span></a><a class="feature-item" href="/console.html?mode=work"><span class="feature-icon">◈</span><span><span class="feature-item-main">Work Agent</span><span class="feature-item-desc">Plan and carry out practical tasks</span></span></a><a class="feature-item" href="/console.html?mode=research"><span class="feature-icon">⌕</span><span><span class="feature-item-main">Research Agent</span><span class="feature-item-desc">Web research, evidence and citations</span></span></a><a class="feature-item" href="/console.html?mode=code"><span class="feature-icon">⌘</span><span><span class="feature-item-main">Code Agent</span><span class="feature-item-desc">Debugging, code review and implementation</span></span></a><a class="feature-item" href="/agents.html"><span class="feature-icon">⎇</span><span><span class="feature-item-main">Multi-Agent Workspace</span><span class="feature-item-desc">Let selected agent roles collaborate</span></span></a><a class="feature-item" href="/agents.html?profile=trading"><span class="feature-icon">⚖</span><span><span class="feature-item-main">Trading Team</span><span class="feature-item-desc">Market Analyst → Trading Analyst → Risk Officer → Strategy Tester</span></span></a><div class="feature-group-label">Workspace tools</div><a class="feature-item" href="/trading-desk.html"><span class="feature-icon">▤</span><span><span class="feature-item-main">Futures Lab</span><span class="feature-item-desc">Paper trades, backtests and risk controls</span></span></a><a class="feature-item" href="/console.html?section=projects"><span class="feature-icon">▦</span><span><span class="feature-item-main">Projects</span><span class="feature-item-desc">Project context and task history</span></span></a><a class="feature-item" href="/console.html?section=files"><span class="feature-icon">□</span><span><span class="feature-item-main">Documents & Files</span><span class="feature-item-desc">Attach and analyze documents</span></span></a><a class="feature-item" href="/console.html?section=memory"><span class="feature-icon">◎</span><span><span class="feature-item-main">Memory</span><span class="feature-item-desc">Saved notes and remembered context</span></span></a><a class="feature-item" href="/console.html?section=apps"><span class="feature-icon">⧉</span><span><span class="feature-item-main">Connected Apps</span><span class="feature-item-desc">Check and authorize app connectors</span></span></a><a class="feature-item" href="/console.html?section=settings"><span class="feature-icon">⚙</span><span><span class="feature-item-main">Settings & Security</span><span class="feature-item-desc">Runtime status, permissions and audit</span></span></a><div class="feature-drawer-foot">Private workspace · Live exchange execution is not enabled by this menu. Trading analysis and paper records are separate from real orders.</div></nav>';
+    overlay.innerHTML='<nav class="feature-drawer" role="dialog" aria-modal="true" aria-label="TarotAI features"><div class="feature-drawer-head"><div class="feature-drawer-logo">T</div><div><div class="feature-drawer-title">tarotai</div><div class="feature-drawer-sub">Choose an agent or workspace</div></div><button class="feature-drawer-close" type="button" aria-label="Close menu">×</button></div><label class="feature-search-label" for="feature-menu-search">QUICK NAVIGATION</label><input id="feature-menu-search" class="feature-search" type="search" placeholder="Search agents and tools…" autocomplete="off" aria-label="Search agents and workspaces"><div class="feature-group-label">AI agents</div><a class="feature-item" data-mode="chat" href="/console.html?mode=chat"><span class="feature-icon">✳</span><span><span class="feature-item-main">Chat Agent</span><span class="feature-item-desc">General assistant and conversation</span></span><span class="feature-item-tag">Chat</span></a><a class="feature-item" href="/console.html?mode=trading"><span class="feature-icon">↗</span><span><span class="feature-item-main">Trading Agent</span><span class="feature-item-desc">Market analysis, setup planning and risk review</span></span><span class="feature-item-tag">Agent</span></a><a class="feature-item" href="/console.html?mode=work"><span class="feature-icon">◈</span><span><span class="feature-item-main">Work Agent</span><span class="feature-item-desc">Plan and carry out practical tasks</span></span></a><a class="feature-item" href="/console.html?mode=research"><span class="feature-icon">⌕</span><span><span class="feature-item-main">Research Agent</span><span class="feature-item-desc">Web research, evidence and citations</span></span></a><a class="feature-item" href="/console.html?mode=code"><span class="feature-icon">⌘</span><span><span class="feature-item-main">Code Agent</span><span class="feature-item-desc">Debugging, code review and implementation</span></span></a><a class="feature-item" href="/agents.html"><span class="feature-icon">⎇</span><span><span class="feature-item-main">Multi-Agent Workspace</span><span class="feature-item-desc">Let selected agent roles collaborate</span></span></a><a class="feature-item" href="/agents.html?profile=trading"><span class="feature-icon">⚖</span><span><span class="feature-item-main">Trading Team</span><span class="feature-item-desc">Market Analyst → Trading Analyst → Risk Officer → Strategy Tester</span></span></a><div class="feature-group-label">Workspace tools</div><a class="feature-item" href="/trading-desk.html"><span class="feature-icon">▤</span><span><span class="feature-item-main">Futures Lab</span><span class="feature-item-desc">Paper trades, backtests and risk controls</span></span></a><a class="feature-item" href="/console.html?section=projects"><span class="feature-icon">▦</span><span><span class="feature-item-main">Projects</span><span class="feature-item-desc">Project context and task history</span></span></a><a class="feature-item" href="/console.html?section=files"><span class="feature-icon">□</span><span><span class="feature-item-main">Documents & Files</span><span class="feature-item-desc">Attach and analyze documents</span></span></a><a class="feature-item" href="/console.html?section=memory"><span class="feature-icon">◎</span><span><span class="feature-item-main">Memory</span><span class="feature-item-desc">Saved notes and remembered context</span></span></a><a class="feature-item" href="/console.html?section=apps"><span class="feature-icon">⧉</span><span><span class="feature-item-main">Connected Apps</span><span class="feature-item-desc">Check and authorize app connectors</span></span></a><a class="feature-item" href="/console.html?section=settings"><span class="feature-icon">⚙</span><span><span class="feature-item-main">Settings & Security</span><span class="feature-item-desc">Runtime status, permissions and audit</span></span></a><div class="feature-drawer-foot">Private workspace · Live exchange execution is not enabled by this menu. Trading analysis and paper records are separate from real orders.</div></nav>';
     document.body.appendChild(overlay);
     overlay.addEventListener('click',e=>{if(e.target===overlay||e.target.closest('.feature-drawer-close'))toggleFeatureMenu(false)});
-    document.addEventListener('keydown',e=>{if(e.key==='Escape')toggleFeatureMenu(false)});
+    document.addEventListener('keydown',e=>{
+      if(e.key==='Escape'){toggleFeatureMenu(false);return}
+      if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){
+        e.preventDefault();
+        toggleFeatureMenu(true);
+        document.getElementById('feature-menu-search')?.focus();
+        return;
+      }
+      const drawer=document.getElementById('feature-menu-overlay');
+      if(!drawer?.classList.contains('open')||e.key!=='Tab')return;
+      const focusable=[...drawer.querySelectorAll('input:not([hidden]),button:not([hidden]),a.feature-item:not([hidden])')].filter(el=>!el.hasAttribute('disabled')&&el.offsetParent!==null);
+      if(!focusable.length)return;
+      const first=focusable[0],last=focusable[focusable.length-1];
+      if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
+      else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+    });
+  }
+  const search=overlay.querySelector('#feature-menu-search');
+  if(search&&!search.dataset.bound){
+    search.dataset.bound='1';
+    search.addEventListener('input',()=>{
+      const q=search.value.trim().toLowerCase();
+      overlay.querySelectorAll('.feature-item').forEach(item=>{
+        item.hidden=!item.textContent.toLowerCase().includes(q);
+      });
+      overlay.querySelectorAll('.feature-group-label').forEach(label=>{
+        let node=label.nextElementSibling,visible=false;
+        while(node&&!node.classList.contains('feature-group-label')){
+          if(node.classList.contains('feature-item')&&!node.hidden)visible=true;
+          node=node.nextElementSibling;
+        }
+        label.hidden=!visible;
+      });
+    });
   }
   const mode=new URLSearchParams(location.search).get('mode')||'';
   overlay.querySelectorAll('[data-mode]').forEach(a=>a.classList.toggle('active',a.dataset.mode===mode));
@@ -486,7 +523,67 @@ async function enrichTradingHandoff(params){
   }
 }
 
-async function boot(){const params=new URLSearchParams(location.search);const mode=params.get('mode');const section=params.get('section');if(mode==='chat')state.active='Chat Agent';else if(mode==='research')state.active='Research Agent';else if(mode==='code')state.active='Code Agent';else if(mode==='work')state.active='Work Agent';else if(mode==='trading')state.active='Trading Agent';else if(section==='projects')state.active='Projects';else if(section==='files')state.active='Files';else if(section==='memory')state.active='Memory';else if(section==='apps')state.active='Connected Apps';else if(section==='settings')state.active='Settings';try{const h=await fetch('/api/health',{cache:'no-store'});state.runtime=await h.json().catch(()=>null)}catch{state.runtime=null}let authCheckFailed=false;try{const r=await fetch('/api/auth',{cache:'no-store'});if(!r.ok)throw new Error('auth check unavailable');const d=await r.json();state.auth=Boolean(d.authenticated)}catch{authCheckFailed=true;state.auth=false}if(!state.auth){renderLogin();if(authCheckFailed){const message=document.getElementById('loginmsg');if(message)message.innerHTML='<div class="error">Could not check your saved session. Enter your access code below; the server will verify it.</div>'}return}await loadServerState();render();focusConsoleSection(section);const handoffTask=params.get('task');if(handoffTask){const taskInput=document.getElementById('input');if(taskInput)taskInput.value=handoffTask.slice(0,2000);}const shouldAutoRun=params.get('auto')==='1'&&Boolean(handoffTask);if(shouldAutoRun){const taskInput=document.getElementById('input');if(taskInput&&taskInput.value.trim()&&!state.busy)await send();}const el=document.getElementById('runtimeStatus');if(el&&mode!=='trading'){el.textContent=!state.runtime?.hasAccessCode?'SECURITY SETUP REQUIRED':(state.runtime?.hasOpenRouterKey?(state.runtime?.hasExa?'AI runtime connected':'AI key connected • Exa not configured'):'AI runtime needs configuration');}}
+async function boot(){
+  const params=new URLSearchParams(location.search);
+  const mode=params.get('mode'), section=params.get('section');
+  if(mode==='chat')state.active='Chat Agent';
+  else if(mode==='research')state.active='Research Agent';
+  else if(mode==='code')state.active='Code Agent';
+  else if(mode==='work')state.active='Work Agent';
+  else if(mode==='trading')state.active='Trading Agent';
+  else if(section==='projects')state.active='Projects';
+  else if(section==='files')state.active='Files';
+  else if(section==='memory')state.active='Memory';
+  else if(section==='apps')state.active='Connected Apps';
+  else if(section==='settings')state.active='Settings';
+
+  // Independent same-origin checks run together to avoid serial network wait.
+  const [healthResult,authResult]=await Promise.allSettled([
+    fetch('/api/health',{cache:'no-store',credentials:'same-origin',signal:AbortSignal.timeout(8000)}),
+    fetch('/api/auth',{cache:'no-store',credentials:'same-origin',signal:AbortSignal.timeout(8000)})
+  ]);
+  if(healthResult.status==='fulfilled'){
+    try{state.runtime=await healthResult.value.json()}catch{state.runtime=null}
+  }else state.runtime=null;
+
+  let authCheckFailed=false;
+  if(authResult.status==='fulfilled'){
+    try{
+      const response=authResult.value;
+      if(!response.ok)throw new Error('auth check unavailable');
+      const data=await response.json();
+      state.auth=Boolean(data.authenticated);
+    }catch{authCheckFailed=true;state.auth=false}
+  }else{authCheckFailed=true;state.auth=false}
+
+  if(!state.auth){
+    renderLogin();
+    if(authCheckFailed){
+      const message=document.getElementById('loginmsg');
+      if(message)message.innerHTML='<div class="error">Could not check your saved session. Enter your access code below; the server will verify it.</div>';
+    }
+    return;
+  }
+
+  await loadServerState();
+  render();
+  focusConsoleSection(section);
+  const handoffTask=params.get('task');
+  if(handoffTask){
+    const taskInput=document.getElementById('input');
+    if(taskInput)taskInput.value=handoffTask.slice(0,2000);
+  }
+  const shouldAutoRun=params.get('auto')==='1'&&Boolean(handoffTask);
+  if(shouldAutoRun){
+    const taskInput=document.getElementById('input');
+    if(taskInput&&taskInput.value.trim()&&!state.busy)await send();
+  }
+  const el=document.getElementById('runtimeStatus');
+  if(el&&mode!=='trading'){
+    el.textContent=!state.runtime?.hasAccessCode?'SECURITY SETUP REQUIRED':
+      (state.runtime?.hasOpenRouterKey?(state.runtime?.hasExa?'AI runtime connected':'AI key connected • Exa not configured'):'AI runtime needs configuration');
+  }
+}
 boot();
 </script>
 </body>
