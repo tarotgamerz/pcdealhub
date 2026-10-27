@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 
 type Availability = "checking" | "available" | "unavailable";
 
@@ -57,7 +57,7 @@ export default function DownloadButton() {
   );
 }
 
-function buttonStyle(background: string, color: string): React.CSSProperties {
+function buttonStyle(background: string, color: string): CSSProperties {
   return {
     display: "flex",
     boxSizing: "border-box",
@@ -69,10 +69,10 @@ function buttonStyle(background: string, color: string): React.CSSProperties {
     borderRadius: 12,
     background,
     color,
+    font: "inherit",
     fontWeight: 850,
     textDecoration: "none",
     padding: "13px 18px",
-    font: "inherit",
     cursor: background === "#72e6b0" ? "pointer" : "default",
   };
 }
