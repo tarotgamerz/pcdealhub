@@ -1,4 +1,4 @@
-const APK_URL = "/TarotAI.apk";
+import DownloadButton from "./DownloadButton";
 
 export const metadata = {
   title: "Get TarotAI for Android",
@@ -14,7 +14,7 @@ export default function DownloadPage() {
         <p style={{ color: "#72e6b0", fontSize: 12, fontWeight: 800, letterSpacing: ".16em", marginTop: 24, textTransform: "uppercase" }}>TarotAI · Android</p>
         <h1 style={{ fontSize: "clamp(30px, 7vw, 42px)", lineHeight: 1.08, margin: "8px 0 12px" }}>Your trading command center, in your pocket.</h1>
         <p style={{ color: "#aab6c4", lineHeight: 1.7, marginBottom: 24 }}>Install the TarotAI app and access your existing workspace from your Android home screen. The app requires an internet connection and your usual TarotAI sign-in or access code.</p>
-        <a href={APK_URL} download="TarotAI.apk" style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 54, borderRadius: 12, background: "#72e6b0", color: "#061018", fontWeight: 850, textDecoration: "none", padding: "13px 18px" }}>Download Android APK</a>
+        <DownloadButton />
         <p style={{ color: "#8e9aaa", fontSize: 12, lineHeight: 1.65, marginTop: 15 }}>Only install the APK served from this official TarotAI website. Android may ask you to allow installation from your browser. The app does not contain exchange API keys or provider secrets.</p>
         <div style={{ borderTop: "1px solid #283443", marginTop: 26, paddingTop: 18 }}>
           <p style={{ color: "#718096", fontSize: 12, lineHeight: 1.6 }}>If the download does not start, the first APK build may not have been published yet. Please try again after the build is available.</p>
