@@ -94,10 +94,10 @@ export default function DownloadPage() {
             View APK releases and build notes →
           </a>
           <p style={{ color: "#718096", fontSize: 12, lineHeight: 1.6, marginTop: 12 }}>
-            The download button becomes active once the first Android build is
-            published. Never enter exchange API keys anywhere except the
-            official TarotAI app/backend flow; APK builds do not contain your
-            exchange secrets.
+            If the APK is not published yet, open the release page to check the
+            first build status. Never enter exchange API keys anywhere except
+            the official TarotAI app/backend flow; APK builds do not contain
+            your exchange secrets.
           </p>
           <a href="https://tarotai-core.vercel.app/" style={{ color: "#aab6c4", fontSize: 13 }}>
             Back to TarotAI
