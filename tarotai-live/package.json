@@ -9,10 +9,10 @@
     "test:trading": "node --test scripts/trading-rules.test.mjs scripts/trade-readiness-gate.test.mjs scripts/orderbook.test.mjs scripts/paper-approval.test.mjs scripts/paper-position-guard.test.mjs scripts/backtest-evidence.test.mjs scripts/forecast.test.mjs"
   },
   "dependencies": {
-    "next": "15.5.27",
+    "next": "15.5.28",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "zod": "4.3.5",
+    "zod": "4.6.7",
     "office-text-extractor": "4.0.0",
     "@composio/core": "0.18.1",
     "@upstash/redis": "1.39.0",
@@ -35,6 +35,6 @@
     "fflate": "0.8.3",
     "argparse": "2.0.1",
     "@fastify/busboy": "3.2.2",
-    "undici": "6.29.0"
+    "undici": "6.29.1"
   }
 }
